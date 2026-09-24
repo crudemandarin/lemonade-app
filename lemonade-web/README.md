@@ -2,7 +2,7 @@
 
 The Angular 17 frontend for Lemonade Tycoon. It renders server state only: every game rule runs in [lemonade-api](../lemonade-api/), and every mutation returns the updated game view.
 
-The app calls `/api/...` on its own origin. The dev server (`proxy.conf.json`) and nginx (`nginx.conf.template`) forward those calls to the API and remove the `/api` prefix.
+The app calls `/api/...` on its own origin. The dev server (`proxy.conf.json`) and nginx (`nginx.conf.template`) forward those calls to the API unchanged (the API serves its routes under `/api`).
 
 ## Dependencies
 
@@ -14,7 +14,7 @@ The app calls `/api/...` on its own origin. The dev server (`proxy.conf.json`) a
 ```
 src/app/
   core/            API contract (api.models.ts), ApiService, GameStore (signals),
-                   SessionService, X-Username interceptor, auth guard
+                   SessionService, X-Username and 401 interceptors, auth guard
   shared/          nav-bar, card, icon, money pipe
   pages/home/      landing page ("Play game" / "Continue game")
   pages/signin/    username-only sign in

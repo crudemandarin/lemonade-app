@@ -52,3 +52,9 @@ Deviations from DESIGN.md and real tradeoffs made during the build. Newest last.
 - **Did:** `api.NewGame(..., nil)` seeds new games from `time.Now().UnixNano()`; the domain stays clock-free and takes the seed as input. `games` has a unique `user_id`, so "new game" overwrites the row instead of keeping history.
 - **Why:** rule 2 says one active game per user and a new game replaces it. Games stay reproducible from the stored seed.
 - **Trade-off:** no history of past games (a leaderboard would need a separate table).
+
+## 7. Proxies pass `/api` through unchanged (frontend/backend integration)
+- **Found:** the scaffold's nginx and dev-server proxies stripped the `/api` prefix, but the game API serves its routes under `/api` (DESIGN §5), so every proxied call returned 404.
+- **Did:** removed the rewrite from `nginx.conf.template` and `pathRewrite` from `proxy.conf.json`. `/healthz` is no longer reachable through the web proxy; check it on the API port. The scaffold's sample routes (`/samples`) are no longer proxied either.
+- **Also:** a 401 (stored username unknown to the server, e.g. after a DB reset) now clears the session and routes to `/signin` (`unauthorized.interceptor.ts`).
+- **Verified:** every response from a full flow (login, game, buy, sell, both expands, upgrade, end-day with a live event, six error cases) type-checks against `api.models.ts`; a headless-Chrome run of the UI against the real API and Postgres passes.

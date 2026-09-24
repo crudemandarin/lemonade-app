@@ -12,9 +12,9 @@ server {
     resolver ${NGINX_RESOLVER} valid=10s;
     set $api_upstream ${API_UPSTREAM};
 
-    # Proxy API calls to the backend; strips the /api prefix.
+    # Proxy API calls to the backend unchanged: the API serves its routes under /api.
+    # (proxy_pass with a variable and no URI part forwards the original request URI.)
     location /api/ {
-        rewrite ^/api/(.*)$ /$1 break;
         proxy_pass $api_upstream;
         # Send the upstream's own host (and TLS SNI), which hosted platforms route on.
         proxy_set_header Host $proxy_host;

@@ -8,7 +8,7 @@ A turn-based lemonade business game: buy ingredients, run your facilities, sell 
 | `api` | [lemonade-api/](lemonade-api/) | http://localhost:8080 |
 | `db`  | `postgres:16` | `localhost:${DB_PORT}` |
 
-`web` forwards `/api/*` to `api` and removes the `/api` prefix, so no CORS setup is needed.
+`web` forwards `/api/*` to `api` unchanged (the API serves its routes under `/api`), so no CORS setup is needed.
 
 Design docs: [SPEC](docs/claude/SPEC.md), [DESIGN](docs/claude/DESIGN.md), [PLAN](docs/claude/PLAN.md), [DECISIONS](docs/claude/DECISIONS.md).
 
@@ -43,7 +43,6 @@ DB_PORT=5432
 docker compose up -d --build
 open http://localhost:4200                  # the game
 curl http://localhost:8080/healthz          # API health: {"status":"ok"}
-curl http://localhost:4200/api/healthz      # same, through the web proxy
 ```
 
 ```bash
