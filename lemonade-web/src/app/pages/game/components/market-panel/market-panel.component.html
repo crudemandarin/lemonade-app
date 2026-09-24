@@ -1,0 +1,79 @@
+<app-card title="Market and inventory">
+  <div class="table" role="table" aria-label="Market and inventory">
+    <div class="head" role="row">
+      <span role="columnheader">Resource</span>
+      <span role="columnheader">Stock</span>
+      <span role="columnheader">Price</span>
+      <span role="columnheader">Buy at ask</span>
+      <span role="columnheader">Sell at bid</span>
+    </div>
+
+    @for (row of resources(); track row.resource) {
+      <div class="row" role="row" [attr.data-resource]="row.resource">
+        <span class="name" role="cell">{{ labels[row.resource] }}</span>
+
+        <span class="stock" role="cell">
+          <span
+            class="bar"
+            role="progressbar"
+            [attr.aria-valuenow]="row.stock"
+            aria-valuemin="0"
+            [attr.aria-valuemax]="row.capacity"
+            [attr.aria-label]="labels[row.resource] + ' stock'"
+          >
+            <span class="bar-fill" [style.width.%]="fill(row)"></span>
+          </span>
+          <span class="stock-text">{{ row.stock }} / {{ row.capacity }}</span>
+        </span>
+
+        <span class="price" role="cell">
+          {{ row.price | money }}
+          @switch (trend(row)) {
+            @case ('up') {
+              <app-icon class="trend up" name="trend-up" [size]="14" />
+            }
+            @case ('down') {
+              <app-icon class="trend down" name="trend-down" [size]="14" />
+            }
+          }
+        </span>
+
+        <span class="trade buy" role="cell">
+          <input
+            #buyQty
+            class="input qty"
+            type="number"
+            min="1"
+            value="1"
+            [attr.aria-label]="'Cases of ' + labels[row.resource] + ' to buy'"
+          />
+          <button
+            type="button"
+            class="btn"
+            (click)="buy.emit({ resource: row.resource, qty: qty(buyQty) })"
+          >
+            Buy {{ row.ask | money }}
+          </button>
+        </span>
+
+        <span class="trade sell" role="cell">
+          <input
+            #sellQty
+            class="input qty"
+            type="number"
+            min="1"
+            value="1"
+            [attr.aria-label]="'Cases of ' + labels[row.resource] + ' to sell'"
+          />
+          <button
+            type="button"
+            class="btn"
+            (click)="sell.emit({ resource: row.resource, qty: qty(sellQty) })"
+          >
+            Sell {{ row.bid | money }}
+          </button>
+        </span>
+      </div>
+    }
+  </div>
+</app-card>

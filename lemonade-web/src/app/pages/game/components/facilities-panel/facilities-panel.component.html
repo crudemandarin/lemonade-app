@@ -1,0 +1,94 @@
+<app-card title="Facilities">
+  <div class="grid">
+    @if (warehouse(); as wh) {
+      <article class="facility warehouse">
+        <header class="summary">
+          <div class="img" [attr.data-level]="wh.level" aria-hidden="true">
+            <app-icon name="warehouse" [size]="28" />
+          </div>
+          <div>
+            <h3>{{ wh.tierName }}</h3>
+            <p class="muted">Warehouses, level {{ wh.level }} of {{ wh.maxLevel }}</p>
+            <p class="muted">Upkeep {{ wh.upkeepPerDay | money }} per day</p>
+          </div>
+        </header>
+
+        <div class="upgrade-block">
+          <button
+            type="button"
+            class="btn upgrade"
+            [disabled]="!wh.upgrade"
+            (click)="onUpgrade('warehouse', wh)"
+          >
+            @if (wh.upgrade; as up) {
+              Upgrade all warehouses to {{ up.tierName }}: {{ up.totalCost | money }}
+            } @else {
+              Max level
+            }
+          </button>
+          @if (wh.upgrade; as up) {
+            <p class="hint">
+              Covers {{ buildings(wh.buildings) }} at {{ up.costPerBuilding | money }} each. Each
+              building goes from {{ wh.sizePerBuilding }} to {{ up.sizePerBuilding }} cases.
+            </p>
+          }
+        </div>
+
+        <ul class="resources">
+          @for (r of wh.resources; track r.resource) {
+            <li [attr.data-resource]="r.resource">
+              <span class="name">{{ labels[r.resource] }}</span>
+              <span class="count">x{{ r.count }}</span>
+              <span class="muted">Holds {{ r.capacity }} cases</span>
+              <button type="button" class="btn btn-sm" (click)="expandWarehouse.emit(r.resource)">
+                Expand {{ wh.expandCost | money }}
+              </button>
+            </li>
+          }
+        </ul>
+      </article>
+    }
+
+    @if (production(); as pr) {
+      <article class="facility production">
+        <header class="summary">
+          <div class="img" [attr.data-level]="pr.level" aria-hidden="true">
+            <app-icon name="factory" [size]="28" />
+          </div>
+          <div>
+            <h3>{{ pr.tierName }}</h3>
+            <p class="muted">Production, level {{ pr.level }} of {{ pr.maxLevel }}</p>
+            <p class="muted">{{ buildings(pr.buildings) }}</p>
+            <p class="muted">Makes {{ pr.ratePerDay }} lemonade per day</p>
+            <p class="muted">Upkeep {{ pr.upkeepPerDay | money }} per day</p>
+          </div>
+        </header>
+
+        <div class="actions">
+          <button type="button" class="btn expand" (click)="expandProduction.emit()">
+            Expand: {{ pr.expandCost | money }}
+          </button>
+          <button
+            type="button"
+            class="btn upgrade"
+            [disabled]="!pr.upgrade"
+            (click)="onUpgrade('production', pr)"
+          >
+            @if (pr.upgrade; as up) {
+              Upgrade to {{ up.tierName }}: {{ up.totalCost | money }}
+            } @else {
+              Max level
+            }
+          </button>
+          @if (pr.upgrade; as up) {
+            <p class="hint">
+              Covers {{ buildings(pr.buildings) }} at {{ up.costPerBuilding | money }} each. Each
+              building goes from {{ pr.sizePerBuilding }} to {{ up.sizePerBuilding }} lemonade per
+              day.
+            </p>
+          }
+        </div>
+      </article>
+    }
+  </div>
+</app-card>

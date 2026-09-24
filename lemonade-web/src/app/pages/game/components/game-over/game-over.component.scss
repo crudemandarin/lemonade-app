@@ -1,0 +1,21 @@
+.hero {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 4rem 1rem;
+  text-align: center;
+
+  app-icon {
+    color: var(--text-muted);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 1.75rem;
+  }
+
+  p {
+    margin: 0 0 0.75rem;
+    color: var(--text-muted);
+  }
+}

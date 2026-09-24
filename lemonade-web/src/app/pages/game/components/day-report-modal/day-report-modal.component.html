@@ -1,0 +1,46 @@
+<div class="backdrop fade-in">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="day-report-title">
+    @if (report(); as r) {
+      <h2 id="day-report-title">Day {{ r.day }} report</h2>
+
+      <dl>
+        <dt>Lemonade produced</dt>
+        <dd>+{{ r.produced }}</dd>
+
+        <dt>Ice melted</dt>
+        <dd>{{ r.iceMelted }} cases</dd>
+
+        <dt>Upkeep paid</dt>
+        <dd>{{ -r.upkeepPaid | money }}</dd>
+
+        @if (lemonadePrice(); as p) {
+          <dt>Lemonade price</dt>
+          <dd>{{ p.before | money }} → {{ p.after | money }}</dd>
+        }
+
+        @for (e of r.newEvents; track e.key) {
+          <dt>New event</dt>
+          <dd>{{ e.name }}</dd>
+        }
+
+        @for (e of r.expiredEvents; track e.key) {
+          <dt>Event ended</dt>
+          <dd>{{ e.name }}</dd>
+        }
+      </dl>
+
+      <dl class="total">
+        <dt>Capital</dt>
+        <dd>{{ r.capitalBefore | money }} → {{ r.capitalAfter | money }}</dd>
+      </dl>
+
+      <button type="button" class="btn btn-primary" (click)="dismiss.emit()">
+        @if (r.bankrupt) {
+          See results
+        } @else {
+          Start day {{ r.day + 1 }}
+        }
+      </button>
+    }
+  </div>
+</div>

@@ -1,0 +1,19 @@
+<nav class="nav">
+  <a class="brand" routerLink="/">
+    <app-icon name="lemon" [size]="22" />
+    Lemonade Tycoon
+  </a>
+
+  @if (username(); as name) {
+    <div class="user">
+      <app-icon name="user" />
+      <span class="name">{{ name }}</span>
+      <button type="button" class="btn btn-ghost log-out" (click)="logOut.emit()">
+        <app-icon name="log-out" [size]="14" />
+        Log out
+      </button>
+    </div>
+  } @else {
+    <a class="btn" routerLink="/signin">Sign in</a>
+  }
+</nav>

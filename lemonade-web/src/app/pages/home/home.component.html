@@ -1,0 +1,14 @@
+<section class="hero">
+  <app-icon name="lemon" [size]="64" />
+  <h1>Lemonade Tycoon</h1>
+  <p>Buy low, sell high, and grow your stand into a factory.</p>
+
+  <div class="actions">
+    @if (username()) {
+      <a class="btn btn-primary" routerLink="/game">Continue game</a>
+    } @else {
+      <a class="btn btn-primary" routerLink="/signin">Play game</a>
+      <a class="btn" routerLink="/signin">Sign in</a>
+    }
+  </div>
+</section>

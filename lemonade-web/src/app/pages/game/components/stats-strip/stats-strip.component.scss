@@ -1,0 +1,30 @@
+.strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+dl {
+  display: flex;
+  gap: 2.5rem;
+  margin: 0;
+}
+
+dt {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+dd {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

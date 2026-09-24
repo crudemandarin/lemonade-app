@@ -7,10 +7,12 @@
   --border: #e4e6ef;
   --hover: #f4f5fa;
   --code-bg: #f3f4f9;
-  --accent: #5b5bd6;
-  --accent-hover: #4a4ac4;
-  --accent-soft: #ededfc;
-  --accent-border: #c7c7f5;
+  --accent: #facc15;
+  --accent-hover: #eab308;
+  --accent-soft: #fefce8;
+  --accent-border: #fde68a;
+  --accent-strong: #a16207;
+  --accent-contrast: #1a1d2e;
   --green: #16a34a;
   --blue: #2563eb;
   --amber: #d97706;
@@ -21,6 +23,7 @@
   --radius-lg: 14px;
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --page-width: 72rem;
 }
 
 @mixin dark-theme {
@@ -32,10 +35,12 @@
   --border: #272b38;
   --hover: #1d212c;
   --code-bg: #10131a;
-  --accent: #7c7cf0;
-  --accent-hover: #9292f5;
-  --accent-soft: #23234a;
-  --accent-border: #3d3d7a;
+  --accent: #facc15;
+  --accent-hover: #fde047;
+  --accent-soft: #2a2610;
+  --accent-border: #5c4f12;
+  --accent-strong: #facc15;
+  --accent-contrast: #1a1d2e;
   --green: #4ade80;
   --blue: #60a5fa;
   --amber: #fbbf24;
@@ -83,11 +88,6 @@ body {
 
 // ---- form controls ----
 
-.row {
-  display: flex;
-  gap: 0.5rem;
-}
-
 .grow {
   flex: 1;
   min-width: 0;
@@ -109,7 +109,7 @@ body {
   &:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-soft);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
   }
 
   &.input-sm {
@@ -155,11 +155,18 @@ body {
 .btn-primary {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-contrast);
+  font-weight: 600;
 
   &:hover:not(:disabled) {
     background: var(--accent-hover);
   }
+}
+
+.btn-sm {
+  height: 2rem;
+  padding: 0 0.75rem;
+  font-size: 0.8125rem;
 }
 
 .btn-ghost {
@@ -219,7 +226,7 @@ body {
   }
 
   &.btn-primary::after {
-    border-color: #fff;
+    border-color: var(--accent-contrast);
     border-right-color: transparent;
   }
 }

@@ -1,24 +1,36 @@
+import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
+
 import { AppComponent } from './app.component';
+import { SessionService } from './core/session.service';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideHttpClient()],
     }).compileComponents();
   });
 
-  it('should create the app', () => {
+  afterEach(() => TestBed.inject(SessionService).signOut());
+
+  it('renders the nav bar', () => {
     const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    expect(app).toBeTruthy();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-nav-bar')).not.toBeNull();
   });
 
-  it(`should have the 'lemonade-web' title`, () => {
+  it('log out clears the session and routes home', () => {
+    const session = TestBed.inject(SessionService);
+    session.signIn('lemonjoe');
+    const navigate = spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
     const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    expect(app.title).toEqual('lemonade-web');
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('.log-out').click();
+
+    expect(session.username()).toBeNull();
+    expect(navigate).toHaveBeenCalledWith('/');
   });
 });

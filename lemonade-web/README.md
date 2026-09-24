@@ -1,31 +1,32 @@
 # lemonade-web
 
-An Angular 17 single-page demo of the [lemonade-api](../lemonade-api/) API that uses every endpoint:
+The Angular 17 frontend for Lemonade Tycoon. It renders server state only: every game rule runs in [lemonade-api](../lemonade-api/), and every mutation returns the updated game view.
 
-- **API status**: `GET /` on page load
-- **Create sample**: `POST /samples`
-- **Samples table**: `GET /samples`, inline edit (`PUT /samples/:id`), delete (`DELETE /samples/:id`)
-- **Look up by ID**: `GET /samples/:id`
-- **Request history**: every call with its method, status, timing and bodies
-
-The app calls `/api/...` on its own origin. The dev server (`proxy.conf.json`) and nginx (`nginx.conf`) forward those calls to the API and remove the `/api` prefix.
+The app calls `/api/...` on its own origin. The dev server (`proxy.conf.json`) and nginx (`nginx.conf.template`) forward those calls to the API and remove the `/api` prefix.
 
 ## Dependencies
 
-- [Node.js](https://nodejs.org/) 20 LTS (Angular 17 supports 18.13+ and 20.9+)
+- [Node.js](https://nodejs.org/) 20 LTS or newer (Angular 17 supports 18.13+ and 20.9+)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/), to run the API or the full stack
 
 ## Project layout
 
 ```
 src/app/
-  models/          API resource types
-  services/        HTTP client, sample list store, request log + interceptor
-  shared/          reusable UI components (card, icon, json-view, method-badge, status-pill)
-  utilities/       helper functions (API error messages)
-  pages/index/     the demo page and its section components
-src/styles.scss    theme (light/dark), buttons, inputs
+  core/            API contract (api.models.ts), ApiService, GameStore (signals),
+                   SessionService, X-Username interceptor, auth guard
+  shared/          nav-bar, card, icon, money pipe
+  pages/home/      landing page ("Play game" / "Continue game")
+  pages/signin/    username-only sign in
+  pages/game/      dashboard + game over; presentational components in components/:
+                   stats-strip, events-banner, market-panel, facilities-panel,
+                   day-report-modal, game-over
+src/styles.scss    theme tokens (light/dark), buttons, inputs
 ```
+
+Routes: `/` home, `/signin`, `/game` (guarded: redirects to `/signin` without a stored username).
+
+Only `GameStore` talks to `ApiService`. Page components read store signals and pass data down to presentational components, which emit events back up.
 
 ## Run locally
 
@@ -41,7 +42,6 @@ npm run build                                          # production build
 npx ng test --watch=false --browsers=ChromeHeadless    # unit tests
 npm run format                                         # format with Prettier (format:check to verify)
 npm run lint                                           # lint with angular-eslint
-npm run lint -- --fix                                  # lint and apply safe auto-fixes
 ```
 
 ## Run with Docker
@@ -52,5 +52,3 @@ nginx forwards `/api` to a container named `api`, so run the image through the p
 cd .. && docker compose up -d --build        # full stack
 docker compose up -d --build web             # rebuild only the frontend
 ```
-
-Run on its own with `docker run`, the app loads but every API call fails.

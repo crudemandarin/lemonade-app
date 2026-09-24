@@ -1,1 +1,6 @@
-<router-outlet />
+<header class="top">
+  <app-nav-bar [username]="username()" (logOut)="logOut()" />
+</header>
+<main class="page">
+  <router-outlet />
+</main>

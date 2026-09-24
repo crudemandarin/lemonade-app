@@ -1,0 +1,49 @@
+@if (store.error(); as message) {
+  <div class="alert fade-in" role="alert">
+    <app-icon name="alert" />
+    <span class="grow">{{ message }}</span>
+    <button type="button" class="icon-btn" aria-label="Dismiss" (click)="store.clearError()">
+      <app-icon name="x" />
+    </button>
+  </div>
+}
+
+@if (store.game(); as game) {
+  @if (game.status === 'bankrupt') {
+    <app-game-over [day]="game.day" [capital]="game.capital" (newGame)="store.newGame()" />
+  } @else {
+    <div class="dashboard">
+      <app-stats-strip
+        [day]="game.day"
+        [capital]="game.capital"
+        [upkeepPerDay]="game.upkeepPerDay"
+        [busy]="store.loading()"
+        (endDay)="store.endDay()"
+      />
+
+      @if (game.events.length) {
+        <app-events-banner [events]="game.events" />
+      }
+
+      <app-market-panel
+        [resources]="game.resources"
+        (buy)="store.buy($event.resource, $event.qty)"
+        (sell)="store.sell($event.resource, $event.qty)"
+      />
+
+      <app-facilities-panel
+        [warehouse]="game.facilities.warehouse"
+        [production]="game.facilities.production"
+        (expandWarehouse)="store.expandWarehouse($event)"
+        (expandProduction)="store.expandProduction()"
+        (upgrade)="store.upgrade($event)"
+      />
+    </div>
+  }
+} @else if (store.loading()) {
+  <p class="status">Loading your game…</p>
+}
+
+@if (store.report(); as report) {
+  <app-day-report-modal [report]="report" (dismiss)="store.dismissReport()" />
+}

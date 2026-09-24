@@ -1,0 +1,22 @@
+<form class="form" novalidate (submit)="submit($event, username.value)">
+  <label for="username">Username</label>
+  <input
+    #username
+    id="username"
+    class="input"
+    autocomplete="username"
+    [attr.aria-invalid]="!!fieldError()"
+  />
+  @if (message(); as message) {
+    <p class="field-error">{{ message }}</p>
+  }
+  <button
+    type="submit"
+    class="btn btn-primary"
+    [class.is-loading]="store.loading()"
+    [disabled]="store.loading()"
+  >
+    Continue
+  </button>
+  <p class="hint">New name? We'll start a game for it.</p>
+</form>
