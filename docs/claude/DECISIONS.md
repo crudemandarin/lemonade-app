@@ -76,3 +76,8 @@ Deviations from DESIGN.md and real tradeoffs made during the build. Newest last.
 - **Fixed in `nginx.conf.template`:** the manifest was served as `application/octet-stream` (now `application/manifest+json`), and no file had a `Cache-Control`, so browsers could heuristically cache `ngsw.json` and delay PWA updates. Everything outside `/api` is now `no-cache` (revalidate, cheap 304s); built JS/CSS are content-hashed so this costs little.
 - **Favicon:** the whole lemon from `assets/resources/lemon.svg`, cropped to fill the tab, as `favicon.svg` plus a 16/32/48px `favicon.ico`. The previous lemon-slice-on-a-tile icon was unreadable at 16px. PWA install icons are unchanged.
 - **Cloud Run reserves `/healthz`:** on the deployed API, `GET /healthz` returns Google's own 404 page, never reaching the app, so the slice 0 acceptance "healthz returns 200 deployed" cannot be met with that path. Locally it works. Needs a different path (for example `/api/health`) if a deployed health check matters.
+
+## 11. Health check moved from `/healthz` to `/api/health`
+- **Why:** Cloud Run's front end reserves the exact path `/healthz` and answers it with Google's own 404, so the deployed API could never pass the slice 0 check. `/api/health` also goes through the web proxy, so one public URL (`<web-url>/api/health`) checks both services.
+- **Did:** replaced the route (no alias kept) and updated the test, READMEs, CLAUDE.md, DESIGN §5 and PLAN. Decisions 1, 2, 7 and 10 still say `/healthz` because they record what was true then. It stays liveness-only (decision 2).
+- **Also:** lint and Prettier now skip `design-preview/` (throwaway design mock-ups) and `shared/event-backdrop/`, which had two `no-explicit-any` errors in its spec.

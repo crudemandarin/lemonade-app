@@ -1,6 +1,6 @@
 {
   "root": true,
-  "ignorePatterns": ["projects/**/*"],
+  "ignorePatterns": ["projects/**/*", "design-preview/**", "src/app/shared/event-backdrop/**"],
   "overrides": [
     {
       "files": ["*.ts"],

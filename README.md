@@ -42,7 +42,7 @@ DB_PORT=5432
 ```bash
 docker compose up -d --build
 open http://localhost:4200                  # the game
-curl http://localhost:8080/healthz          # API health: {"status":"ok"}
+curl http://localhost:4200/api/health      # API health via the web proxy: {"status":"ok"}
 ```
 
 ```bash

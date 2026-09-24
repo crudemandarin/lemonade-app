@@ -14,7 +14,7 @@ func TestHealthz(t *testing.T) {
 	RegisterHealth(router)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {

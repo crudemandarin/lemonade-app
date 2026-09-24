@@ -14,7 +14,7 @@ main.go                 entrypoint: loads secrets, connects DB, migrates, wires 
 internal/domain/        pure game rules (no I/O, no Gin, no SQL): config, market, events,
                         actions, facilities, end of day, bankruptcy
 internal/store/         Repository interface, Postgres implementation, in-memory fake
-internal/api/           Gin handlers, DTOs (camelCase JSON), error mapping, /healthz
+internal/api/           Gin handlers, DTOs (camelCase JSON), error mapping, /api/health
 libraries/              secrets loading, database connection
 Dockerfile              API image (also used by the top-level docker-compose.yml)
 ```
@@ -80,7 +80,7 @@ Postgres reads the credentials only when it sets up an empty volume. To change t
 ## 4. Try it out
 
 ```bash
-curl http://localhost:8080/healthz
+curl http://localhost:8080/api/health
 curl -X POST http://localhost:8080/api/login -H "Content-Type: application/json" -d '{"username":"lemonjoe"}'
 curl http://localhost:8080/api/game -H "X-Username: lemonjoe"
 ```
@@ -104,7 +104,7 @@ Every `/api/game` route needs an `X-Username` header (username-only auth, intent
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET    | `/healthz` | Liveness check |
+| GET    | `/api/health` | Liveness check (no auth) |
 | POST   | `/api/login` `{username}` | Create or get a user (a new user gets a new game) |
 | GET    | `/api/game` | Current game view |
 | POST   | `/api/game/new` | Start a fresh game |

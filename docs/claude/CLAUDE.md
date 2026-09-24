@@ -3,7 +3,7 @@
 Time-boxed (4h) greenfield take-home. Optimize for: working end-to-end product early, clean abstractions, tests, and being able to explain every decision.
 
 ## Stack & commands
-- Full stack (from repo root): `cp .env.example .env && docker compose up -d --build` → web http://localhost:4200, api http://localhost:8080 (`/healthz`), db on `$DB_PORT`
+- Full stack (from repo root): `cp .env.example .env && docker compose up -d --build` → web http://localhost:4200, api http://localhost:8080 (`/api/health`), db on `$DB_PORT`
 
 - Language/runtime: Gin-Golang Backend (Go 1.27, in `lemonade-api/`)
 - Install: `go mod download`

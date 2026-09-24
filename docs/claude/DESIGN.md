@@ -53,7 +53,7 @@ Persistence rule: every mutating request does `load game -> domain call -> save 
 | `POST /api/game/facilities/:kind/expand` | Add one building |
 | `POST /api/game/facilities/:kind/upgrade` | Upgrade all buildings one level |
 | `POST /api/game/end-day` | Returns `DayReport` + new game view |
-| `GET /healthz` | Health (deployment check) |
+| `GET /api/health` | Health (deployment check; not `/healthz`, which Cloud Run reserves) |
 
 Every mutation returns the updated game view so the UI needs no follow-up fetch.
 

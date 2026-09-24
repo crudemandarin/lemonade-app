@@ -4,10 +4,10 @@ Vertical slices, thinnest end-to-end first. Budget ≈ 2h10m build including PWA
 
 Time estimates are rough and cumulative.
 
-- [x] **Slice 0: Verify scaffold and docs (≈10m)** _(deployed `/healthz` check pending: GCP project `lemonade-app-509618` has no Cloud Run services yet; run `deploy/scripts/bootstrap.sh`)_
-  - Do: confirm backend, frontend, DB, and deploy all run; fill in every `TODO` command in CLAUDE.md; add `GET /healthz`; write a README skeleton (install, run, test).
-  - Acceptance: from a fresh clone, README steps start backend, frontend, and DB; `/healthz` returns 200 locally and deployed; CLAUDE.md has no `TODO`; PWA is confirmed absent (it is added in slice 7).
-  - Tests: `/healthz` handler test.
+- [x] **Slice 0: Verify scaffold and docs (≈10m)** _(deployed health check: use `/api/health`; see DECISIONS 11)_
+  - Do: confirm backend, frontend, DB, and deploy all run; fill in every `TODO` command in CLAUDE.md; add `GET /api/health`; write a README skeleton (install, run, test).
+  - Acceptance: from a fresh clone, README steps start backend, frontend, and DB; `/api/health` returns 200 locally and deployed; CLAUDE.md has no `TODO`; PWA is confirmed absent (it is added in slice 7).
+  - Tests: health handler test.
 
 - [x] **Slice 1: Login to see a persisted game (≈20m, cumulative 30m)**
   - Do: domain `Game`, `Config` (tier tables, prices), `NewGame`, `Capacity`; `users` and `games` tables (migration); `POST /api/login`, `GET /api/game`, `POST /api/game/new`; Angular login page and a read-only dashboard (day, capital, inventory vs. capacity, facilities with tier name/level/quantity, static initial quotes).
