@@ -1,0 +1,292 @@
+<section class="timeline" [class.phone]="phone()">
+  <header class="head">
+    <ul class="marker-legend" aria-label="What the dots on the capital line mean">
+      <li>
+        <svg width="16" height="16" viewBox="-8 -8 16 16" aria-hidden="true">
+          <circle class="m-buy" r="5" />
+        </svg>
+        Bought
+      </li>
+      <li>
+        <svg width="16" height="16" viewBox="-8 -8 16 16" aria-hidden="true">
+          <circle class="m-sell" r="5" />
+        </svg>
+        Sold
+      </li>
+      <li>
+        <svg width="16" height="16" viewBox="-8 -8 16 16" aria-hidden="true">
+          <rect class="m-expand" x="-5" y="-5" width="10" height="10" />
+        </svg>
+        Built
+      </li>
+      <li>
+        <svg width="16" height="16" viewBox="-8 -8 16 16" aria-hidden="true">
+          <rect class="m-upgrade" x="-4" y="-4" width="8" height="8" transform="rotate(45)" />
+        </svg>
+        Upgraded
+      </li>
+    </ul>
+    <button type="button" class="btn btn-ghost table-toggle" (click)="viewTable.set(!viewTable())">
+      {{ viewTable() ? 'View charts' : 'View as table' }}
+    </button>
+  </header>
+
+  @if (viewTable()) {
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Game timeline as a table">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Day</th>
+            <th scope="col">What happened</th>
+            <th scope="col" class="num">Capital</th>
+            @for (r of resources; track r) {
+              <th scope="col" class="num">{{ labels[r] }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of points(); track $index) {
+            <tr>
+              <td>{{ p.day }}</td>
+              <td>{{ describe(p) }}</td>
+              <td class="num">{{ formatMoney(p.capital) }}</td>
+              @for (n of p.stock; track $index) {
+                <td class="num">{{ n }}</td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div
+      class="chart"
+      tabindex="0"
+      role="group"
+      aria-label="Game timeline charts. Use the left and right arrow keys to step through events, Escape to close."
+      (keydown)="onKey($event)"
+    >
+      <figure class="panel capital">
+        <figcaption>Capital</figcaption>
+        <div class="plot">
+          <svg
+            [attr.width]="width()"
+            [attr.height]="capHeight()"
+            role="img"
+            [attr.aria-label]="capSummary()"
+          >
+            @for (g of capGrid(); track g.y) {
+              <line
+                class="grid"
+                [attr.x1]="left()"
+                [attr.x2]="left() + plotWidth()"
+                [attr.y1]="g.y"
+                [attr.y2]="g.y"
+              />
+              <text class="tick" [attr.x]="left() - 6" [attr.y]="g.y + 4" text-anchor="end">
+                {{ g.label }}
+              </text>
+            }
+            @for (d of dayGrid(); track d.day) {
+              <line
+                class="grid"
+                [attr.x1]="d.x"
+                [attr.x2]="d.x"
+                [attr.y1]="0"
+                [attr.y2]="capHeight() - 6"
+              />
+            }
+            @if (enough()) {
+              <path class="area" [attr.d]="capArea()" />
+              <path class="line capital-line" [attr.d]="capLine()" />
+            }
+            @for (m of capMarkers(); track m.index) {
+              <g
+                class="marker"
+                [attr.data-kind]="m.kind"
+                [attr.data-index]="m.index"
+                [attr.transform]="'translate(' + m.x + ' ' + m.y + ')'"
+              >
+                @switch (m.kind) {
+                  @case ('buy') {
+                    <circle class="halo" r="7" />
+                    <circle class="m-buy" r="5" />
+                  }
+                  @case ('sell') {
+                    <circle class="halo" r="7" />
+                    <circle class="m-sell" r="5" />
+                  }
+                  @case ('expand') {
+                    <rect class="halo" x="-7" y="-7" width="14" height="14" />
+                    <rect class="m-expand" x="-5" y="-5" width="10" height="10" />
+                  }
+                  @case ('upgrade') {
+                    <rect
+                      class="halo"
+                      x="-6"
+                      y="-6"
+                      width="12"
+                      height="12"
+                      transform="rotate(45)"
+                    />
+                    <rect
+                      class="m-upgrade"
+                      x="-4"
+                      y="-4"
+                      width="8"
+                      height="8"
+                      transform="rotate(45)"
+                    />
+                  }
+                }
+              </g>
+            }
+            @if (capEnd(); as end) {
+              <circle class="halo" [attr.cx]="end.x" [attr.cy]="end.y" r="6" />
+              <circle class="end-dot" [attr.cx]="end.x" [attr.cy]="end.y" r="4" />
+              <text
+                class="end-label"
+                [attr.x]="phone() ? end.x : end.x + 10"
+                [attr.y]="phone() ? end.y - 10 : end.y + 4"
+                [attr.text-anchor]="phone() ? 'end' : 'start'"
+              >
+                {{ end.label }}
+              </text>
+            }
+            @if (hoverX(); as hx) {
+              <line
+                class="cross"
+                [attr.x1]="hx"
+                [attr.x2]="hx"
+                [attr.y1]="0"
+                [attr.y2]="capHeight() - 6"
+              />
+            }
+            <rect
+              class="hit"
+              [attr.x]="left()"
+              y="0"
+              [attr.width]="plotWidth()"
+              [attr.height]="capHeight()"
+              (pointermove)="onMove($event, 'capital')"
+              (pointerdown)="onMove($event, 'capital')"
+              (pointerleave)="onLeave($event)"
+            />
+          </svg>
+          @if (hoverPoint(); as h) {
+            @if (hoverChart() === 'capital') {
+              <div class="tip" [class.left]="tipSide() === 'left'" [style.left.px]="hoverX()">
+                <strong class="value">{{ formatMoney(h.point.capital) }}</strong>
+                <span class="what">{{ describe(h.point) }}</span>
+              </div>
+            }
+          }
+          @if (!enough()) {
+            <p class="empty">Your history will appear here as you play.</p>
+          }
+        </div>
+      </figure>
+
+      <figure class="panel stock">
+        <figcaption>Stock</figcaption>
+        <ul class="legend" aria-label="Show or hide a resource">
+          @for (r of resources; track r) {
+            <li>
+              <button type="button" [attr.aria-pressed]="!hidden().has(r)" (click)="toggle(r)">
+                <span class="key" [style.background]="'var(--series-' + r + ')'"></span>
+                {{ labels[r] }}
+              </button>
+            </li>
+          }
+        </ul>
+        <div class="plot">
+          <svg
+            [attr.width]="width()"
+            [attr.height]="stockHeight()"
+            role="img"
+            aria-label="Stock of each resource over time. Use the table view for exact values."
+          >
+            @for (g of stockGrid(); track g.y) {
+              <line
+                class="grid"
+                [attr.x1]="left()"
+                [attr.x2]="left() + plotWidth()"
+                [attr.y1]="g.y"
+                [attr.y2]="g.y"
+              />
+              <text class="tick" [attr.x]="left() - 6" [attr.y]="g.y + 4" text-anchor="end">
+                {{ g.label }}
+              </text>
+            }
+            @for (d of dayGrid(); track d.day) {
+              <line
+                class="grid"
+                [attr.x1]="d.x"
+                [attr.x2]="d.x"
+                [attr.y1]="0"
+                [attr.y2]="stockAxisY()"
+              />
+              <text class="tick" [attr.x]="d.x" [attr.y]="stockAxisY() + 16" text-anchor="middle">
+                {{ d.day }}
+              </text>
+            }
+            <text
+              class="tick axis-title"
+              [attr.x]="left() - 6"
+              [attr.y]="stockAxisY() + 16"
+              text-anchor="end"
+            >
+              Day
+            </text>
+            @if (enough()) {
+              @for (l of stockLines(); track l.resource) {
+                <path
+                  class="line stock-line"
+                  [attr.data-resource]="l.resource"
+                  [attr.data-color]="l.color"
+                  [style.stroke]="l.color"
+                  [attr.d]="l.d"
+                />
+              }
+            }
+            @if (hoverX(); as hx) {
+              <line
+                class="cross"
+                [attr.x1]="hx"
+                [attr.x2]="hx"
+                [attr.y1]="0"
+                [attr.y2]="stockAxisY()"
+              />
+            }
+            <rect
+              class="hit"
+              [attr.x]="left()"
+              y="0"
+              [attr.width]="plotWidth()"
+              [attr.height]="stockAxisY()"
+              (pointermove)="onMove($event, 'stock')"
+              (pointerdown)="onMove($event, 'stock')"
+              (pointerleave)="onLeave($event)"
+            />
+          </svg>
+          @if (hoverPoint(); as h) {
+            @if (hoverChart() === 'stock') {
+              <div class="tip" [class.left]="tipSide() === 'left'" [style.left.px]="hoverX()">
+                <span class="what">{{ describe(h.point) }}</span>
+                <ul>
+                  @for (r of resources; track r; let i = $index) {
+                    <li>
+                      <span class="key" [style.background]="'var(--series-' + r + ')'"></span>
+                      <strong class="value">{{ h.point.stock[i] }}</strong>
+                      <span class="name">{{ labels[r] }}</span>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          }
+        </div>
+      </figure>
+    </div>
+  }
+</section>

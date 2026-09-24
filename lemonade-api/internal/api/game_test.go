@@ -269,6 +269,76 @@ func TestTradeErrors(t *testing.T) {
 	}
 }
 
+func TestGameViewCarriesTheTimelineAndStats(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+
+	v := e.game("joe12")
+	if len(v.Timeline) != 1 || v.Timeline[0].Kind != "start" || v.Timeline[0].Capital != 1000 || len(v.Timeline[0].Stock) != 5 {
+		t.Fatalf("fresh timeline = %+v", v.Timeline)
+	}
+	if v.Stats.PeakCapital != 1000 || v.Stats.PeakDay != 1 {
+		t.Fatalf("fresh stats = %+v", v.Stats)
+	}
+
+	if rec := e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 3}); rec.Code != 200 {
+		t.Fatalf("buy: %s", rec.Body)
+	}
+	if rec := e.do("POST", "/api/game/facilities/warehouse/expand", "joe12", map[string]any{"resource": "ice"}); rec.Code != 200 {
+		t.Fatalf("expand: %s", rec.Body)
+	}
+	rec := e.do("GET", "/api/game", "joe12", nil)
+	v = decode[gameViewDTO](t, rec)
+	if len(v.Timeline) != 3 {
+		t.Fatalf("timeline = %+v", v.Timeline)
+	}
+	buy, expand := v.Timeline[1], v.Timeline[2]
+	if buy.Kind != "buy" || buy.Resource != "lemon" || buy.Qty != 3 || buy.Amount != 66 || buy.Capital != 934 || buy.Stock[0] != 3 {
+		t.Errorf("buy point = %+v", buy)
+	}
+	if expand.Kind != "expand" || expand.Facility != "warehouse" || expand.Resource != "ice" || expand.Amount != 100 || expand.Capital != 834 {
+		t.Errorf("expand point = %+v", expand)
+	}
+	if v.Stats.CasesBought != 3 || v.Stats.Spent != 66 || v.Stats.FacilitiesBought != 1 || v.Stats.FacilitySpend != 100 {
+		t.Errorf("stats = %+v", v.Stats)
+	}
+
+	// The JSON keys are the contract with the frontend.
+	var raw struct {
+		Timeline []map[string]any `json:"timeline"`
+		Stats    map[string]any   `json:"stats"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"day", "kind", "qty", "amount", "produced", "capital", "stock"} {
+		if _, ok := raw.Timeline[1][key]; !ok {
+			t.Errorf("timeline point is missing %q", key)
+		}
+	}
+	if _, ok := raw.Timeline[0]["resource"]; ok {
+		t.Error("a point with no resource should omit the key")
+	}
+	for _, key := range []string{"casesBought", "casesSold", "spent", "earned", "facilitiesBought", "upgrades", "facilitySpend", "produced", "upkeepPaid", "peakCapital", "peakDay"} {
+		if _, ok := raw.Stats[key]; !ok {
+			t.Errorf("stats is missing %q", key)
+		}
+	}
+}
+
+func TestOlderGamesWithoutATimelineGetAStartPoint(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+	e.setGame("joe12", func(g *domain.Game) {
+		g.Timeline = nil // saved before the timeline existed
+		g.Day, g.Capital = 9, 4321
+	})
+	v := e.game("joe12")
+	if len(v.Timeline) != 1 || v.Timeline[0].Day != 9 || v.Timeline[0].Capital != 4321 {
+		t.Fatalf("timeline = %+v", v.Timeline)
+	}
+}
+
 func TestBuyInsufficientFunds(t *testing.T) {
 	e := newEnv(t)
 	e.login("joe12")

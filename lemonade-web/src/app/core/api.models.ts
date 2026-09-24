@@ -77,6 +77,43 @@ export interface GameEvent {
   daysLeft: number;
 }
 
+export type PointKind = 'start' | 'buy' | 'sell' | 'expand' | 'upgrade' | 'end_day';
+
+/** The state right after one action, for the history charts. */
+export interface TimelinePoint {
+  /** The day the action happened on (for end_day, the day that just ended). */
+  day: number;
+  kind: PointKind;
+  /** Buys, sells, and warehouse expansions. */
+  resource?: Resource;
+  /** Expansions and upgrades. */
+  facility?: FacilityType;
+  /** Cases bought or sold (repeat clicks are merged); buildings added. */
+  qty: number;
+  /** Dollars spent (buy, expand, upgrade), earned (sell), or upkeep paid (end_day). */
+  amount: number;
+  /** Lemonade made overnight (end_day only). */
+  produced: number;
+  capital: number;
+  /** Stock after the action, in order: lemon, sugar, ice, cup, lemonade. */
+  stock: number[];
+}
+
+/** Running totals for the end-of-game report. */
+export interface GameStats {
+  casesBought: number;
+  casesSold: number;
+  spent: number;
+  earned: number;
+  facilitiesBought: number;
+  upgrades: number;
+  facilitySpend: number;
+  produced: number;
+  upkeepPaid: number;
+  peakCapital: number;
+  peakDay: number;
+}
+
 export interface GameView {
   day: number;
   capital: number;
@@ -90,6 +127,9 @@ export interface GameView {
     production: ProductionView;
   };
   events: GameEvent[];
+  /** Oldest first. Old days are compacted to milestones only. */
+  timeline: TimelinePoint[];
+  stats: GameStats;
 }
 
 export interface PriceChange {

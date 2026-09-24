@@ -1,4 +1,11 @@
-import { DayReport, GameView, Resource, ResourceView } from '../api.models';
+import {
+  DayReport,
+  GameStats,
+  GameView,
+  Resource,
+  ResourceView,
+  TimelinePoint,
+} from '../api.models';
 
 function row(resource: Resource, price: number, stock = 0): ResourceView {
   return {
@@ -70,6 +77,8 @@ export function newGameView(overrides: Partial<GameView> = {}): GameView {
       },
     },
     events: [],
+    timeline: [timelinePoint()],
+    stats: gameStats(),
     ...overrides,
   };
 }
@@ -88,6 +97,37 @@ export function dayReport(overrides: Partial<DayReport> = {}): DayReport {
     newEvents: [],
     expiredEvents: [],
     bankrupt: false,
+    ...overrides,
+  };
+}
+
+/** One timeline point; defaults to the start of a new game. */
+export function timelinePoint(overrides: Partial<TimelinePoint> = {}): TimelinePoint {
+  return {
+    day: 1,
+    kind: 'start',
+    qty: 0,
+    amount: 0,
+    produced: 0,
+    capital: 1000,
+    stock: [0, 0, 0, 0, 0],
+    ...overrides,
+  };
+}
+
+export function gameStats(overrides: Partial<GameStats> = {}): GameStats {
+  return {
+    casesBought: 0,
+    casesSold: 0,
+    spent: 0,
+    earned: 0,
+    facilitiesBought: 0,
+    upgrades: 0,
+    facilitySpend: 0,
+    produced: 0,
+    upkeepPaid: 0,
+    peakCapital: 1000,
+    peakDay: 1,
     ...overrides,
   };
 }

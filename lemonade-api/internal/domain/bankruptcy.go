@@ -41,6 +41,8 @@ func sellStockToCover(g *Game, cfg Config, need int) (cases, proceeds int) {
 		}
 		g.Inventory[r] -= n
 		g.Capital += n * bid
+		g.Stats.CasesSold += n
+		g.Stats.Earned += n * bid
 		cases += n
 		proceeds += n * bid
 		need -= n * bid

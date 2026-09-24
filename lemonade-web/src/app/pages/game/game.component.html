@@ -13,6 +13,8 @@
     <app-game-over
       [day]="game.day"
       [capital]="game.capital"
+      [stats]="game.stats"
+      [timeline]="game.timeline"
       [disabled]="!online()"
       (newGame)="store.newGame()"
     />
@@ -36,6 +38,10 @@
         (buy)="store.buy($event.resource, $event.qty)"
         (sell)="store.sell($event.resource, $event.qty)"
       />
+
+      <app-card title="Game timeline">
+        <app-timeline-charts [points]="game.timeline" />
+      </app-card>
 
       <app-facilities-panel
         [warehouse]="game.facilities.warehouse"

@@ -25,6 +25,33 @@ type marketRow struct {
 	History           []int   `json:"history"`
 }
 
+// pointRow is one timeline point, with short keys because there can be hundreds.
+type pointRow struct {
+	Day      int    `json:"d"`
+	Kind     string `json:"k"`
+	Resource string `json:"r,omitempty"`
+	Facility string `json:"f,omitempty"`
+	Qty      int    `json:"q,omitempty"`
+	Amount   int    `json:"a,omitempty"`
+	Produced int    `json:"p,omitempty"`
+	Capital  int    `json:"c"`
+	Stock    [5]int `json:"s"`
+}
+
+type statsRow struct {
+	CasesBought      int `json:"casesBought"`
+	CasesSold        int `json:"casesSold"`
+	Spent            int `json:"spent"`
+	Earned           int `json:"earned"`
+	FacilitiesBought int `json:"facilitiesBought"`
+	Upgrades         int `json:"upgrades"`
+	FacilitySpend    int `json:"facilitySpend"`
+	Produced         int `json:"produced"`
+	UpkeepPaid       int `json:"upkeepPaid"`
+	PeakCapital      int `json:"peakCapital"`
+	PeakDay          int `json:"peakDay"`
+}
+
 type eventRow struct {
 	Key         string             `json:"key"`
 	Name        string             `json:"name"`
@@ -49,6 +76,8 @@ type gameRow struct {
 	WarehouseQty map[string]int       `gorm:"type:jsonb;serializer:json"`
 	Market       map[string]marketRow `gorm:"type:jsonb;serializer:json"`
 	Events       []eventRow           `gorm:"type:jsonb;serializer:json"`
+	Timeline     []pointRow           `gorm:"type:jsonb;serializer:json"`
+	Stats        statsRow             `gorm:"type:jsonb;serializer:json"`
 
 	UpdatedAt time.Time
 }
@@ -184,6 +213,14 @@ func toRow(g domain.Game) gameRow {
 		WarehouseQty:    make(map[string]int, len(g.WarehouseQty)),
 		Market:          make(map[string]marketRow, len(g.Market)),
 		Events:          make([]eventRow, 0, len(g.Events)),
+		Timeline:        make([]pointRow, 0, len(g.Timeline)),
+		Stats:           statsRow(g.Stats),
+	}
+	for _, p := range g.Timeline {
+		row.Timeline = append(row.Timeline, pointRow{
+			Day: p.Day, Kind: string(p.Kind), Resource: string(p.Resource), Facility: string(p.Facility),
+			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock,
+		})
 	}
 	for r, n := range g.Inventory {
 		row.Inventory[string(r)] = n
@@ -226,6 +263,13 @@ func fromRow(row gameRow) domain.Game {
 		Inventory:       make(map[domain.Resource]int, len(row.Inventory)),
 		WarehouseQty:    make(map[domain.Resource]int, len(row.WarehouseQty)),
 		Market:          make(map[domain.Resource]*domain.ResourceMarket, len(row.Market)),
+		Stats:           domain.Stats(row.Stats),
+	}
+	for _, p := range row.Timeline {
+		g.Timeline = append(g.Timeline, domain.TimelinePoint{
+			Day: p.Day, Kind: domain.PointKind(p.Kind), Resource: domain.Resource(p.Resource), Facility: domain.FacilityType(p.Facility),
+			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock,
+		})
 	}
 	for r, n := range row.Inventory {
 		g.Inventory[domain.Resource(r)] = n

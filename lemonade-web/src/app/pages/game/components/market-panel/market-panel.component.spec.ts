@@ -75,4 +75,17 @@ describe('MarketPanelComponent', () => {
     fixture.detectChanges();
     expect(row('sugar').querySelector('.trend.flat')).not.toBeNull();
   });
+
+  it('draws a price-history sparkline on every row', () => {
+    expect(el.querySelectorAll('app-price-sparkline').length).toBe(5);
+    expect(
+      row('lemon').querySelector('app-price-sparkline svg')!.getAttribute('aria-label'),
+    ).toContain('Lemon');
+  });
+
+  it('keeps the stock widget compact: numbers plus a slim bar', () => {
+    const stock = row('lemon').querySelector('.stock')!;
+    expect(stock.textContent).toContain('4 / 10');
+    expect(stock.querySelector('[role=progressbar]')).not.toBeNull();
+  });
 });

@@ -2,7 +2,9 @@ import { Component, OnInit, inject } from '@angular/core';
 
 import { GameStore } from '../../core/game.store';
 import { OnlineService } from '../../core/online.service';
+import { CardComponent } from '../../shared/card/card.component';
 import { IconComponent } from '../../shared/icon/icon.component';
+import { TimelineChartsComponent } from '../../shared/timeline-charts/timeline-charts.component';
 import { DayReportModalComponent } from './components/day-report-modal/day-report-modal.component';
 import { EventsBannerComponent } from './components/events-banner/events-banner.component';
 import { FacilitiesPanelComponent } from './components/facilities-panel/facilities-panel.component';
@@ -15,7 +17,9 @@ import { StatsStripComponent } from './components/stats-strip/stats-strip.compon
   selector: 'app-game',
   standalone: true,
   imports: [
+    CardComponent,
     IconComponent,
+    TimelineChartsComponent,
     StatsStripComponent,
     EventsBannerComponent,
     MarketPanelComponent,

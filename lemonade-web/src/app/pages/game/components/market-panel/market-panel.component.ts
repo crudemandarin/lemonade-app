@@ -5,6 +5,7 @@ import { RESOURCE_LABELS } from '../../../../core/resources';
 import { CardComponent } from '../../../../shared/card/card.component';
 import { IconComponent } from '../../../../shared/icon/icon.component';
 import { MoneyPipe } from '../../../../shared/money.pipe';
+import { PriceSparklineComponent } from '../../../../shared/price-sparkline/price-sparkline.component';
 
 export interface TradeRequest {
   resource: Resource;
@@ -15,7 +16,7 @@ export interface TradeRequest {
 @Component({
   selector: 'app-market-panel',
   standalone: true,
-  imports: [CardComponent, IconComponent, MoneyPipe],
+  imports: [CardComponent, IconComponent, MoneyPipe, PriceSparklineComponent],
   templateUrl: './market-panel.component.html',
   styleUrl: './market-panel.component.scss',
 })

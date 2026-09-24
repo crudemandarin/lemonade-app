@@ -1,0 +1,23 @@
+<span class="wrap">
+  <svg
+    role="img"
+    [attr.aria-label]="description()"
+    [attr.viewBox]="'0 0 ' + width + ' ' + height"
+    (pointermove)="onMove($event)"
+    (pointerleave)="hover.set(null)"
+  >
+    @if (path(); as d) {
+      <path class="line" [attr.d]="d" />
+    }
+    @if (shown(); as s) {
+      <circle class="hover" [attr.cx]="s.x" [attr.cy]="s.y" r="4" />
+    }
+    @if (last(); as l) {
+      <circle class="ring" [attr.cx]="l.x" [attr.cy]="l.y" r="6" />
+      <circle class="end" [attr.cx]="l.x" [attr.cy]="l.y" r="4" />
+    }
+  </svg>
+  @if (hover() !== null) {
+    <span class="tip" role="presentation">{{ tip() }}</span>
+  }
+</span>

@@ -115,4 +115,6 @@ Every `/api/game` route needs an `X-Username` header (username-only auth, intent
 | POST   | `/api/game/facilities/:type/upgrade` | Upgrade every building of `warehouse` or `production` |
 | POST   | `/api/game/end-day` | End the day; returns the day report and the new game view |
 
+The game view also carries `timeline` (capital and stock after each action, for the history charts) and `stats` (running totals for the end-of-game report). Old days are compacted to milestones to keep it small.
+
 Game balance (prices, spread, events, tier costs) is one struct: `DefaultConfig()` in `internal/domain/config.go`.

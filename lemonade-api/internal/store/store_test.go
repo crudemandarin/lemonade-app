@@ -25,6 +25,19 @@ func repoContract(t *testing.T, repo Repository, username string) {
 	}
 
 	game := domain.NewGame(cfg, 7)
+	// Play a little so the timeline and stats have something to round-trip.
+	for _, act := range []func() error{
+		func() error { return domain.Buy(&game, cfg, domain.Lemon, 2) },
+		func() error { return domain.Expand(&game, cfg, domain.Warehouse, domain.Ice) },
+		func() error { return domain.Sell(&game, cfg, domain.Lemon, 1) },
+	} {
+		if err := act(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(game.Timeline) != 4 || game.Stats.CasesBought != 2 {
+		t.Fatalf("test setup: timeline=%d stats=%+v", len(game.Timeline), game.Stats)
+	}
 	game.Events = []domain.ActiveEvent{{
 		Key: "heat_wave", Name: "Heat Wave", DaysLeft: 2,
 		Multipliers: map[domain.Resource]float64{domain.Lemonade: 1.4},
@@ -57,8 +70,8 @@ func repoContract(t *testing.T, repo Repository, username string) {
 	}); err == nil {
 		t.Fatal("expected fn error to propagate")
 	}
-	if g, _ := repo.GetGame(ctx, user.ID); g.Capital != 1000 {
-		t.Fatalf("failed mutate was saved: capital = %d", g.Capital)
+	if g, _ := repo.GetGame(ctx, user.ID); g.Capital != game.Capital {
+		t.Fatalf("failed mutate was saved: capital = %d, want %d", g.Capital, game.Capital)
 	}
 	if _, err := repo.Mutate(ctx, user.ID, func(g *domain.Game) error {
 		g.Capital = 123

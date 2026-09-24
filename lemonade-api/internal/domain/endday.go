@@ -21,6 +21,9 @@ func EndDay(g *Game, cfg Config) (DayReport, error) {
 	paid, soldCases, soldProceeds, insolvent := settleUpkeep(g, cfg)
 	report.UpkeepPaid = paid
 	report.ForcedSaleCases, report.ForcedSaleProceeds = soldCases, soldProceeds
+	g.Stats.Produced += report.Produced
+	g.Stats.UpkeepPaid += paid
+	g.record(TimelinePoint{Day: g.Day, Kind: PointEndDay, Amount: paid, Produced: report.Produced})
 
 	before := make(map[Resource]int, len(Resources))
 	for _, r := range Resources {

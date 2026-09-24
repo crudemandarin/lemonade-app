@@ -38,6 +38,10 @@ type Game struct {
 
 	Market map[Resource]*ResourceMarket
 	Events []ActiveEvent
+
+	// Timeline and Stats record how the game went; see timeline.go.
+	Timeline []TimelinePoint
+	Stats    Stats
 }
 
 // User identifies a player. Login is username-only (SPEC rule 22).
@@ -101,6 +105,8 @@ func (g Game) Clone() Game {
 		}
 		c.Market[k] = &mc
 	}
+
+	c.Timeline = append([]TimelinePoint(nil), g.Timeline...)
 
 	c.Events = nil
 	for _, e := range g.Events {

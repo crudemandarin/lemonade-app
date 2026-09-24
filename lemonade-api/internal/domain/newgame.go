@@ -18,7 +18,7 @@ func NewGame(cfg Config, seed int64) Game {
 		}
 	}
 
-	return Game{
+	g := Game{
 		Seed:            seed,
 		Day:             1,
 		Capital:         cfg.StartingCapital,
@@ -31,4 +31,6 @@ func NewGame(cfg Config, seed int64) Game {
 		Market:          market,
 		Events:          nil,
 	}
+	g.record(TimelinePoint{Day: 1, Kind: PointStart})
+	return g
 }

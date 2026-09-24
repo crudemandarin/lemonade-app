@@ -4,6 +4,7 @@
       <span role="columnheader">Resource</span>
       <span role="columnheader">Stock</span>
       <span role="columnheader">Price</span>
+      <span role="columnheader">Last 14 days</span>
       <span role="columnheader">Buy at ask</span>
       <span role="columnheader">Sell at bid</span>
     </div>
@@ -48,6 +49,10 @@
               <app-icon class="trend flat" name="trend-flat" [size]="14" />
             }
           }
+        </span>
+
+        <span class="spark" role="cell">
+          <app-price-sparkline [values]="row.history" [label]="labels[row.resource]" />
         </span>
 
         <span class="trade buy" role="cell">

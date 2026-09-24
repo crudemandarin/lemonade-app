@@ -24,6 +24,15 @@
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --page-width: 72rem;
+
+  // Chart series, one per resource, fixed (color follows the entity). Validated with the
+  // dataviz palette checker against the light card surface (neighbor CVD ΔE 9.2, normal-vision
+  // ΔE 19.6). Three sit under 3:1 on white, so every chart also ships a legend and a table view.
+  --series-lemon: #eda100;
+  --series-sugar: #e87ba4;
+  --series-ice: #2a78d6;
+  --series-cup: #1baf7a;
+  --series-lemonade: #eb6834;
 }
 
 @mixin dark-theme {
@@ -46,6 +55,13 @@
   --amber: #fbbf24;
   --red: #f87171;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+
+  // The same hues stepped for the dark card surface (all >= 3:1; neighbor CVD ΔE 9.4).
+  --series-lemon: #c98500;
+  --series-sugar: #d55181;
+  --series-ice: #3987e5;
+  --series-cup: #199e70;
+  --series-lemonade: #d95926;
 }
 
 @media (prefers-color-scheme: dark) {

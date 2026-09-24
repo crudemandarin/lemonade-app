@@ -74,14 +74,44 @@ type gameEventDTO struct {
 	DaysLeft    int                         `json:"daysLeft"`
 }
 
+// timelinePointDTO is the state right after one action; stock is in the order
+// lemon, sugar, ice, cup, lemonade.
+type timelinePointDTO struct {
+	Day      int    `json:"day"`
+	Kind     string `json:"kind"`
+	Resource string `json:"resource,omitempty"`
+	Facility string `json:"facility,omitempty"`
+	Qty      int    `json:"qty"`
+	Amount   int    `json:"amount"`
+	Produced int    `json:"produced"`
+	Capital  int    `json:"capital"`
+	Stock    []int  `json:"stock"`
+}
+
+type statsDTO struct {
+	CasesBought      int `json:"casesBought"`
+	CasesSold        int `json:"casesSold"`
+	Spent            int `json:"spent"`
+	Earned           int `json:"earned"`
+	FacilitiesBought int `json:"facilitiesBought"`
+	Upgrades         int `json:"upgrades"`
+	FacilitySpend    int `json:"facilitySpend"`
+	Produced         int `json:"produced"`
+	UpkeepPaid       int `json:"upkeepPaid"`
+	PeakCapital      int `json:"peakCapital"`
+	PeakDay          int `json:"peakDay"`
+}
+
 type gameViewDTO struct {
-	Day          int               `json:"day"`
-	Capital      int               `json:"capital"`
-	Status       domain.Status     `json:"status"`
-	UpkeepPerDay int               `json:"upkeepPerDay"`
-	Resources    []resourceViewDTO `json:"resources"`
-	Facilities   facilitiesDTO     `json:"facilities"`
-	Events       []gameEventDTO    `json:"events"`
+	Day          int                `json:"day"`
+	Capital      int                `json:"capital"`
+	Status       domain.Status      `json:"status"`
+	UpkeepPerDay int                `json:"upkeepPerDay"`
+	Resources    []resourceViewDTO  `json:"resources"`
+	Facilities   facilitiesDTO      `json:"facilities"`
+	Events       []gameEventDTO     `json:"events"`
+	Timeline     []timelinePointDTO `json:"timeline"`
+	Stats        statsDTO           `json:"stats"`
 }
 
 type priceChangeDTO struct {
@@ -145,8 +175,30 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 			Warehouse:  toWarehouseView(g, cfg),
 			Production: toProductionView(g, cfg),
 		},
-		Events: toEventDTOs(g.Events),
+		Events:   toEventDTOs(g.Events),
+		Timeline: toTimelineDTOs(g),
+		Stats:    statsDTO(g.Stats),
 	}
+}
+
+// toTimelineDTOs maps the timeline. A game saved before the timeline existed has none,
+// so it gets a start point from its current state and the charts always have something.
+func toTimelineDTOs(g domain.Game) []timelinePointDTO {
+	if len(g.Timeline) == 0 {
+		stock := make([]int, 0, len(domain.Resources))
+		for _, r := range domain.Resources {
+			stock = append(stock, g.Inventory[r])
+		}
+		return []timelinePointDTO{{Day: g.Day, Kind: string(domain.PointStart), Capital: g.Capital, Stock: stock}}
+	}
+	out := make([]timelinePointDTO, 0, len(g.Timeline))
+	for _, p := range g.Timeline {
+		out = append(out, timelinePointDTO{
+			Day: p.Day, Kind: string(p.Kind), Resource: string(p.Resource), Facility: string(p.Facility),
+			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock[:],
+		})
+	}
+	return out
 }
 
 func toWarehouseView(g domain.Game, cfg domain.Config) warehouseViewDTO {

@@ -20,6 +20,9 @@ func Buy(g *Game, cfg Config, r Resource, qty int) error {
 
 	g.Capital -= cost
 	g.Inventory[r] += qty
+	g.Stats.CasesBought += qty
+	g.Stats.Spent += cost
+	g.record(TimelinePoint{Day: g.Day, Kind: PointBuy, Resource: r, Qty: qty, Amount: cost})
 	return nil
 }
 
@@ -38,6 +41,9 @@ func Sell(g *Game, cfg Config, r Resource, qty int) error {
 	bid := Quotes(*g, cfg)[r].Bid
 	g.Capital += bid * qty
 	g.Inventory[r] -= qty
+	g.Stats.CasesSold += qty
+	g.Stats.Earned += bid * qty
+	g.record(TimelinePoint{Day: g.Day, Kind: PointSell, Resource: r, Qty: qty, Amount: bid * qty})
 	return nil
 }
 
@@ -59,6 +65,7 @@ func Expand(g *Game, cfg Config, kind FacilityType, resource Resource) error {
 		}
 		g.Capital -= cost
 		g.WarehouseQty[resource]++
+		g.recordFacility(PointExpand, kind, resource, 1, cost)
 	case Production:
 		if g.ProductionQty >= cfg.MaxQuantity {
 			return ErrMaxQuantity
@@ -69,6 +76,7 @@ func Expand(g *Game, cfg Config, kind FacilityType, resource Resource) error {
 		}
 		g.Capital -= cost
 		g.ProductionQty++
+		g.recordFacility(PointExpand, kind, "", 1, cost)
 	}
 	return nil
 }
@@ -90,6 +98,7 @@ func Upgrade(g *Game, cfg Config, kind FacilityType) error {
 		}
 		g.Capital -= total
 		g.WarehouseLevel++
+		g.recordFacility(PointUpgrade, kind, "", 0, total)
 	case Production:
 		if g.ProductionLevel >= cfg.MaxLevel {
 			return ErrMaxLevel
@@ -100,6 +109,7 @@ func Upgrade(g *Game, cfg Config, kind FacilityType) error {
 		}
 		g.Capital -= total
 		g.ProductionLevel++
+		g.recordFacility(PointUpgrade, kind, "", 0, total)
 	}
 	return nil
 }
