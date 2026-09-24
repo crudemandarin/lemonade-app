@@ -44,6 +44,17 @@
   gap: 0.25rem;
 }
 
+.key {
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.upkeep-delta {
+  font-weight: 400;
+  opacity: 0.85;
+}
+
 .muted {
   color: var(--text-muted);
   font-size: 0.8125rem;

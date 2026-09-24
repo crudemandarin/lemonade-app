@@ -31,6 +31,8 @@ export interface UpgradeOption {
   totalCost: number;
   /** Size (cases) or rate (lemonade/day) per building after the upgrade. */
   sizePerBuilding: number;
+  /** Extra upkeep per day for the whole type after the upgrade. */
+  upkeepIncrease: number;
 }
 
 /** Fields shared by both facility types. Level, tier and upgrade apply to the whole type. */

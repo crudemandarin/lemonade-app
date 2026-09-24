@@ -361,7 +361,7 @@ body {
   }
 }
 .rain {
-  background: linear-gradient(to bottom, rgba(71, 85, 105, 0.22), rgba(100, 116, 139, 0.1));
+  background: linear-gradient(to bottom, rgba(51, 65, 85, 0.4), rgba(100, 116, 139, 0.2));
 }
 
 .cloud {
@@ -370,7 +370,7 @@ body {
   width: 55vw;
   height: 22vh;
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(100, 116, 139, 0.45), transparent);
+  background: radial-gradient(closest-side, rgba(71, 85, 105, 0.7), transparent);
   animation: drift 80s linear infinite;
 }
 .cloud.c2 {
@@ -389,9 +389,9 @@ body {
   }
 }
 .drop {
-  width: 2px;
-  height: 7vh;
-  background: linear-gradient(to bottom, transparent, rgba(147, 197, 253, 0.7));
+  width: 3px;
+  height: 9vh;
+  background: linear-gradient(to bottom, transparent, rgba(96, 165, 250, 0.95));
   rotate: 10deg;
   animation-name: rain-fall;
 }
@@ -405,14 +405,14 @@ body {
   }
 }
 .blight {
-  background: radial-gradient(ellipse at center, transparent 40%, rgba(120, 113, 30, 0.25));
+  background: radial-gradient(ellipse at center, transparent 20%, rgba(120, 113, 30, 0.5));
 }
 
 .leaf {
-  width: 3vmin;
-  height: 3vmin;
-  min-width: 18px;
-  min-height: 18px;
+  width: 4.5vmin;
+  height: 4.5vmin;
+  min-width: 26px;
+  min-height: 26px;
   border-radius: 0 100% 0 100%;
   background: #a16207;
   --sway: 6vw;
@@ -428,15 +428,15 @@ body {
 }
 
 .sugar {
-  background: linear-gradient(to bottom, rgba(147, 197, 253, 0.08), rgba(255, 255, 255, 0.1));
+  background: linear-gradient(to bottom, rgba(96, 165, 250, 0.2), rgba(255, 255, 255, 0.18));
 }
 
 .cube {
-  width: calc(4vmin + var(--j) * 4vmin);
-  min-width: 28px;
+  width: calc(6vmin + var(--j) * 5vmin);
+  min-width: 40px;
   --sway: 3vw;
   --spin: 300deg;
-  opacity: 0.6;
+  opacity: 0.95;
 }
 
 .holiday {
@@ -500,15 +500,15 @@ body {
 }
 
 .cups {
-  background: radial-gradient(ellipse at center, transparent 45%, rgba(220, 38, 38, 0.1));
+  background: radial-gradient(ellipse at center, transparent 25%, rgba(220, 38, 38, 0.28));
 }
 
 .cup {
   position: absolute;
   left: var(--x);
   top: calc(8% + var(--j) * 78%);
-  width: calc(6vmin + var(--j) * 4vmin);
-  min-width: 36px;
+  width: calc(8vmin + var(--j) * 5vmin);
+  min-width: 48px;
   opacity: 0;
   animation: vanish var(--dur) var(--delay) ease-in-out infinite;
 }
@@ -520,7 +520,7 @@ body {
     rotate: 0deg;
   }
   20%, 55% {
-    opacity: 0.7;
+    opacity: 1;
     translate: 0 0;
   }
   80% {
@@ -588,7 +588,7 @@ body {
         ['heat_wave', 'Heat wave'], ['rainy_week', 'Rainy week'], ['lemon_blight', 'Lemon blight'],
         ['sugar_glut', 'Sugar glut'], ['holiday', 'Holiday'], ['cup_shortage', 'Cup shortage'],
       ];
-      const COUNTS = { drops: 36, leaves: 12, sugar: 12, confetti: 32, cups: 10, bunting: 12, shimmer: 3 };
+      const COUNTS = { drops: 48, leaves: 18, sugar: 16, confetti: 32, cups: 14, bunting: 12, shimmer: 3 };
       const range = (n) => Array.from({ length: n }, (_, i) => i);
       // Same maths as EventBackdropComponent.vars().
       const vars = (i, n, minDur, spread) => {

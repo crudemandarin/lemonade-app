@@ -1,13 +1,14 @@
 import { Component, computed, input, output } from '@angular/core';
 
 import { DayReport } from '../../../../core/api.models';
+import { IconComponent } from '../../../../shared/icon/icon.component';
 import { MoneyPipe } from '../../../../shared/money.pipe';
 
 /** End-of-day summary, rendered straight from the server's DayReport. */
 @Component({
   selector: 'app-day-report-modal',
   standalone: true,
-  imports: [MoneyPipe],
+  imports: [IconComponent, MoneyPipe],
   templateUrl: './day-report-modal.component.html',
   styleUrl: './day-report-modal.component.scss',
 })

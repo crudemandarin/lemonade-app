@@ -19,11 +19,11 @@ const MAX_SCENES = 2;
 
 /** Particle counts per scene. Kept low: the layer covers the whole viewport. */
 const COUNTS = {
-  drops: 36,
-  leaves: 12,
-  sugar: 12,
+  drops: 48,
+  leaves: 18,
+  sugar: 16,
   confetti: 32,
-  cups: 10,
+  cups: 14,
   bunting: 12,
   shimmer: 3,
 };

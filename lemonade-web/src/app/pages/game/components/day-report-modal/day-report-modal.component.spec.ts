@@ -42,4 +42,25 @@ describe('DayReportModalComponent', () => {
 
     expect(dismissed).toBe(1);
   });
+
+  describe('out-of-cash warning', () => {
+    function render(overrides: Parameters<typeof dayReport>[0]): HTMLElement {
+      fixture.componentRef.setInput('report', dayReport(overrides));
+      fixture.detectChanges();
+      return fixture.nativeElement;
+    }
+
+    it('warns when capital is $0 but the game continues', () => {
+      const warning = render({ capitalAfter: 0, bankrupt: false }).querySelector('.warning');
+      expect(warning?.textContent).toContain("You're out of cash");
+    });
+
+    it('does not warn when there is capital left', () => {
+      expect(render({ capitalAfter: 5 }).querySelector('.warning')).toBeNull();
+    });
+
+    it('does not warn when the game is over', () => {
+      expect(render({ capitalAfter: 0, bankrupt: true }).querySelector('.warning')).toBeNull();
+    });
+  });
 });

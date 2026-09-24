@@ -111,7 +111,7 @@
 
 // Rainy week: grey-blue wash, drifting clouds, thin falling streaks.
 .rain {
-  background: linear-gradient(to bottom, rgb(71 85 105 / 0.22), rgb(100 116 139 / 0.1));
+  background: linear-gradient(to bottom, rgb(51 65 85 / 0.4), rgb(100 116 139 / 0.2));
 }
 
 .cloud {
@@ -120,7 +120,7 @@
   width: 55vw;
   height: 22vh;
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgb(100 116 139 / 0.45), transparent);
+  background: radial-gradient(closest-side, rgb(71 85 105 / 0.7), transparent);
   animation: drift 80s linear infinite;
 
   &.c2 {
@@ -142,9 +142,9 @@
 
 .drop {
   @extend %particle;
-  width: 2px;
-  height: 7vh;
-  background: linear-gradient(to bottom, transparent, rgb(147 197 253 / 0.7));
+  width: 3px;
+  height: 9vh;
+  background: linear-gradient(to bottom, transparent, rgb(96 165 250 / 0.95));
   rotate: 10deg;
   animation-name: rain-fall;
 }
@@ -160,15 +160,15 @@
 
 // Lemon blight: sickly olive edges and withered leaves tumbling down.
 .blight {
-  background: radial-gradient(ellipse at center, transparent 40%, rgb(120 113 30 / 0.25));
+  background: radial-gradient(ellipse at center, transparent 20%, rgb(120 113 30 / 0.5));
 }
 
 .leaf {
   @extend %particle;
-  width: 3vmin;
-  height: 3vmin;
-  min-width: 18px;
-  min-height: 18px;
+  width: 4.5vmin;
+  height: 4.5vmin;
+  min-width: 26px;
+  min-height: 26px;
   border-radius: 0 100% 0 100%;
   background: #a16207;
   --sway: 6vw;
@@ -187,16 +187,16 @@
 
 // Sugar glut: sugar cubes tumbling down slowly, plenty of them.
 .sugar {
-  background: linear-gradient(to bottom, rgb(147 197 253 / 0.08), rgb(255 255 255 / 0.1));
+  background: linear-gradient(to bottom, rgb(96 165 250 / 0.2), rgb(255 255 255 / 0.18));
 }
 
 .cube {
   @extend %particle;
-  width: calc(4vmin + var(--j) * 4vmin);
-  min-width: 28px;
+  width: calc(6vmin + var(--j) * 5vmin);
+  min-width: 40px;
   --sway: 3vw;
   --spin: 300deg;
-  opacity: 0.6;
+  opacity: 0.95;
 }
 
 // Holiday: soft party wash, swaying bunting along the top, drifting confetti.
@@ -270,15 +270,15 @@
 
 // Cup shortage: cups that keep vanishing, like a shelf that never restocks.
 .cups {
-  background: radial-gradient(ellipse at center, transparent 45%, rgb(220 38 38 / 0.1));
+  background: radial-gradient(ellipse at center, transparent 25%, rgb(220 38 38 / 0.28));
 }
 
 .cup {
   position: absolute;
   left: var(--x);
   top: calc(8% + var(--j) * 78%);
-  width: calc(6vmin + var(--j) * 4vmin);
-  min-width: 36px;
+  width: calc(8vmin + var(--j) * 5vmin);
+  min-width: 48px;
   opacity: 0;
   animation: vanish var(--dur) var(--delay) ease-in-out infinite;
 }
@@ -292,7 +292,7 @@
   }
   20%,
   55% {
-    opacity: 0.7;
+    opacity: 1;
     translate: 0 0;
   }
   80% {

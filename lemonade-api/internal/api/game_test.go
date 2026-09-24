@@ -176,14 +176,14 @@ func TestGameViewMatchesContract(t *testing.T) {
 		wh.SizePerBuilding != 10 || wh.ExpandCost != 100 || wh.UpkeepPerDay != 5 || len(wh.Resources) != 5 {
 		t.Errorf("warehouse = %+v", wh)
 	}
-	if up := wh.Upgrade; up == nil || up.TierName != "Garage" || up.CostPerBuilding != 100 || up.TotalCost != 500 || up.SizePerBuilding != 20 {
+	if up := wh.Upgrade; up == nil || up.TierName != "Garage" || up.CostPerBuilding != 100 || up.TotalCost != 500 || up.UpkeepIncrease != 10 || up.SizePerBuilding != 20 {
 		t.Errorf("warehouse upgrade = %+v", wh.Upgrade)
 	}
 	pr := v.Facilities.Production
 	if pr.TierName != "Kitchen" || pr.Buildings != 1 || pr.ExpandCost != 500 || pr.UpkeepPerDay != 10 || pr.RatePerDay != 10 || pr.SizePerBuilding != 10 {
 		t.Errorf("production = %+v", pr)
 	}
-	if up := pr.Upgrade; up == nil || up.TierName != "Food Truck" || up.TotalCost != 1000 || up.SizePerBuilding != 20 {
+	if up := pr.Upgrade; up == nil || up.TierName != "Food Truck" || up.TotalCost != 1000 || up.UpkeepIncrease != 15 || up.SizePerBuilding != 20 {
 		t.Errorf("production upgrade = %+v", pr.Upgrade)
 	}
 

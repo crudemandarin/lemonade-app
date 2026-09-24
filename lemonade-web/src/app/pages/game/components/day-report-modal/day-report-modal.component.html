@@ -34,6 +34,16 @@
         <dd>{{ r.capitalBefore | money }} → {{ r.capitalAfter | money }}</dd>
       </dl>
 
+      @if (r.capitalAfter === 0 && !r.bankrupt) {
+        <p class="warning" role="alert">
+          <app-icon name="alert" [size]="18" />
+          <span>
+            <strong>You're out of cash.</strong> You still have stock, so sell some to keep going.
+            If capital and stock both hit zero, you go bankrupt.
+          </span>
+        </p>
+      }
+
       <button type="button" class="btn btn-primary" (click)="dismiss.emit()">
         @if (r.bankrupt) {
           See results

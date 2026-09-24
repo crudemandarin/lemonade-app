@@ -25,6 +25,8 @@ type upgradeOptionDTO struct {
 	CostPerBuilding int    `json:"costPerBuilding"`
 	TotalCost       int    `json:"totalCost"`
 	SizePerBuilding int    `json:"sizePerBuilding"`
+	// UpkeepIncrease is the extra daily upkeep for the whole type after the upgrade.
+	UpkeepIncrease int `json:"upkeepIncrease"`
 }
 
 type warehouseResourceDTO struct {
@@ -199,6 +201,7 @@ func upgradeOption(tiers []domain.Tier, level, maxLevel, buildings int) *upgrade
 		CostPerBuilding: current.UpgradeCost,
 		TotalCost:       current.UpgradeCost * buildings,
 		SizePerBuilding: next.Size,
+		UpkeepIncrease:  (next.Upkeep - current.Upkeep) * buildings,
 	}
 }
 

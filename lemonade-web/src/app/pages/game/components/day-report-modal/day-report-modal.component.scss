@@ -55,3 +55,20 @@ dd {
   width: 100%;
   margin-top: 1.5rem;
 }
+
+.warning {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.8125rem;
+
+  app-icon {
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+  }
+}

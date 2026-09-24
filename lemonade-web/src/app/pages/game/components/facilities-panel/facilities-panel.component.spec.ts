@@ -96,4 +96,14 @@ describe('FacilitiesPanelComponent', () => {
     const img = warehouseCard().querySelector('[data-resource=cup] img')!;
     expect(img.getAttribute('src')).toBe('assets/resources/cup.svg');
   });
+
+  it('shows the upkeep increase on each upgrade button', () => {
+    const text = (el: Element | null) => el!.textContent!.replace(/\s+/g, ' ');
+    expect(text(fixture.nativeElement.querySelector('.warehouse .upgrade'))).toContain(
+      '(increase $10 upkeep)',
+    );
+    expect(text(fixture.nativeElement.querySelector('.production .upgrade'))).toContain(
+      '(increase $15 upkeep)',
+    );
+  });
 });

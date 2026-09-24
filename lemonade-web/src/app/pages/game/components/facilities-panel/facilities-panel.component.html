@@ -12,11 +12,11 @@
           />
           <div>
             <h3>{{ wh.tierName }}</h3>
-            <p class="muted type">
+            <p class="key type">
               <app-icon name="warehouse" [size]="14" /> Warehouses, level {{ wh.level }} of
               {{ wh.maxLevel }}
             </p>
-            <p class="muted">Upkeep {{ wh.upkeepPerDay | money }} per day</p>
+            <p class="key">Upkeep {{ wh.upkeepPerDay | money }} per day</p>
           </div>
         </header>
 
@@ -30,6 +30,7 @@
             @if (wh.upgrade; as up) {
               <app-icon name="upgrade" [size]="14" />
               Upgrade all warehouses to {{ up.tierName }}: {{ up.totalCost | money }}
+              <span class="upkeep-delta">(increase {{ up.upkeepIncrease | money }} upkeep)</span>
             } @else {
               Max level
             }
@@ -83,13 +84,13 @@
           />
           <div>
             <h3>{{ pr.tierName }}</h3>
-            <p class="muted type">
+            <p class="key type">
               <app-icon name="factory" [size]="14" /> Production, level {{ pr.level }} of
               {{ pr.maxLevel }}
             </p>
             <p class="muted">{{ buildings(pr.buildings) }}</p>
             <p class="muted">Makes {{ pr.ratePerDay }} lemonade per day</p>
-            <p class="muted">Upkeep {{ pr.upkeepPerDay | money }} per day</p>
+            <p class="key">Upkeep {{ pr.upkeepPerDay | money }} per day</p>
           </div>
         </header>
 
@@ -112,6 +113,7 @@
             @if (pr.upgrade; as up) {
               <app-icon name="upgrade" [size]="14" />
               Upgrade to {{ up.tierName }}: {{ up.totalCost | money }}
+              <span class="upkeep-delta">(increase {{ up.upkeepIncrease | money }} upkeep)</span>
             } @else {
               Max level
             }
