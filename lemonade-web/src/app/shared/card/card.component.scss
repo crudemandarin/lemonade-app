@@ -24,3 +24,9 @@
     letter-spacing: -0.01em;
   }
 }
+
+@media (max-width: 480px) {
+  .card {
+    padding: 1rem;
+  }
+}

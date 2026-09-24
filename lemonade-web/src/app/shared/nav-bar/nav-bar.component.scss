@@ -34,3 +34,26 @@
 a.btn {
   text-decoration: none;
 }
+
+@media (max-width: 480px) {
+  .nav {
+    gap: 0.5rem;
+    padding: 0 0.75rem;
+  }
+
+  .brand {
+    min-width: 0;
+    font-size: 0.9375rem;
+  }
+
+  .user {
+    min-width: 0;
+  }
+
+  .name {
+    max-width: 6rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

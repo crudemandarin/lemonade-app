@@ -30,3 +30,18 @@
     text-decoration: none;
   }
 }
+
+@media (max-width: 480px) {
+  .hero {
+    padding: 3rem 0.5rem;
+
+    h1 {
+      font-size: 1.75rem;
+    }
+  }
+
+  .actions {
+    flex-direction: column;
+    align-self: stretch;
+  }
+}

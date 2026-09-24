@@ -90,3 +90,54 @@
   flex: 1;
   font-variant-numeric: tabular-nums;
 }
+
+// Phones: each resource becomes a small card instead of a five-column table row.
+@media (max-width: 720px) {
+  .head {
+    display: none;
+  }
+
+  .row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      'name price'
+      'stock stock'
+      'buy sell';
+    gap: 0.625rem 0.75rem;
+    padding: 0.875rem 0;
+  }
+
+  .name {
+    grid-area: name;
+  }
+
+  .price {
+    grid-area: price;
+    justify-self: end;
+    font-weight: 600;
+  }
+
+  .stock {
+    grid-area: stock;
+  }
+
+  .buy {
+    grid-area: buy;
+  }
+
+  .sell {
+    grid-area: sell;
+  }
+}
+
+@media (max-width: 480px) {
+  .qty {
+    width: 3.25rem;
+    padding: 0 0.5rem;
+  }
+
+  .trade .btn {
+    min-width: 0;
+    padding: 0 0.5rem;
+  }
+}

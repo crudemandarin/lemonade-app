@@ -86,6 +86,25 @@ body {
   white-space: nowrap;
 }
 
+// ---- touch devices ----
+// 16px inputs stop iOS Safari zooming on focus; taller controls are easier to tap.
+@media (pointer: coarse) {
+  .input {
+    font-size: 1rem;
+  }
+
+  .btn,
+  .input {
+    min-height: 2.75rem;
+  }
+
+  .btn-sm,
+  .btn-ghost,
+  .qty {
+    min-height: 2.5rem;
+  }
+}
+
 // ---- form controls ----
 
 .grow {
