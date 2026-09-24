@@ -20,6 +20,9 @@ type EventDef struct {
 	Description string
 	Duration    int
 	Multipliers map[Resource]float64
+	// Excludes lists event keys that cannot be active at the same time as this
+	// one. It only needs to be declared on one side of a pair.
+	Excludes []string
 }
 
 // Config holds every tunable "physics" knob. See DESIGN.md §6.
@@ -74,6 +77,7 @@ func DefaultConfig() Config {
 				Description: "Scorching days drive lemonade demand and ice consumption.",
 				Duration:    2,
 				Multipliers: map[Resource]float64{Lemonade: 1.4, Ice: 1.3},
+				Excludes:    []string{"rainy_week"}, // no heat wave in the rain
 			},
 			{
 				Key:         "rainy_week",

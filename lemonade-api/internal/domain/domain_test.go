@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"math/rand"
 	"reflect"
 	"testing"
 )
@@ -613,6 +614,77 @@ func TestEventExpiryWithoutSpawn(t *testing.T) {
 	report, _ := EndDay(&g, cfg)
 	if len(g.Events) != 0 || len(report.ExpiredEvents) != 1 {
 		t.Fatalf("active=%v expired=%v", g.Events, report.ExpiredEvents)
+	}
+}
+
+func eventKeys(events []ActiveEvent) map[string]bool {
+	keys := make(map[string]bool, len(events))
+	for _, e := range events {
+		keys[e.Key] = true
+	}
+	return keys
+}
+
+func TestConflictingEventsAreNotEligible(t *testing.T) {
+	defs := []EventDef{
+		{Key: "heat", Excludes: []string{"rain"}},
+		{Key: "rain"},
+		{Key: "other"},
+	}
+	keys := func(defs []EventDef) []string {
+		out := []string{}
+		for _, d := range defs {
+			out = append(out, d.Key)
+		}
+		return out
+	}
+
+	// The exclusion is declared on "heat" only, but must work in both directions.
+	if got := keys(eligibleEvents(defs, []ActiveEvent{{Key: "heat"}})); !reflect.DeepEqual(got, []string{"other"}) {
+		t.Errorf("heat active: eligible = %v, want [other]", got)
+	}
+	if got := keys(eligibleEvents(defs, []ActiveEvent{{Key: "rain"}})); !reflect.DeepEqual(got, []string{"other"}) {
+		t.Errorf("rain active: eligible = %v, want [other]", got)
+	}
+	if got := keys(eligibleEvents(defs, []ActiveEvent{{Key: "other"}})); !reflect.DeepEqual(got, []string{"heat", "rain"}) {
+		t.Errorf("other active: eligible = %v, want [heat rain]", got)
+	}
+	if got := keys(eligibleEvents(defs, nil)); len(got) != 3 {
+		t.Errorf("nothing active: eligible = %v, want all three", got)
+	}
+}
+
+func TestDefaultConfigHeatWaveAndRainyWeekConflict(t *testing.T) {
+	cfg := DefaultConfig()
+	for _, active := range []string{"heat_wave", "rainy_week"} {
+		other := map[string]string{"heat_wave": "rainy_week", "rainy_week": "heat_wave"}[active]
+		for _, d := range eligibleEvents(cfg.Events, []ActiveEvent{{Key: active}}) {
+			if d.Key == other {
+				t.Errorf("%s is eligible while %s is active", other, active)
+			}
+		}
+	}
+}
+
+func TestHeatWaveAndRainyWeekNeverOverlap(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.EventChance = 1 // an event every day, to stress the rule
+	for seed := int64(1); seed <= 20; seed++ {
+		g := NewGame(cfg, seed)
+		rng := rand.New(rand.NewSource(seed))
+		sawHeat, sawRain := false, false
+		for day := 0; day < 300; day++ {
+			tickEvents(&g, rng, cfg)
+			active := eventKeys(g.Events)
+			if active["heat_wave"] && active["rainy_week"] {
+				t.Fatalf("seed %d day %d: heat wave and rainy week active together: %v", seed, day, g.Events)
+			}
+			sawHeat = sawHeat || active["heat_wave"]
+			sawRain = sawRain || active["rainy_week"]
+		}
+		if !sawHeat || !sawRain {
+			t.Fatalf("seed %d: simulation never saw both events (heat=%v rain=%v), so the check proves nothing", seed, sawHeat, sawRain)
+		}
 	}
 }
 

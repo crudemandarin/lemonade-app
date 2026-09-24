@@ -63,3 +63,10 @@ Deviations from DESIGN.md and real tradeoffs made during the build. Newest last.
 - **Found:** the backend charged $200/$500/$1,200 per building (DESIGN §6, first draft). `UX-MOCKS-AND-CHANGES.md` §1.3, which wins on conflicts, sets $100/$250/$600, and its example says a fresh game's 5 Pantries upgrade to 5 Garages for $500. The backend offered $1,000, which left a new player at $0 after their first upgrade.
 - **Did:** changed `WarehouseTiers` in `internal/domain/config.go`; added a cost-table test and the fresh-game example as tests; corrected the stale row in DESIGN §6. Production upgrade costs were already right.
 - **Audited:** end-of-day order, production min(), upkeep clamp, bankruptcy, bid/ask rounding, price walk, event stacking, and all other tier values match the addendum.
+
+## 9. Conflicting events: `Excludes` on the event table
+- **Rule:** a heat wave and a rainy week can never be active on the same day.
+- **Did:** `EventDef` gets an `Excludes []string` of event keys. An event is only eligible to spawn if it is not already active and neither it nor any active event excludes the other; the check works in both directions, so a pair is declared once (on `heat_wave`). Adding another conflict is one more table entry.
+- **Why:** keeps to the table-driven design (DESIGN §6) instead of hard-coding weather logic in `tickEvents`.
+- **Trade-off:** a 2-day heat wave also blocks a rainy week from starting until it ends (and vice versa), so a spawn roll during that time picks from the other events. Events already active in saved games are unaffected.
+- **Tests:** eligibility in both directions, the default config's pair, and a 20-seed × 300-day simulation with an event every day that fails without the rule (verified by removing it).
