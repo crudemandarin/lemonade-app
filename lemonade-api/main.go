@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"lemonade-api/controller"
+	"lemonade-api/internal/api"
 	"lemonade-api/libraries"
 	"lemonade-api/model"
 	"lemonade-api/repository"
@@ -38,6 +39,7 @@ func main() {
 
 	router := gin.Default()
 	router.GET("/", index)
+	api.RegisterHealth(router)
 
 	sample := router.Group("/samples")
 	sample.GET("", sampleController.List)

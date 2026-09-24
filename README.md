@@ -1,6 +1,6 @@
-# lemonade-app
+# Lemonade Tycoon
 
-An Angular frontend, a Gin REST API and PostgreSQL, run together with Docker Compose.
+A turn-based lemonade business game: buy ingredients, run your facilities, sell lemonade, and survive the market one day at a time. Angular frontend, Gin (Go) REST API, PostgreSQL.
 
 | Service | Source | URL |
 | ------- | ------ | --- |
@@ -10,14 +10,22 @@ An Angular frontend, a Gin REST API and PostgreSQL, run together with Docker Com
 
 `web` forwards `/api/*` to `api` and removes the `/api` prefix, so no CORS setup is needed.
 
-**Requires:** [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+Design docs: [SPEC](docs/claude/SPEC.md), [DESIGN](docs/claude/DESIGN.md), [PLAN](docs/claude/PLAN.md), [DECISIONS](docs/claude/DECISIONS.md).
 
-## Run
+## Requirements
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (running), to start the full stack
+- For local development and tests: [Go](https://go.dev/dl/) 1.27+ and [Node.js](https://nodejs.org/) 20+ with Chrome (for headless frontend tests)
+
+## Install
 
 ```bash
-cp .env.example .env    # first time: fill in DB credentials (see below)
-docker compose up -d --build
+cp .env.example .env                        # DB credentials (defaults work locally)
+cd lemonade-api && go mod download && cd ..
+cd lemonade-web && npm ci && cd ..
 ```
+
+`.env.example` contains:
 
 ```
 DB_HOST=127.0.0.1
@@ -27,7 +35,16 @@ DB_NAME=sample
 DB_PORT=5432
 ```
 
-Inside Compose the API always connects to `db:5432`. `DB_HOST` only matters when you run the API outside Docker.
+## Run
+
+### Full stack (Docker Compose)
+
+```bash
+docker compose up -d --build
+open http://localhost:4200                  # the game
+curl http://localhost:8080/healthz          # API health: {"status":"ok"}
+curl http://localhost:4200/api/healthz      # same, through the web proxy
+```
 
 ```bash
 docker compose down           # stop
@@ -37,14 +54,33 @@ docker compose logs -f api    # tail logs (also: web, db)
 
 > Postgres reads `DB_PASSWORD` only when it creates a new volume. After changing it, run `docker compose down -v` (this deletes data) or `ALTER USER`.
 
-## Try it
+### Local development (hot reload)
 
 ```bash
-open http://localhost:4200                  # Angular app
-curl http://localhost:4200/api/samples      # API via the web proxy
-curl http://localhost:8080/samples          # API directly
+docker compose up -d db                                  # database only
+cd lemonade-api && cp ../.env .env && go run .           # API on :8080
+cd lemonade-web && npm start                             # web on :4200, proxies /api to :8080
 ```
 
-For local development without Docker, see [lemonade-api](lemonade-api/README.md) and [lemonade-web](lemonade-web/README.md).
+Inside Compose the API always connects to `db:5432`. `DB_HOST` only matters when you run the API outside Docker.
 
-To deploy to Google Cloud (Cloud Run + Cloud SQL), see [deploy/](deploy/README.md).
+## Test
+
+```bash
+cd lemonade-api && go test ./...
+cd lemonade-web && npx ng test --watch=false --browsers=ChromeHeadless
+```
+
+Lint and format: `gofmt -w . && go vet ./...` in `lemonade-api/`; `npm run lint && npm run format` in `lemonade-web/`.
+
+## Deploy
+
+Google Cloud (Cloud Run + Cloud SQL), see [deploy/](deploy/README.md). Pushes to `main` redeploy automatically.
+
+## Game physics (tuning)
+
+_TODO (slice 8): document the config tables in `lemonade-api` (prices, spread, events, facility costs) and how to tune them._
+
+## Known limitations
+
+- Login is username-only (sent as an `X-Username` header), by design of the brief. Not secure.
