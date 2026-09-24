@@ -1,0 +1,9 @@
+version: "2"
+
+linters:
+  # govet, staticcheck, errcheck, ineffassign, unused
+  default: standard
+
+formatters:
+  enable:
+    - gofmt

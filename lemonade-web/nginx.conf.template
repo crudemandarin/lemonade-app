@@ -1,0 +1,31 @@
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Filled in by the nginx image's envsubst at startup (see Dockerfile).
+    # Docker Compose: http://api:8080 via Docker's embedded DNS.
+    # Elsewhere: any http(s) API URL plus a resolver that can look it up.
+    # Resolving at request time lets nginx start even if the api is down.
+    resolver ${NGINX_RESOLVER} valid=10s;
+    set $api_upstream ${API_UPSTREAM};
+
+    # Proxy API calls to the backend; strips the /api prefix.
+    location /api/ {
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass $api_upstream;
+        # Send the upstream's own host (and TLS SNI), which hosted platforms route on.
+        proxy_set_header Host $proxy_host;
+        proxy_ssl_server_name on;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # SPA fallback: let the Angular router handle unknown paths.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

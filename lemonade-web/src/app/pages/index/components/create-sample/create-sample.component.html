@@ -1,0 +1,22 @@
+<app-card title="Create sample">
+  <form class="row" (submit)="submit($event)">
+    <input
+      class="input grow"
+      placeholder="Sample name"
+      aria-label="Sample name"
+      [value]="name()"
+      (input)="name.set($any($event.target).value)"
+    />
+    <button
+      type="submit"
+      class="btn btn-primary"
+      [class.is-loading]="saving()"
+      [disabled]="saving()"
+    >
+      <app-icon name="plus" /> Create
+    </button>
+  </form>
+  @if (error(); as error) {
+    <p class="field-error">{{ error }}</p>
+  }
+</app-card>

@@ -1,0 +1,129 @@
+<app-card [title]="'Samples (' + store.samples().length + ')'">
+  <button
+    cardActions
+    type="button"
+    class="btn btn-ghost"
+    [class.is-loading]="store.loading()"
+    [disabled]="store.loading()"
+    (click)="store.load()"
+  >
+    <app-icon name="refresh" /> Refresh
+  </button>
+
+  @if (store.error(); as error) {
+    <p class="field-error">{{ error }}</p>
+  }
+
+  @if (store.samples().length) {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-id">ID</th>
+            <th>Name</th>
+            <th class="col-updated">Updated</th>
+            <th class="col-actions"><span class="visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (sample of store.samples(); track sample.id) {
+            <tr
+              @rowLeave
+              [class.highlight]="highlightedIds().has(sample.id)"
+              [class.confirming]="confirmingId() === sample.id"
+            >
+              <td class="col-id mono">#{{ sample.id }}</td>
+
+              @if (editingId() === sample.id) {
+                <td>
+                  <input
+                    class="input input-sm"
+                    aria-label="New name"
+                    [value]="draft()"
+                    (input)="draft.set($any($event.target).value)"
+                    (keydown.enter)="save(sample)"
+                    (keydown.escape)="cancelEdit()"
+                  />
+                </td>
+                <td class="col-updated muted">{{ sample.updated_at | date: 'MMM d, HH:mm' }}</td>
+                <td class="col-actions">
+                  <div class="actions">
+                    <button
+                      type="button"
+                      class="icon-btn ok"
+                      title="Save (PUT)"
+                      [class.is-loading]="busyId() === sample.id"
+                      [disabled]="busyId() === sample.id"
+                      (click)="save(sample)"
+                    >
+                      <app-icon name="check" />
+                    </button>
+                    <button type="button" class="icon-btn" title="Cancel" (click)="cancelEdit()">
+                      <app-icon name="x" />
+                    </button>
+                  </div>
+                </td>
+              } @else {
+                <td class="name">{{ sample.name }}</td>
+                <td class="col-updated muted">{{ sample.updated_at | date: 'MMM d, HH:mm' }}</td>
+                <td class="col-actions">
+                  <div class="actions">
+                    @if (confirmingId() === sample.id) {
+                      <div class="confirm" role="group" aria-label="Confirm delete">
+                        <span>Delete?</span>
+                        <button
+                          type="button"
+                          class="confirm-btn yes"
+                          title="DELETE /samples/{{ sample.id }}"
+                          [class.is-loading]="busyId() === sample.id"
+                          [disabled]="busyId() === sample.id"
+                          (click)="delete(sample)"
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          class="confirm-btn"
+                          [disabled]="busyId() === sample.id"
+                          (click)="confirmingId.set(null)"
+                        >
+                          No
+                        </button>
+                      </div>
+                    } @else {
+                      <button
+                        type="button"
+                        class="icon-btn"
+                        title="Edit"
+                        (click)="startEdit(sample)"
+                      >
+                        <app-icon name="edit" />
+                      </button>
+                      <button
+                        type="button"
+                        class="icon-btn danger"
+                        title="Delete"
+                        (click)="askDelete(sample)"
+                      >
+                        <app-icon name="trash" />
+                      </button>
+                    }
+                  </div>
+                </td>
+              }
+            </tr>
+            @if (rowError()?.id === sample.id) {
+              <tr class="error-row">
+                <td colspan="4">
+                  <p class="field-error">{{ rowError()?.message }}</p>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else if (!store.loading() && !store.error()) {
+    <p class="empty">No samples yet. Create one above.</p>
+  }
+</app-card>

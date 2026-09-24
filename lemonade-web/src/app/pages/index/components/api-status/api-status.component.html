@@ -1,0 +1,20 @@
+<button
+  type="button"
+  class="status"
+  [class]="state()"
+  title="Re-check with GET /api/"
+  (click)="check()"
+>
+  <span class="dot"></span>
+  @switch (state()) {
+    @case ('online') {
+      API online
+    }
+    @case ('offline') {
+      API offline
+    }
+    @default {
+      Checking…
+    }
+  }
+</button>

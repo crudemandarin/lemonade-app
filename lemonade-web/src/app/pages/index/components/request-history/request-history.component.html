@@ -1,0 +1,49 @@
+<app-card title="Request history">
+  <button
+    cardActions
+    type="button"
+    class="btn btn-ghost"
+    [disabled]="!log.entries().length"
+    (click)="clear()"
+  >
+    Clear
+  </button>
+
+  @if (log.entries().length) {
+    <ol class="entries">
+      @for (entry of log.entries(); track entry.id) {
+        <li class="entry" [class.open]="isOpen(entry)">
+          <button
+            type="button"
+            class="summary"
+            [attr.aria-expanded]="isOpen(entry)"
+            (click)="toggle(entry)"
+          >
+            <span class="line">
+              <app-method-badge [method]="entry.method" />
+              <span class="url mono">{{ entry.url }}</span>
+              <app-status-pill [status]="entry.status" />
+            </span>
+            <span class="meta">
+              {{ entry.timestamp | date: 'HH:mm:ss' }} · {{ entry.durationMs }} ms
+              <app-icon class="chevron" name="chevron" [size]="14" />
+            </span>
+          </button>
+
+          @if (isOpen(entry)) {
+            <div class="details">
+              @if (entry.requestBody !== null) {
+                <span class="label">Request</span>
+                <app-json-view [value]="entry.requestBody" />
+              }
+              <span class="label">Response</span>
+              <app-json-view [value]="entry.responseBody" />
+            </div>
+          }
+        </li>
+      }
+    </ol>
+  } @else {
+    <p class="empty">API calls made by this page will appear here.</p>
+  }
+</app-card>

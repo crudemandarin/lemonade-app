@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16
+    container_name: lemonade-db
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - lemonade-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./lemonade-api
+    container_name: lemonade-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_PORT: 5432
+      TZ: America/Denver
+    ports:
+      - "8080:8080"
+
+  web:
+    build: ./lemonade-web
+    container_name: lemonade-web
+    depends_on:
+      - api
+    ports:
+      - "4200:80"
+
+volumes:
+  lemonade-db-data:

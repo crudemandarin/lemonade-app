@@ -1,0 +1,8 @@
+.env
+.DS_Store
+
+# Terraform (state lives in GCS)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars

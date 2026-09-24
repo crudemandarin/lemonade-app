@@ -1,0 +1,21 @@
+:host {
+  display: block;
+}
+
+pre {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  max-height: 16rem;
+  overflow: auto;
+  background: var(--code-bg);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.empty {
+  color: var(--text-muted);
+  font-style: italic;
+}

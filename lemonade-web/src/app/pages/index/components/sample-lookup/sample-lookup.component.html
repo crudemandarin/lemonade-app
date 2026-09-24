@@ -1,0 +1,36 @@
+<app-card title="Look up by ID">
+  <form class="row" (submit)="lookup($event)">
+    <input
+      class="input id-input"
+      inputmode="numeric"
+      placeholder="ID"
+      aria-label="Sample ID"
+      [value]="id()"
+      (input)="id.set($any($event.target).value)"
+    />
+    <button
+      type="submit"
+      class="btn"
+      [class.is-loading]="loading()"
+      [disabled]="loading() || !id().trim()"
+    >
+      <app-icon name="search" /> Get
+    </button>
+  </form>
+
+  @if (result(); as sample) {
+    <dl class="result fade-in">
+      <dt>ID</dt>
+      <dd class="mono">#{{ sample.id }}</dd>
+      <dt>Name</dt>
+      <dd>{{ sample.name }}</dd>
+      <dt>Created</dt>
+      <dd>{{ sample.created_at | date: 'MMM d, y, HH:mm:ss' }}</dd>
+      <dt>Updated</dt>
+      <dd>{{ sample.updated_at | date: 'MMM d, y, HH:mm:ss' }}</dd>
+    </dl>
+  }
+  @if (error(); as error) {
+    <p class="field-error">{{ error }}</p>
+  }
+</app-card>

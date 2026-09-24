@@ -1,0 +1,144 @@
+.table-wrap {
+  overflow-x: auto;
+  margin: 0 -0.5rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+th {
+  padding: 0 0.5rem 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+td {
+  height: 2.75rem;
+  padding: 0 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+tbody tr {
+  animation: fade-in 0.3s ease-out;
+
+  &:hover td {
+    background: var(--hover);
+  }
+  &.highlight td {
+    animation: flash 1.6s ease-out;
+  }
+}
+
+.error-row td {
+  height: auto;
+  padding-bottom: 0.5rem;
+  border-top: 0;
+
+  .field-error {
+    margin: 0;
+  }
+}
+
+.col-id {
+  width: 3.5rem;
+  color: var(--text-muted);
+}
+.col-updated {
+  width: 8.5rem;
+  white-space: nowrap;
+}
+.col-actions {
+  width: 10rem;
+  text-align: right;
+  white-space: nowrap;
+}
+.name {
+  overflow-wrap: anywhere;
+}
+.muted {
+  color: var(--text-muted);
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.125rem;
+  vertical-align: middle;
+}
+
+tbody tr.confirming td {
+  background: color-mix(in srgb, var(--red) 6%, transparent);
+}
+
+.confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1875rem 0.1875rem 0.1875rem 0.625rem;
+  border: 1px solid color-mix(in srgb, var(--red) 30%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--red) 12%, var(--surface));
+  color: var(--red);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  animation: fade-in 0.15s ease-out;
+
+  span {
+    margin-right: 0.125rem;
+  }
+}
+
+.confirm-btn {
+  position: relative;
+  height: 1.5rem;
+  padding: 0 0.625rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    filter 0.15s;
+
+  &:hover:not(:disabled) {
+    filter: brightness(0.95);
+  }
+  &:disabled {
+    cursor: default;
+  }
+
+  &.yes {
+    background: var(--red);
+    color: #fff;
+  }
+}
+
+.empty {
+  margin: 0;
+  padding: 1.5rem 0;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+@keyframes flash {
+  from {
+    background: var(--accent-soft);
+  }
+}
+
+@media (max-width: 480px) {
+  .col-updated {
+    display: none;
+  }
+}

@@ -1,0 +1,20 @@
+{
+  // Format on save; linting runs on demand (npm run lint, golangci-lint run).
+  "editor.formatOnSave": true,
+
+  // Prettier formats files in projects that have a Prettier config (lemonade-web).
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "prettier.requireConfig": true,
+
+  // Go is formatted by gopls (gofmt), which also organizes imports on save.
+  "[go]": {
+    "editor.defaultFormatter": "golang.go",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  "go.lintOnSave": "off",
+
+  // Only use ESLint in the Angular project.
+  "eslint.workingDirectories": ["./lemonade-web"]
+}

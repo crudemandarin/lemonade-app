@@ -1,0 +1,73 @@
+# Rebuilds and redeploys the Cloud Run services changed by a push to main,
+# using deploy/scripts/deploy.sh. Authenticates keylessly through Workload
+# Identity Federation; bootstrap.sh creates the access and sets the two
+# repository variables used below.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lemonade-api/**"
+      - "lemonade-web/**"
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Service to deploy
+        type: choice
+        options: [all, api, web]
+        default: all
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write # lets google-github-actions/auth request GitHub's OIDC token
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dorny/paths-filter@v4
+        id: changes
+        if: github.event_name == 'push'
+        with:
+          filters: |
+            api:
+              - "lemonade-api/**"
+            web:
+              - "lemonade-web/**"
+
+      - name: Choose services
+        id: target
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT: ${{ inputs.service }}
+          API: ${{ steps.changes.outputs.api }}
+          WEB: ${{ steps.changes.outputs.web }}
+        run: |
+          if [ "$EVENT" = workflow_dispatch ]; then target="$INPUT"
+          elif [ "$API" = true ] && [ "$WEB" = true ]; then target=all
+          elif [ "$API" = true ]; then target=api
+          elif [ "$WEB" = true ]; then target=web
+          else target=none
+          fi
+          echo "service=$target" >> "$GITHUB_OUTPUT"
+          echo "Deploying: $target"
+
+      - uses: google-github-actions/auth@v3
+        if: steps.target.outputs.service != 'none'
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+        if: steps.target.outputs.service != 'none'
+
+      - name: Deploy
+        if: steps.target.outputs.service != 'none'
+        run: ./deploy/scripts/deploy.sh "${{ steps.target.outputs.service }}"
