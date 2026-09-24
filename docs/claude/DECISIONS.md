@@ -26,3 +26,29 @@ Deviations from DESIGN.md and real tradeoffs made during the build. Newest last.
 ## 5. UI error and busy behavior
 - **Did:** a failed action keeps the current view and shows the server's `message` in a dismissible alert (the next successful call clears it). Buy/Sell/Expand stay enabled per the mocks; Upgrade is disabled only at max level ("Max level"). End day is disabled while any request is in flight, so the day cannot end mid-trade.
 - **Trade-off:** no client-side validation of qty, funds, or capacity; the server is the single place those rules live.
+
+## 6. PWA: installability checked via Chrome, not Lighthouse (slice 7)
+- **Design said:** verify installability with Lighthouse.
+- **Did:** Lighthouse 12 removed its PWA category, so installability is checked with Chrome's own `Page.getInstallabilityErrors` (the check behind the Install button; also visible in DevTools → Application → Manifest). Locally: no errors, service worker controls the page, zero `/api` entries in Cache Storage, offline reload shows the shell and the offline banner, and offline API calls get the service worker's 504 (never a cached response).
+- **Also:** `ngsw-config.json` adds `!/api/**` to `navigationUrls`, so the service worker never answers an address-bar visit to an API URL with the app shell. No `dataGroups`, so no API caching.
+- **Icons:** the Angular template icons stay until real assets arrive (user request). Theme color is lemon (`#facc15`).
+
+## 3. One shared level for all warehouses; quantity is per resource (slices 1, 5)
+- **Design said:** six independent facility kinds (`warehouse_lemon` ... `production`), each with its own level and quantity, and `:kind` in the facility routes.
+- **Did:** two facility types. All five warehouses share one level; each resource's warehouse has its own building count. Routes are `/facilities/warehouse/expand` (body `{resource}`), `/facilities/production/expand`, and `/facilities/{warehouse|production}/upgrade`. Warehouse upgrade costs `upgradeCost(level) x total warehouse buildings`. Max quantity (10) is per resource warehouse, and for production.
+- **Why:** the frontend contract (`api.models.ts`, `api.service.ts`) was built that way and says the backend must return exactly those shapes. The API follows the contract, not the older DESIGN table.
+- **Trade-off:** you cannot have a Barn for lemons and a Pantry for sugar. Upgrading gets more expensive as you expand warehouses.
+
+## 4. `EndDay` returns an error, and events never re-spawn while active (slices 3, 6)
+- **Did:** `EndDay(g, cfg) (DayReport, error)` returns `ErrGameOver` on a finished game (DESIGN had no error). Spawning skips any event already active, and expiry runs before spawning, so an event can start again the same tick it ends.
+- **Why:** rule 11 rejects all actions after game over, and ending a day is an action. Skipping active events stops an event stacking on itself, which would make one shock unbounded.
+- **Trade-off:** at most one copy of each event is active at once.
+
+## 5. Quote rounding snaps float noise (slice 2)
+- **Did:** bid/ask floor/ceil operate on `round(x * 1e6) / 1e6`.
+- **Why:** `100 * 1.1 = 110.00000000000001`, so a plain `ceil` gave an ask of $111 instead of $110. Caught by the rounding test.
+
+## 6. Seed comes from the clock in the API layer; persistence is one game row per user (slice 1)
+- **Did:** `api.NewGame(..., nil)` seeds new games from `time.Now().UnixNano()`; the domain stays clock-free and takes the seed as input. `games` has a unique `user_id`, so "new game" overwrites the row instead of keeping history.
+- **Why:** rule 2 says one active game per user and a new game replaces it. Games stay reproducible from the stored seed.
+- **Trade-off:** no history of past games (a leaderboard would need a separate table).

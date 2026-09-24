@@ -72,4 +72,28 @@ describe('FacilitiesPanelComponent', () => {
     expect(button.textContent).toContain('Max level');
     expect(emitted).toEqual([]);
   });
+
+  it('disables every expand and upgrade button when disabled', () => {
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+
+    const buttons = Array.from(el.querySelectorAll<HTMLButtonElement>('button'));
+    expect(buttons.length).toBe(8);
+    expect(buttons.every((b) => b.disabled)).toBeTrue();
+  });
+
+  it('shows the tier image for each facility type and level', () => {
+    const game = newGameView();
+    game.facilities.production = { ...game.facilities.production, level: 3 };
+    render(game);
+
+    const src = (card: HTMLElement) => card.querySelector('img.tier-img')!.getAttribute('src');
+    expect(src(warehouseCard())).toBe('assets/facilities/warehouse-1.svg');
+    expect(src(productionCard())).toBe('assets/facilities/production-3.svg');
+  });
+
+  it('shows each resource image in the warehouse rows', () => {
+    const img = warehouseCard().querySelector('[data-resource=cup] img')!;
+    expect(img.getAttribute('src')).toBe('assets/resources/cup.svg');
+  });
 });

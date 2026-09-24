@@ -1,13 +1,23 @@
-<svg
-  viewBox="0 0 24 24"
-  [attr.width]="size()"
-  [attr.height]="size()"
-  fill="none"
-  stroke="currentColor"
-  stroke-width="2"
-  stroke-linecap="round"
-  stroke-linejoin="round"
-  aria-hidden="true"
->
-  <path [attr.d]="paths[name()]" />
-</svg>
+@if (path(); as d) {
+  <svg
+    viewBox="0 0 24 24"
+    [attr.width]="size()"
+    [attr.height]="size()"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path [attr.d]="d" />
+  </svg>
+} @else {
+  <span
+    class="mask"
+    aria-hidden="true"
+    [style.width.px]="size()"
+    [style.height.px]="size()"
+    [style.--icon]="maskUrl()"
+  ></span>
+}

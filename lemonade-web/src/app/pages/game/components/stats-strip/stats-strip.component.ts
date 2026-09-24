@@ -15,6 +15,7 @@ export class StatsStripComponent {
   readonly day = input.required<number>();
   readonly capital = input.required<number>();
   readonly upkeepPerDay = input.required<number>();
-  readonly busy = input(false);
+  /** True while a request is in flight or the app is offline. */
+  readonly disabled = input(false);
   readonly endDay = output<void>();
 }

@@ -50,4 +50,11 @@ describe('SigninComponent', () => {
 
     expect(navigate).toHaveBeenCalledWith('/game');
   }));
+
+  it('disables Continue while offline', () => {
+    window.dispatchEvent(new Event('offline'));
+    fixture.detectChanges();
+    expect(el.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBeTrue();
+    window.dispatchEvent(new Event('online'));
+  });
 });

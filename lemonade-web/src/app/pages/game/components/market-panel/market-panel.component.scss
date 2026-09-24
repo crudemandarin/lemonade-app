@@ -1,7 +1,7 @@
 .head,
 .row {
   display: grid;
-  grid-template-columns: 6rem minmax(8rem, 1fr) 6rem 11rem 11rem;
+  grid-template-columns: 8rem minmax(8rem, 1fr) 6rem 11rem 11rem;
   align-items: center;
   gap: 1rem;
 }
@@ -24,6 +24,9 @@
 }
 
 .name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-weight: 500;
 }
 
@@ -66,6 +69,10 @@
 
 .trend.down {
   color: var(--red);
+}
+
+.trend.flat {
+  color: var(--text-muted);
 }
 
 .trade {

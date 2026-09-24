@@ -1,5 +1,6 @@
 <header class="top">
   <app-nav-bar [username]="username()" (logOut)="logOut()" />
+  <app-offline-banner />
 </header>
 <main class="page">
   <router-outlet />

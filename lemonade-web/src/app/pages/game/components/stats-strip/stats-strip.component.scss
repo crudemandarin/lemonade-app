@@ -18,6 +18,9 @@ dl {
 }
 
 dt {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   color: var(--text-muted);
   font-size: 0.75rem;
 }

@@ -2,3 +2,10 @@
   display: inline-flex;
   flex-shrink: 0;
 }
+
+.mask {
+  display: block;
+  background: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}

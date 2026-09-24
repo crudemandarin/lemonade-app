@@ -1,6 +1,8 @@
 <section class="hero">
-  <app-icon name="frown" [size]="56" />
+  <app-icon name="sad-face" [size]="56" />
   <h1>Bankrupt on day {{ day() }}</h1>
   <p>You ran out of cash and stock. Final capital: {{ capital() | money }}.</p>
-  <button type="button" class="btn btn-primary" (click)="newGame.emit()">New game</button>
+  <button type="button" class="btn btn-primary" [disabled]="disabled()" (click)="newGame.emit()">
+    New game
+  </button>
 </section>

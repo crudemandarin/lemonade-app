@@ -26,6 +26,8 @@ import { MoneyPipe } from '../../../../shared/money.pipe';
 export class FacilitiesPanelComponent {
   readonly warehouse = input.required<WarehouseView>();
   readonly production = input.required<ProductionView>();
+  /** Disables every action, e.g. while offline. */
+  readonly disabled = input(false);
 
   readonly expandWarehouse = output<Resource>();
   readonly expandProduction = output<void>();

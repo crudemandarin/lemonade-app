@@ -4,11 +4,12 @@ import { Router, RouterOutlet } from '@angular/router';
 import { GameStore } from './core/game.store';
 import { SessionService } from './core/session.service';
 import { NavBarComponent } from './shared/nav-bar/nav-bar.component';
+import { OfflineBannerComponent } from './shared/offline-banner/offline-banner.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, NavBarComponent],
+  imports: [RouterOutlet, NavBarComponent, OfflineBannerComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })

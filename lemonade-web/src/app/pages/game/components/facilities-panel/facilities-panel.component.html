@@ -3,12 +3,19 @@
     @if (warehouse(); as wh) {
       <article class="facility warehouse">
         <header class="summary">
-          <div class="img" [attr.data-level]="wh.level" aria-hidden="true">
-            <app-icon name="warehouse" [size]="28" />
-          </div>
+          <img
+            class="tier-img"
+            [src]="'assets/facilities/warehouse-' + wh.level + '.svg'"
+            alt=""
+            width="64"
+            height="64"
+          />
           <div>
             <h3>{{ wh.tierName }}</h3>
-            <p class="muted">Warehouses, level {{ wh.level }} of {{ wh.maxLevel }}</p>
+            <p class="muted type">
+              <app-icon name="warehouse" [size]="14" /> Warehouses, level {{ wh.level }} of
+              {{ wh.maxLevel }}
+            </p>
             <p class="muted">Upkeep {{ wh.upkeepPerDay | money }} per day</p>
           </div>
         </header>
@@ -17,10 +24,11 @@
           <button
             type="button"
             class="btn upgrade"
-            [disabled]="!wh.upgrade"
+            [disabled]="disabled() || !wh.upgrade"
             (click)="onUpgrade('warehouse', wh)"
           >
             @if (wh.upgrade; as up) {
+              <app-icon name="upgrade" [size]="14" />
               Upgrade all warehouses to {{ up.tierName }}: {{ up.totalCost | money }}
             } @else {
               Max level
@@ -37,10 +45,24 @@
         <ul class="resources">
           @for (r of wh.resources; track r.resource) {
             <li [attr.data-resource]="r.resource">
-              <span class="name">{{ labels[r.resource] }}</span>
+              <span class="name">
+                <img
+                  [src]="'assets/resources/' + r.resource + '.svg'"
+                  alt=""
+                  width="22"
+                  height="22"
+                />
+                {{ labels[r.resource] }}
+              </span>
               <span class="count">x{{ r.count }}</span>
               <span class="muted">Holds {{ r.capacity }} cases</span>
-              <button type="button" class="btn btn-sm" (click)="expandWarehouse.emit(r.resource)">
+              <button
+                type="button"
+                class="btn btn-sm"
+                [disabled]="disabled()"
+                (click)="expandWarehouse.emit(r.resource)"
+              >
+                <app-icon name="expand" [size]="14" />
                 Expand {{ wh.expandCost | money }}
               </button>
             </li>
@@ -52,12 +74,19 @@
     @if (production(); as pr) {
       <article class="facility production">
         <header class="summary">
-          <div class="img" [attr.data-level]="pr.level" aria-hidden="true">
-            <app-icon name="factory" [size]="28" />
-          </div>
+          <img
+            class="tier-img"
+            [src]="'assets/facilities/production-' + pr.level + '.svg'"
+            alt=""
+            width="64"
+            height="64"
+          />
           <div>
             <h3>{{ pr.tierName }}</h3>
-            <p class="muted">Production, level {{ pr.level }} of {{ pr.maxLevel }}</p>
+            <p class="muted type">
+              <app-icon name="factory" [size]="14" /> Production, level {{ pr.level }} of
+              {{ pr.maxLevel }}
+            </p>
             <p class="muted">{{ buildings(pr.buildings) }}</p>
             <p class="muted">Makes {{ pr.ratePerDay }} lemonade per day</p>
             <p class="muted">Upkeep {{ pr.upkeepPerDay | money }} per day</p>
@@ -65,16 +94,23 @@
         </header>
 
         <div class="actions">
-          <button type="button" class="btn expand" (click)="expandProduction.emit()">
+          <button
+            type="button"
+            class="btn expand"
+            [disabled]="disabled()"
+            (click)="expandProduction.emit()"
+          >
+            <app-icon name="expand" [size]="14" />
             Expand: {{ pr.expandCost | money }}
           </button>
           <button
             type="button"
             class="btn upgrade"
-            [disabled]="!pr.upgrade"
+            [disabled]="disabled() || !pr.upgrade"
             (click)="onUpgrade('production', pr)"
           >
             @if (pr.upgrade; as up) {
+              <app-icon name="upgrade" [size]="14" />
               Upgrade to {{ up.tierName }}: {{ up.totalCost | money }}
             } @else {
               Max level

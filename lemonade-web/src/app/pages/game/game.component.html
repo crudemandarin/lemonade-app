@@ -10,14 +10,19 @@
 
 @if (store.game(); as game) {
   @if (game.status === 'bankrupt') {
-    <app-game-over [day]="game.day" [capital]="game.capital" (newGame)="store.newGame()" />
+    <app-game-over
+      [day]="game.day"
+      [capital]="game.capital"
+      [disabled]="!online()"
+      (newGame)="store.newGame()"
+    />
   } @else {
     <div class="dashboard">
       <app-stats-strip
         [day]="game.day"
         [capital]="game.capital"
         [upkeepPerDay]="game.upkeepPerDay"
-        [busy]="store.loading()"
+        [disabled]="store.loading() || !online()"
         (endDay)="store.endDay()"
       />
 
@@ -27,6 +32,7 @@
 
       <app-market-panel
         [resources]="game.resources"
+        [disabled]="!online()"
         (buy)="store.buy($event.resource, $event.qty)"
         (sell)="store.sell($event.resource, $event.qty)"
       />
@@ -34,6 +40,7 @@
       <app-facilities-panel
         [warehouse]="game.facilities.warehouse"
         [production]="game.facilities.production"
+        [disabled]="!online()"
         (expandWarehouse)="store.expandWarehouse($event)"
         (expandProduction)="store.expandProduction()"
         (upgrade)="store.upgrade($event)"

@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 
 import { GameStore } from '../../core/game.store';
+import { OnlineService } from '../../core/online.service';
 import { IconComponent } from '../../shared/icon/icon.component';
 import { DayReportModalComponent } from './components/day-report-modal/day-report-modal.component';
 import { EventsBannerComponent } from './components/events-banner/events-banner.component';
@@ -27,6 +28,7 @@ import { StatsStripComponent } from './components/stats-strip/stats-strip.compon
 })
 export class GameComponent implements OnInit {
   protected readonly store = inject(GameStore);
+  protected readonly online = inject(OnlineService).online;
 
   ngOnInit(): void {
     this.store.load();

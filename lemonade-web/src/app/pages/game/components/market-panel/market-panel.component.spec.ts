@@ -53,4 +53,26 @@ describe('MarketPanelComponent', () => {
 
     expect(emitted).toEqual([{ resource: 'lemonade', qty: 1 }]);
   });
+
+  it('disables every buy and sell button when disabled', () => {
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+
+    const buttons = Array.from(el.querySelectorAll<HTMLButtonElement>('button'));
+    expect(buttons.length).toBe(10);
+    expect(buttons.every((b) => b.disabled)).toBeTrue();
+  });
+
+  it('shows each resource image', () => {
+    const img = row('ice').querySelector<HTMLImageElement>('img.resource-img')!;
+    expect(img.getAttribute('src')).toBe('assets/resources/ice.svg');
+  });
+
+  it('shows a flat trend when the price did not move', () => {
+    const resources = newGameView().resources;
+    resources[1] = { ...resources[1], previousPrice: resources[1].price };
+    fixture.componentRef.setInput('resources', resources);
+    fixture.detectChanges();
+    expect(row('sugar').querySelector('.trend.flat')).not.toBeNull();
+  });
 });

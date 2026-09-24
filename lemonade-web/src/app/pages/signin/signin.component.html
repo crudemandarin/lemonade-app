@@ -14,7 +14,7 @@
     type="submit"
     class="btn btn-primary"
     [class.is-loading]="store.loading()"
-    [disabled]="store.loading()"
+    [disabled]="store.loading() || !online()"
   >
     Continue
   </button>

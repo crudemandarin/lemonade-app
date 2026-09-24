@@ -10,7 +10,16 @@
 
     @for (row of resources(); track row.resource) {
       <div class="row" role="row" [attr.data-resource]="row.resource">
-        <span class="name" role="cell">{{ labels[row.resource] }}</span>
+        <span class="name" role="cell">
+          <img
+            class="resource-img"
+            [src]="'assets/resources/' + row.resource + '.svg'"
+            alt=""
+            width="28"
+            height="28"
+          />
+          {{ labels[row.resource] }}
+        </span>
 
         <span class="stock" role="cell">
           <span
@@ -35,6 +44,9 @@
             @case ('down') {
               <app-icon class="trend down" name="trend-down" [size]="14" />
             }
+            @case ('flat') {
+              <app-icon class="trend flat" name="trend-flat" [size]="14" />
+            }
           }
         </span>
 
@@ -49,6 +61,7 @@
           />
           <button
             type="button"
+            [disabled]="disabled()"
             class="btn"
             (click)="buy.emit({ resource: row.resource, qty: qty(buyQty) })"
           >
@@ -67,6 +80,7 @@
           />
           <button
             type="button"
+            [disabled]="disabled()"
             class="btn"
             (click)="sell.emit({ resource: row.resource, qty: qty(sellQty) })"
           >

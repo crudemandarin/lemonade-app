@@ -13,5 +13,6 @@ import { MoneyPipe } from '../../../../shared/money.pipe';
 export class GameOverComponent {
   readonly day = input.required<number>();
   readonly capital = input.required<number>();
+  readonly disabled = input(false);
   readonly newGame = output<void>();
 }

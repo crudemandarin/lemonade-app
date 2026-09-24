@@ -21,13 +21,19 @@ export interface TradeRequest {
 })
 export class MarketPanelComponent {
   readonly resources = input.required<ResourceView[]>();
+  /** Disables every action, e.g. while offline. */
+  readonly disabled = input(false);
   readonly buy = output<TradeRequest>();
   readonly sell = output<TradeRequest>();
 
   protected readonly labels = RESOURCE_LABELS;
 
-  protected trend(row: ResourceView): 'up' | 'down' | 'flat' {
-    if (row.previousPrice === null || row.previousPrice === row.price) {
+  /** Null on day 1, when there is no yesterday to compare against. */
+  protected trend(row: ResourceView): 'up' | 'down' | 'flat' | null {
+    if (row.previousPrice === null) {
+      return null;
+    }
+    if (row.previousPrice === row.price) {
       return 'flat';
     }
     return row.price > row.previousPrice ? 'up' : 'down';

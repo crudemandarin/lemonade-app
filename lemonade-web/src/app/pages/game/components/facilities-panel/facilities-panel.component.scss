@@ -31,27 +31,17 @@
   }
 }
 
-// Placeholder for tier art; the tint deepens with the level.
-.img {
-  display: grid;
-  place-items: center;
+.tier-img {
   flex-shrink: 0;
-  width: 4rem;
-  height: 4rem;
+  padding: 0.375rem;
   border-radius: var(--radius);
   background: var(--accent-soft);
-  color: var(--accent-strong);
+}
 
-  &[data-level='2'] {
-    background: color-mix(in srgb, var(--accent) 35%, var(--surface));
-  }
-  &[data-level='3'] {
-    background: color-mix(in srgb, var(--accent) 60%, var(--surface));
-  }
-  &[data-level='4'] {
-    background: var(--accent);
-    color: var(--accent-contrast);
-  }
+.type {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .muted {
@@ -91,7 +81,7 @@
 
   li {
     display: grid;
-    grid-template-columns: 5.5rem 2.5rem 1fr auto;
+    grid-template-columns: 7rem 2.5rem 1fr auto;
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 0;
@@ -104,6 +94,9 @@
   }
 
   .name {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
     font-weight: 500;
   }
 

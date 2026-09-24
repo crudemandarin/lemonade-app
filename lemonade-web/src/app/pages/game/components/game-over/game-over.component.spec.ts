@@ -27,4 +27,10 @@ describe('GameOverComponent', () => {
 
     expect(count).toBe(1);
   });
+
+  it('disables New game when disabled', () => {
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    expect(el.querySelector<HTMLButtonElement>('.btn-primary')!.disabled).toBeTrue();
+  });
 });

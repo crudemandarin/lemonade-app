@@ -1,20 +1,20 @@
 <section class="strip">
   <dl>
     <div>
-      <dt>Day</dt>
+      <dt><app-icon name="calendar" [size]="14" /> Day</dt>
       <dd>{{ day() }}</dd>
     </div>
     <div>
-      <dt>Capital</dt>
+      <dt><app-icon name="coin" [size]="14" /> Capital</dt>
       <dd>{{ capital() | money }}</dd>
     </div>
     <div>
-      <dt>Upkeep per day</dt>
+      <dt><app-icon name="coin" [size]="14" /> Upkeep per day</dt>
       <dd>{{ upkeepPerDay() | money }}</dd>
     </div>
   </dl>
-  <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="endDay.emit()">
+  <button type="button" class="btn btn-primary" [disabled]="disabled()" (click)="endDay.emit()">
+    <app-icon name="end-day" />
     End day
-    <app-icon name="arrow-right" />
   </button>
 </section>
