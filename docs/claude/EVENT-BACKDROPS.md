@@ -28,7 +28,7 @@ Keys match `lemonade-api/internal/domain/config.go`. Adding an event to the tabl
 
 - **Placement:** one `app-event-backdrop` in the app shell (`app.component.html`), above the nav bar in the template, `position: fixed; inset: 0; z-index: -1`. It shows on every page (sign-in and home have no game, so no events, so nothing renders).
 - **Input:** the active `GameEvent[]` from `GameStore.game()`. Nothing else; the component is presentational.
-- **Cap of 2 scenes.** Events can overlap (only same-key copies are blocked, DECISIONS §4). Take known keys, sort by `daysLeft` descending (longest-running first, ties keep server order), draw the first two. Others are ignored.
+- **Cap of 2 scenes.** Events can overlap (only same-key copies are blocked, DECISIONS §8). Take known keys, sort by `daysLeft` descending (longest-running first, ties keep server order), draw the first two. Others are ignored.
 - **Same-slot conflicts.** Two scenes can both want the top of the screen or the falling layer, so each scene declares which slots it uses (§5); if the top two collide, still draw both (they are faint and translucent) but the second gets `opacity: 0.6` of its own so the first reads.
 - **Whole layer opacity 0.8**, individual particles 0.35-0.7. Both tints and particles are semi-transparent so cards (opaque `--surface`) always sit cleanly on top.
 - **Fade-in** 1.2 s when a scene appears; fade-out is not needed (the scene is removed on expiry, at a day boundary the player has just clicked through).

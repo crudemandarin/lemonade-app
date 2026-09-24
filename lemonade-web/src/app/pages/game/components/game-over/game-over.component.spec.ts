@@ -71,7 +71,7 @@ describe('GameOverComponent', () => {
         .replace(/\s+/g, ' ');
 
     it('summarizes the whole game', () => {
-      expect(text()).toContain('Peak capital $4,820 on day 9');
+      expect(text()).toContain('Peak cash $4,820 on day 9');
       expect(text()).toContain('Earned from sales $12,345');
       expect(text()).toContain('Spent on stock $6,789');
       expect(text()).toContain('Lemonade produced 210');

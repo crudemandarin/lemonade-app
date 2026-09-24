@@ -24,7 +24,7 @@ Upgrade(g *Game, k FacilityKind) error    // level + 1 for all buildings
 EndDay(g *Game, cfg Config) DayReport     // produce, melt, upkeep, advance, market tick, events, bankruptcy
 Quotes(g Game) map[Resource]Quote         // effective price, bid, ask (whole dollars)
 Capacity(g Game, r Resource) int          // quantity * size(level)
-// bankruptcy is decided inside EndDay: upkeep unpayable even after selling all stock at bid (DECISIONS 12)
+// bankruptcy is decided inside EndDay: upkeep unpayable even after selling all stock at bid (DECISIONS 16)
 ```
 **Determinism:** randomness comes from `rand.New(rand.NewSource(seed ^ int64(day)))` created inside `EndDay`. No `time.Now()` in the domain. Same seed and same actions give the same game.
 
@@ -46,7 +46,7 @@ Persistence rule: every mutating request does `load game -> domain call -> save 
 | Method & path | Purpose |
 |---|---|
 | `POST /api/login` `{username}` | Create-or-get user; returns user |
-| `GET /api/game` | Game view: day, capital, inventory, capacities, facilities (tier name, level, quantity, capacity, upkeep, expand cost, upgrade cost), quotes, events, history |
+| `GET /api/game` | Game view: day, capital, inventory, capacities, facilities (tier name, level, quantity, capacity, upkeep, expand cost, upgrade cost), quotes, events, price history, `timeline` (capital and stock snapshots after each action) and `stats` (running totals for the game-over summary; SPEC rule 29) |
 | `POST /api/game/new` | Start fresh game (replaces bankrupt or active one) |
 | `POST /api/game/buy` `{resource, qty}` | Buy at ask |
 | `POST /api/game/sell` `{resource, qty}` | Sell at bid |
@@ -61,7 +61,7 @@ Every mutation returns the updated game view so the UI needs no follow-up fetch.
 | Item | Value |
 |---|---|
 | Starting capital | $1,000 |
-| Base price per case | lemon $20, sugar $10, ice $10, cup $10, lemonade $90 (was $100; DECISIONS 12) |
+| Base price per case | lemon $20, sugar $10, ice $10, cup $10, lemonade $90 (was $100; DECISIONS 16) |
 | Spread | 10%. Ask = ceil(p·1.1); bid = max(1, floor(p·0.9)) |
 | Walk | `p' = p + 0.15(base-p) + p·σ·N(0,1)`, σ = 0.12 (was 0.2 / 0.08); clamp [0.25, 4]×base; float state, rounded at quote time |
 | Max level / max quantity | 4 / 10 |
@@ -84,7 +84,7 @@ Facility tiers (L1 → L4). Size/rate is per building; costs and upkeep are per 
 
 Upgrade total = per-building upgrade cost × quantity. Upkeep total = per-building upkeep × quantity, summed over all six facilities.
 
-Sanity check: start = 5 Pantries + 1 Kitchen, upkeep $30/day, 10 cases capacity each. One batch of 10 costs about $550 at ask; it yields 10 lemonade selling at about $81 bid = $810. Profit ≈ $230/day at start after upkeep. To scale up, production and **all** input and output warehouses must grow together, so the bottleneck shifts between them (the intended strategic tension). Balance was tuned by simulation (`balance_test.go`); see the README's "Game physics" section. Upkeep is always owed: short cash sells stock at bid, and if that is not enough the game ends (DECISIONS 12).
+Sanity check: start = 5 Pantries + 1 Kitchen, upkeep $30/day, 10 cases capacity each. One batch of 10 costs about $550 at ask; it yields 10 lemonade selling at about $81 bid = $810. Profit ≈ $230/day at start after upkeep. To scale up, production and **all** input and output warehouses must grow together, so the bottleneck shifts between them (the intended strategic tension). Balance was tuned by simulation (`balance_test.go`); see the README's "Game physics" section. Upkeep is always owed: short cash sells stock at bid, and if that is not enough the game ends (DECISIONS 16).
 
 Events (table-driven): Heat Wave (lemonade ×1.4, ice ×1.3, 2d), Rainy Week (lemonade ×0.75, 3d), Lemon Blight (lemon ×1.7, 3d), Sugar Glut (sugar ×0.7, 2d), Holiday (lemonade ×1.35, 1d), Cup Shortage (cup ×1.5, 2d). Adding an event is one table row.
 
@@ -110,6 +110,6 @@ Events (table-driven): Heat Wave (lemonade ×1.4, ice ×1.3, 2d), Rainy Week (le
 4. Bid/ask spread vs. flat price: one line of code that blocks a trivial buy-sell exploit.
 5. Whole-dollar money with "case" units: avoids float and cent handling, at the cost of bulk-sized prices and rounding on quotes.
 6. One shared level per facility (upgrade is all-or-nothing): simple and matches the design; loses mixed-tier setups.
-7. Bankruptcy = upkeep cannot be paid even after selling all stock at bid (DECISIONS 12-14): no zombie games at $0 holding a little stock, at the cost of a harsher game than the first draft.
+7. Bankruptcy = upkeep cannot be paid even after selling all stock at bid (DECISIONS 16-18): no zombie games at $0 holding a little stock, at the cost of a harsher game than the first draft.
 8. Username-header "auth": matches the brief, not secure; documented.
 9. PWA = installable shell only, API never cached: avoids stale-state bugs in a server-authoritative game, at the cost of no offline play.

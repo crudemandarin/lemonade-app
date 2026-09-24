@@ -4,7 +4,7 @@ Vertical slices, thinnest end-to-end first. Budget ≈ 2h10m build including PWA
 
 Time estimates are rough and cumulative.
 
-- [x] **Slice 0: Verify scaffold and docs (≈10m)** _(deployed health check: use `/api/health`; see DECISIONS 11)_
+- [x] **Slice 0: Verify scaffold and docs (≈10m)** _(deployed health check: use `/api/health`; see DECISIONS 15)_
   - Do: confirm backend, frontend, DB, and deploy all run; fill in every `TODO` command in CLAUDE.md; add `GET /api/health`; write a README skeleton (install, run, test).
   - Acceptance: from a fresh clone, README steps start backend, frontend, and DB; `/api/health` returns 200 locally and deployed; CLAUDE.md has no `TODO`; PWA is confirmed absent (it is added in slice 7).
   - Tests: health handler test.
@@ -45,7 +45,7 @@ Time estimates are rough and cumulative.
   - Acceptance: rule 28. The deployed HTTPS site passes Lighthouse installability and Chrome offers Install; with the network off, the cached shell loads and shows the offline banner with actions disabled; API responses are never served from the service worker cache; `ng build` output contains `ngsw.json`.
   - Tests: `online.service` reacts to online/offline events; action buttons disabled when offline; manual Lighthouse check recorded in README. Note: the service worker runs in production builds only, so verify with a built app, not `ng serve`.
 
-- [ ] **Slice 8 (stretch): Sparklines and polish (≈10m, 140m)**
+- [x] **Slice 8 (stretch): Sparklines and polish (≈10m, 140m)**
   - Do: inline-SVG sparkline per resource from price history; loading and empty states; README section on tuning the physics.
   - Acceptance: rule 27; README documents the config tables and how to tune them.
   - Tests: sparkline component renders N points for N history entries.

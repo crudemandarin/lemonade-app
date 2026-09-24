@@ -61,14 +61,17 @@ Turn-based lemonade business game. One core loop: the passage of a **day**. Scor
 ### UI
 24. Dashboard shows: day, capital, inventory vs. warehouse capacity per resource, current bid/ask per resource, active events, and facilities (tier name, image, level, quantity, capacity/rate, upkeep, next expand and upgrade costs).
 25. Player can buy, sell, expand, upgrade, and end the day from the dashboard. After each end-of-day, the day report is displayed.
-26. Game-over screen shows final day reached and final capital, with a "New game" button.
-27. Each resource shows a small price-history sparkline (last 14 days). *(Stretch; see PLAN slice 8.)*
+26. Game-over screen shows the day the player lost on, final capital, a run summary (peak cash and the day it happened, earned from sales, spent on stock, facilities built and upgrades, lemonade produced, upkeep paid) and the two history charts of rule 29, with a "New game" button. "Peak cash" counts cash only, not the value of stock.
+27. Each resource shows a small price-history sparkline (last 14 days) in the market panel; hovering shows the price for a day.
+
+### History and stats
+29. The server records a snapshot (day, capital, stock of each resource, and what happened) after every buy, sell, expansion, upgrade and end of day, and keeps running totals for the run summary. The game view returns them as `timeline` and `stats`. Repeated buys or sells of the same resource on the same day merge into one point. To bound the payload, only the last 7 days keep every trade; older days keep milestones (start, facility purchases, end of day), with a hard cap of 400 points. Totals are exact for the whole game. The dashboard and the game-over screen draw two charts from the timeline on one shared time axis: **capital** (with a marker for each trade and facility purchase) and **stock per resource**. Charts are decorative history: they never feed back into any rule. See DECISIONS 20.
 
 ### PWA
 28. The frontend is an installable PWA: web app manifest, icons, and a service worker that caches the app shell (HTML, JS, CSS, icons). Offline, the shell loads and shows an offline notice. API responses are never cached, and buy, sell, expand, upgrade, and end-day are disabled while offline. The service worker is enabled in production builds only.
 
 ## 4. Starting values
-Tunable, all in one config file (see DESIGN §6). Starting capital $1,000; base prices per case: lemon $20, sugar $10, ice $10, cup $10, lemonade $90 (tuned, DECISIONS 12); spread 10%; sizes, rates, costs, and upkeep per tier in DESIGN §6 (current numbers and tuning guide: README "Game physics").
+Tunable, all in one config file (see DESIGN §6). Starting capital $1,000; base prices per case: lemon $20, sugar $10, ice $10, cup $10, lemonade $90 (tuned, DECISIONS 16); spread 10%; sizes, rates, costs, and upkeep per tier in DESIGN §6 (current numbers and tuning guide: README "Game physics").
 
 ## 5. Assumptions
 - Warehouse tier sizes (10 / 20 / 40 / 80) and Production rates (10 / 20 / 40 / 80 lemonade per day) double per level.
@@ -83,10 +86,10 @@ Tunable, all in one config file (see DESIGN §6). Starting capital $1,000; base 
 - Production output is available the next morning; the player sells on the following day.
 
 ## 6. Open questions (proceeding on the assumption in bold unless told otherwise)
-1. Bankruptcy definition (resolved, DECISIONS 12): the brief's "not enough inventory to make lemonade" can never trigger because ice melts (rule 13) before the check, and an "any inventory is a grace" rule let players sit at $0 with a little stock forever. **Upkeep is always owed; short cash sells stock at bid; if that is still not enough the game ends.**
+1. Bankruptcy definition (resolved, DECISIONS 16): the brief's "not enough inventory to make lemonade" can never trigger because ice melts (rule 13) before the check, and an "any inventory is a grace" rule let players sit at $0 with a little stock forever. **Upkeep is always owed; short cash sells stock at bid; if that is still not enough the game ends.**
 2. Are the tier names and numbers in DESIGN §6 acceptable? **Yes; tune only if time remains.**
 3. PWA scope: installable app plus cached app shell, with no offline play. **Yes; the API is never cached and actions are disabled offline.**
-4. Is username in a header acceptable as "auth"? **Yes; documented as a known limitation.** Usernames are 5 to 40 ASCII characters and case-insensitive (DECISIONS 15).
+4. Is username in a header acceptable as "auth"? **Yes; documented as a known limitation.** Usernames are 5 to 40 ASCII characters and case-insensitive (DECISIONS 19).
 
 Resolved: all buildings of a facility type upgrade together (rule 10); PWA added in PLAN slice 7 (rule 28).
 

@@ -8,7 +8,7 @@ var liquidationOrder = []Resource{Lemonade, Lemon, Sugar, Cup, Ice}
 // settleUpkeep charges one day's upkeep. Upkeep is always owed: if cash falls short,
 // stock is sold at the current bid, just enough to cover it. If even everything
 // sold is not enough, the player pays what they can and is insolvent, which ends the
-// game (DECISIONS 12; this replaces "unpaid upkeep is forgiven" and "any leftover
+// game (DECISIONS 16; this replaces "unpaid upkeep is forgiven" and "any leftover
 // stock is a grace"). It returns what was paid and what, if anything, was sold.
 func settleUpkeep(g *Game, cfg Config) (paid, soldCases, soldProceeds int, insolvent bool) {
 	due := TotalUpkeep(*g, cfg)

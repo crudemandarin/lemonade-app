@@ -58,14 +58,14 @@ Curated prompts and techniques that show deliberate, advanced use of AI tools. N
 - **Phase:** Build
 - **Prompt:** "follow docs (spec, design, claude, plan) in: docs/claude / refer to api.service.ts / your job is to implement the golang backend based on this spec."
 - **Why it works:** Two sources of truth, one line each. The docs give the rules; the already-built client gives the wire contract. The model followed `api.service.ts` to `api.models.ts` (whose header says "the backend must return exactly these shapes") and to the facilities panel, instead of stopping at the docs.
-- **Result:** It found that the frontend contradicts DESIGN: all warehouses share one level, and only building counts are per resource, so the routes take `warehouse`/`production` rather than six kinds. It built to the frontend and recorded the deviation as DECISIONS #3 and flagged it in the summary, rather than silently guessing (CLAUDE.md's "ask, don't guess" rule).
+- **Result:** It found that the frontend contradicts DESIGN: all warehouses share one level, and only building counts are per resource, so the routes take `warehouse`/`production` rather than six kinds. It built to the frontend and recorded the deviation as DECISIONS #7 and flagged it in the summary, rather than silently guessing (CLAUDE.md's "ask, don't guess" rule).
 - **Lesson:** When a client already exists, point the model at it by name. Expect the docs to be stale in places, and require deviations to be written down.
 
 ### 7. Test-first caught an AI-written float bug; the AI's own tests were wrong too
 - **Phase:** Build
 - **Prompt:** (same session as #6; the CLAUDE.md workflow "write failing tests that encode the acceptance criteria, then implement" did the work)
 - **Why it works:** The rounding table test (`price 100 -> bid 90 / ask 110`) came straight from SPEC rule 7. It failed with an ask of 111 because `100 * 1.1 = 110.00000000000001` and `ceil` rounded up. A second failure was the model's test under-funding itself (6 buildings x $200 > $1,000), so the test, not the code, was fixed.
-- **Result:** A `snap` helper that rounds away float noise before floor/ceil (DECISIONS #5), plus a test that asserts bid < ask and bid >= 1 for every price from $1 to $500.
+- **Result:** A `snap` helper that rounds away float noise before floor/ceil (DECISIONS #9), plus a test that asserts bid < ask and bid >= 1 for every price from $1 to $500.
 - **Lesson:** Specify examples from the spec, not from the implementation. When a test fails, decide which side is wrong before touching either.
 
 ### 8. Reviewing its own test for blast radius, then verifying against the real stack
