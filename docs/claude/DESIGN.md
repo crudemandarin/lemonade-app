@@ -74,7 +74,7 @@ Facility tiers (L1 → L4). Size/rate is per building; costs and upkeep are per 
 | **Warehouse name** | Pantry | Garage | Barn | Industrial Warehouse |
 | Size (cases) | 10 | 20 | 40 | 80 |
 | Expand (build) cost | $100 | $300 | $800 | $2,000 |
-| Upgrade cost to next | $200 | $500 | $1,200 | n/a |
+| Upgrade cost to next | $100 | $250 | $600 | n/a |
 | Upkeep/day | $1 | $3 | $8 | $20 |
 | **Production name** | Kitchen | Food Truck | Bottling Plant | Lemonade Factory |
 | Rate (lemonade/day) | 10 | 20 | 40 | 80 |

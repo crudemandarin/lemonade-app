@@ -1,0 +1,321 @@
+// Everything is positioned in vw/vh/% so a scene always fills the viewport.
+// Per-particle variables from vars(): --x, --dur, --delay, --j (0-1).
+
+:host {
+  display: contents;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  // Whole layer is faint so the foreground always wins.
+  opacity: 0.55;
+}
+
+.scene {
+  position: absolute;
+  inset: 0;
+  animation: scene-in 1.2s ease-out both;
+}
+
+@keyframes scene-in {
+  from {
+    opacity: 0;
+  }
+}
+
+// Shared falling motion: --fall-x is the horizontal drift, --spin the rotation.
+@keyframes fall {
+  from {
+    translate: 0 -12vh;
+    rotate: 0deg;
+  }
+  50% {
+    translate: var(--sway, 0) 50vh;
+  }
+  to {
+    translate: 0 112vh;
+    rotate: var(--spin, 0deg);
+  }
+}
+
+%particle {
+  position: absolute;
+  top: 0;
+  left: var(--x);
+  animation: fall var(--dur) var(--delay) linear infinite;
+  will-change: translate, rotate;
+}
+
+// Heat wave: warm wash, slow pulsing sun in the corner, rising haze bands.
+.heat {
+  background: linear-gradient(to bottom, rgb(250 170 30 / 0.1), rgb(250 120 30 / 0.16));
+}
+
+.sun {
+  position: absolute;
+  top: -18vmax;
+  right: -18vmax;
+  width: 52vmax;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgb(253 224 71 / 0.85) 0 30%,
+    rgb(250 204 21 / 0.3) 55%,
+    transparent 72%
+  );
+  animation: sun-pulse 7s ease-in-out infinite;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: repeating-conic-gradient(rgb(253 224 71 / 0.35) 0 6deg, transparent 6deg 24deg);
+    mask: radial-gradient(circle, transparent 28%, #000 40%, transparent 70%);
+    animation: spin 90s linear infinite;
+  }
+}
+
+@keyframes sun-pulse {
+  50% {
+    scale: 1.07;
+  }
+}
+
+@keyframes spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+.band {
+  position: absolute;
+  left: -10%;
+  width: 120%;
+  height: 12vh;
+  bottom: -12vh;
+  background: linear-gradient(to bottom, transparent, rgb(255 190 70 / 0.18), transparent);
+  animation: rise var(--dur) var(--delay) ease-in-out infinite;
+}
+
+@keyframes rise {
+  to {
+    translate: 4vw -112vh;
+  }
+}
+
+// Rainy week: grey-blue wash, drifting clouds, thin falling streaks.
+.rain {
+  background: linear-gradient(to bottom, rgb(71 85 105 / 0.22), rgb(100 116 139 / 0.1));
+}
+
+.cloud {
+  position: absolute;
+  top: -6vh;
+  width: 55vw;
+  height: 22vh;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(100 116 139 / 0.45), transparent);
+  animation: drift 80s linear infinite;
+
+  &.c2 {
+    top: 2vh;
+    width: 45vw;
+    animation-duration: 110s;
+    animation-delay: -55s;
+  }
+}
+
+@keyframes drift {
+  from {
+    translate: -60vw 0;
+  }
+  to {
+    translate: 110vw 0;
+  }
+}
+
+.drop {
+  @extend %particle;
+  width: 2px;
+  height: 7vh;
+  background: linear-gradient(to bottom, transparent, rgb(147 197 253 / 0.7));
+  rotate: 10deg;
+  animation-name: rain-fall;
+}
+
+@keyframes rain-fall {
+  from {
+    translate: 0 -10vh;
+  }
+  to {
+    translate: -12vh 112vh;
+  }
+}
+
+// Lemon blight: sickly olive edges and withered leaves tumbling down.
+.blight {
+  background: radial-gradient(ellipse at center, transparent 40%, rgb(120 113 30 / 0.25));
+}
+
+.leaf {
+  @extend %particle;
+  width: 3vmin;
+  height: 3vmin;
+  min-width: 18px;
+  min-height: 18px;
+  border-radius: 0 100% 0 100%;
+  background: #a16207;
+  --sway: 6vw;
+  --spin: 540deg;
+
+  &:nth-child(3n) {
+    background: #854d0e;
+    --sway: -7vw;
+  }
+
+  &:nth-child(3n + 1) {
+    background: #65a30d;
+    --spin: -480deg;
+  }
+}
+
+// Sugar glut: sugar cubes tumbling down slowly, plenty of them.
+.sugar {
+  background: linear-gradient(to bottom, rgb(147 197 253 / 0.08), rgb(255 255 255 / 0.1));
+}
+
+.cube {
+  @extend %particle;
+  width: calc(4vmin + var(--j) * 4vmin);
+  min-width: 28px;
+  --sway: 3vw;
+  --spin: 300deg;
+  opacity: 0.6;
+}
+
+// Holiday: soft party wash, swaying bunting along the top, drifting confetti.
+.holiday {
+  background: linear-gradient(to bottom, rgb(244 114 182 / 0.12), rgb(167 139 250 / 0.1));
+}
+
+.bunting {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  border-top: 2px solid rgb(100 116 139 / 0.4);
+  transform-origin: top;
+}
+
+.flag {
+  width: 4.5vw;
+  min-width: 22px;
+  aspect-ratio: 1 / 1.1;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  background: #f43f5e;
+  transform-origin: top center;
+  animation: sway var(--dur) var(--delay) ease-in-out infinite;
+
+  &:nth-child(4n + 1) {
+    background: #facc15;
+  }
+
+  &:nth-child(4n + 2) {
+    background: #38bdf8;
+  }
+
+  &:nth-child(4n + 3) {
+    background: #4ade80;
+  }
+}
+
+@keyframes sway {
+  50% {
+    rotate: 8deg;
+  }
+}
+
+.piece {
+  @extend %particle;
+  width: 1.1vmin;
+  height: 2vmin;
+  min-width: 7px;
+  min-height: 12px;
+  background: #f43f5e;
+  --sway: 4vw;
+  --spin: 720deg;
+
+  &:nth-child(4n + 1) {
+    background: #facc15;
+    --sway: -4vw;
+  }
+
+  &:nth-child(4n + 2) {
+    background: #38bdf8;
+  }
+
+  &:nth-child(4n + 3) {
+    background: #4ade80;
+    --sway: -3vw;
+  }
+}
+
+// Cup shortage: cups that keep vanishing, like a shelf that never restocks.
+.cups {
+  background: radial-gradient(ellipse at center, transparent 45%, rgb(220 38 38 / 0.1));
+}
+
+.cup {
+  position: absolute;
+  left: var(--x);
+  top: calc(8% + var(--j) * 78%);
+  width: calc(6vmin + var(--j) * 4vmin);
+  min-width: 36px;
+  opacity: 0;
+  animation: vanish var(--dur) var(--delay) ease-in-out infinite;
+}
+
+@keyframes vanish {
+  0%,
+  100% {
+    opacity: 0;
+    translate: 0 2vh;
+    rotate: 0deg;
+  }
+  20%,
+  55% {
+    opacity: 0.7;
+    translate: 0 0;
+  }
+  80% {
+    opacity: 0;
+    translate: 0 -3vh;
+    rotate: -18deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  // Keep the tint and the sun as a static cue; drop everything that moves.
+  .backdrop *,
+  .backdrop *::after {
+    animation: none !important;
+  }
+
+  .band,
+  .cloud,
+  .drop,
+  .leaf,
+  .cube,
+  .piece,
+  .cup {
+    display: none;
+  }
+}

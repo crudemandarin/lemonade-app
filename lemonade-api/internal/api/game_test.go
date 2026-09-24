@@ -1,0 +1,410 @@
+package api
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+
+	"lemonade-api/internal/domain"
+	"lemonade-api/internal/store"
+)
+
+type testEnv struct {
+	t      *testing.T
+	router *gin.Engine
+	repo   *store.Memory
+	cfg    domain.Config
+}
+
+func newEnv(t *testing.T) *testEnv {
+	gin.SetMode(gin.TestMode)
+	repo := store.NewMemory()
+	cfg := domain.DefaultConfig()
+	router := gin.New()
+	NewGame(repo, cfg, func() int64 { return 42 }).Register(router)
+	return &testEnv{t: t, router: router, repo: repo, cfg: cfg}
+}
+
+// do sends a request and returns the recorder. body may be nil; user may be empty.
+func (e *testEnv) do(method, path, user string, body any) *httptest.ResponseRecorder {
+	e.t.Helper()
+	var buf bytes.Buffer
+	if body != nil {
+		if err := json.NewEncoder(&buf).Encode(body); err != nil {
+			e.t.Fatal(err)
+		}
+	}
+	req := httptest.NewRequest(method, path, &buf)
+	req.Header.Set("Content-Type", "application/json")
+	if user != "" {
+		req.Header.Set("X-Username", user)
+	}
+	rec := httptest.NewRecorder()
+	e.router.ServeHTTP(rec, req)
+	return rec
+}
+
+func (e *testEnv) login(user string) {
+	e.t.Helper()
+	if rec := e.do("POST", "/api/login", "", map[string]string{"username": user}); rec.Code != http.StatusOK {
+		e.t.Fatalf("login: %d %s", rec.Code, rec.Body)
+	}
+}
+
+func decode[T any](t *testing.T, rec *httptest.ResponseRecorder) T {
+	t.Helper()
+	var v T
+	if err := json.Unmarshal(rec.Body.Bytes(), &v); err != nil {
+		t.Fatalf("decode %q: %v", rec.Body, err)
+	}
+	return v
+}
+
+func (e *testEnv) game(user string) gameViewDTO {
+	e.t.Helper()
+	rec := e.do("GET", "/api/game", user, nil)
+	if rec.Code != http.StatusOK {
+		e.t.Fatalf("GET /api/game: %d %s", rec.Code, rec.Body)
+	}
+	return decode[gameViewDTO](e.t, rec)
+}
+
+func (e *testEnv) wantError(rec *httptest.ResponseRecorder, status int, code string) {
+	e.t.Helper()
+	if rec.Code != status {
+		e.t.Fatalf("status = %d, want %d (%s)", rec.Code, status, rec.Body)
+	}
+	got := decode[errorDTO](e.t, rec)
+	if got.Error != code || got.Message == "" {
+		e.t.Fatalf("error body = %+v, want code %q with a message", got, code)
+	}
+}
+
+func TestLoginCreatesThenResumes(t *testing.T) {
+	e := newEnv(t)
+
+	first := e.do("POST", "/api/login", "", map[string]string{"username": "joe"})
+	if first.Code != http.StatusOK {
+		t.Fatalf("status = %d", first.Code)
+	}
+	u1 := decode[userDTO](t, first)
+	if u1.Username != "joe" || u1.ID == 0 {
+		t.Fatalf("user = %+v", u1)
+	}
+
+	if rec := e.do("POST", "/api/game/buy", "joe", map[string]any{"resource": "lemon", "qty": 2}); rec.Code != http.StatusOK {
+		t.Fatalf("buy: %s", rec.Body)
+	}
+	capital := e.game("joe").Capital
+
+	u2 := decode[userDTO](t, e.do("POST", "/api/login", "", map[string]string{"username": "joe"}))
+	if u2.ID != u1.ID {
+		t.Fatal("known username created a new user")
+	}
+	if got := e.game("joe").Capital; got != capital {
+		t.Fatalf("login reset the game: capital %d, want %d", got, capital)
+	}
+
+	e.login("ann")
+	if got := e.game("ann").Capital; got != 1000 {
+		t.Fatalf("other user's capital = %d, want 1000", got)
+	}
+}
+
+func TestLoginValidation(t *testing.T) {
+	e := newEnv(t)
+	e.wantError(e.do("POST", "/api/login", "", map[string]string{"username": "   "}), 400, "invalid_username")
+	e.wantError(e.do("POST", "/api/login", "", map[string]string{"username": strings.Repeat("a", 41)}), 400, "invalid_username")
+
+	req := httptest.NewRequest("POST", "/api/login", bytes.NewBufferString("not json"))
+	rec := httptest.NewRecorder()
+	e.router.ServeHTTP(rec, req)
+	e.wantError(rec, 400, "invalid_request")
+}
+
+func TestUsernameMiddleware(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe")
+
+	paths := []struct{ method, path string }{
+		{"GET", "/api/game"},
+		{"POST", "/api/game/new"},
+		{"POST", "/api/game/buy"},
+		{"POST", "/api/game/sell"},
+		{"POST", "/api/game/facilities/warehouse/expand"},
+		{"POST", "/api/game/facilities/production/upgrade"},
+		{"POST", "/api/game/end-day"},
+	}
+	for _, p := range paths {
+		e.wantError(e.do(p.method, p.path, "", nil), 401, "unauthorized")
+		e.wantError(e.do(p.method, p.path, "stranger", nil), 401, "unauthorized")
+	}
+}
+
+func TestGameViewMatchesContract(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe")
+	v := e.game("joe")
+
+	if v.Day != 1 || v.Capital != 1000 || v.Status != domain.StatusActive || v.UpkeepPerDay != 15 {
+		t.Fatalf("view = %+v", v)
+	}
+	if len(v.Resources) != 5 {
+		t.Fatalf("resources = %d", len(v.Resources))
+	}
+	wantOrder := []domain.Resource{"lemon", "sugar", "ice", "cup", "lemonade"}
+	wantPrice := []int{20, 10, 10, 10, 100}
+	wantBid := []int{18, 9, 9, 9, 90}
+	wantAsk := []int{22, 11, 11, 11, 110}
+	for i, r := range v.Resources {
+		if r.Resource != wantOrder[i] || r.Price != wantPrice[i] || r.Bid != wantBid[i] || r.Ask != wantAsk[i] {
+			t.Errorf("resource %d = %+v", i, r)
+		}
+		if r.Stock != 0 || r.Capacity != 10 || r.PreviousPrice != nil || len(r.History) != 1 {
+			t.Errorf("resource %d = %+v", i, r)
+		}
+	}
+
+	wh := v.Facilities.Warehouse
+	if wh.TierName != "Pantry" || wh.Level != 1 || wh.MaxLevel != 4 || wh.Buildings != 5 || wh.MaxCount != 10 ||
+		wh.SizePerBuilding != 10 || wh.ExpandCost != 100 || wh.UpkeepPerDay != 5 || len(wh.Resources) != 5 {
+		t.Errorf("warehouse = %+v", wh)
+	}
+	if up := wh.Upgrade; up == nil || up.TierName != "Garage" || up.CostPerBuilding != 100 || up.TotalCost != 500 || up.SizePerBuilding != 20 {
+		t.Errorf("warehouse upgrade = %+v", wh.Upgrade)
+	}
+	pr := v.Facilities.Production
+	if pr.TierName != "Kitchen" || pr.Buildings != 1 || pr.ExpandCost != 500 || pr.UpkeepPerDay != 10 || pr.RatePerDay != 10 || pr.SizePerBuilding != 10 {
+		t.Errorf("production = %+v", pr)
+	}
+	if up := pr.Upgrade; up == nil || up.TierName != "Food Truck" || up.TotalCost != 1000 || up.SizePerBuilding != 20 {
+		t.Errorf("production upgrade = %+v", pr.Upgrade)
+	}
+
+	// Raw JSON: null previousPrice / upgrade at max level, [] (not null) for events.
+	raw := e.do("GET", "/api/game", "joe", nil).Body.String()
+	var m map[string]any
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		t.Fatal(err)
+	}
+	if ev, ok := m["events"].([]any); !ok || len(ev) != 0 {
+		t.Errorf("events = %v, want []", m["events"])
+	}
+	first := m["resources"].([]any)[0].(map[string]any)
+	if v, present := first["previousPrice"]; !present || v != nil {
+		t.Errorf("previousPrice = %v (present=%v), want null", v, present)
+	}
+}
+
+func TestBuyAndSell(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe")
+
+	rec := e.do("POST", "/api/game/buy", "joe", map[string]any{"resource": "lemon", "qty": 5})
+	if rec.Code != 200 {
+		t.Fatalf("buy: %s", rec.Body)
+	}
+	v := decode[gameViewDTO](t, rec)
+	if v.Capital != 1000-5*22 || v.Resources[0].Stock != 5 {
+		t.Fatalf("after buy: capital=%d stock=%d", v.Capital, v.Resources[0].Stock)
+	}
+
+	rec = e.do("POST", "/api/game/sell", "joe", map[string]any{"resource": "lemon", "qty": 2})
+	v = decode[gameViewDTO](t, rec)
+	if v.Capital != 1000-5*22+2*18 || v.Resources[0].Stock != 3 {
+		t.Fatalf("after sell: capital=%d stock=%d", v.Capital, v.Resources[0].Stock)
+	}
+}
+
+func TestTradeErrors(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe")
+
+	tests := []struct {
+		name   string
+		path   string
+		body   any
+		status int
+		code   string
+	}{
+		{"insufficient stock", "/api/game/sell", map[string]any{"resource": "lemonade", "qty": 1}, 409, "insufficient_stock"},
+		{"capacity exceeded", "/api/game/buy", map[string]any{"resource": "lemon", "qty": 11}, 409, "capacity_exceeded"},
+		{"insufficient funds", "/api/game/buy", map[string]any{"resource": "lemonade", "qty": 10}, 409, "insufficient_funds"},
+		{"zero qty", "/api/game/buy", map[string]any{"resource": "lemon", "qty": 0}, 400, "invalid_quantity"},
+		{"negative qty", "/api/game/sell", map[string]any{"resource": "lemon", "qty": -3}, 400, "invalid_quantity"},
+		{"unknown resource", "/api/game/buy", map[string]any{"resource": "gold", "qty": 1}, 400, "invalid_resource"},
+		{"missing body", "/api/game/buy", nil, 400, "invalid_request"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e.wantError(e.do("POST", tt.path, "joe", tt.body), tt.status, tt.code)
+		})
+	}
+	if v := e.game("joe"); v.Capital != 1000 {
+		t.Fatalf("failed requests changed capital to %d", v.Capital)
+	}
+}
+
+func TestExpandAndUpgrade(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe")
+
+	rec := e.do("POST", "/api/game/facilities/warehouse/expand", "joe", map[string]any{"resource": "ice"})
+	if rec.Code != 200 {
+		t.Fatalf("expand warehouse: %s", rec.Body)
+	}
+	v := decode[gameViewDTO](t, rec)
+	if v.Capital != 900 || v.Facilities.Warehouse.Buildings != 6 || v.Resources[2].Capacity != 20 || v.Resources[0].Capacity != 10 {
+		t.Fatalf("after expand: %+v", v)
+	}
+
+	rec = e.do("POST", "/api/game/facilities/production/expand", "joe", map[string]any{})
+	if rec.Code != 200 {
+		t.Fatalf("expand production: %s", rec.Body)
+	}
+	v = decode[gameViewDTO](t, rec)
+	if v.Capital != 400 || v.Facilities.Production.Buildings != 2 || v.Facilities.Production.RatePerDay != 20 {
+		t.Fatalf("after production expand: %+v", v)
+	}
+
+	rec = e.do("POST", "/api/game/facilities/production/upgrade", "joe", nil)
+	e.wantError(rec, 409, "insufficient_funds") // 2 buildings x $1000
+
+	rec = e.do("POST", "/api/game/facilities/warehouse/upgrade", "joe", nil)
+	e.wantError(rec, 409, "insufficient_funds") // 6 buildings x $100 = $600 > $400
+}
+
+func TestUpgradeSuccessAndMaxLevel(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe")
+	e.setGame("joe", func(g *domain.Game) { g.Capital = 1_000_000 })
+
+	for level := 1; level < 4; level++ {
+		if rec := e.do("POST", "/api/game/facilities/warehouse/upgrade", "joe", nil); rec.Code != 200 {
+			t.Fatalf("upgrade from level %d: %s", level, rec.Body)
+		}
+	}
+	v := e.game("joe")
+	if wh := v.Facilities.Warehouse; wh.Level != 4 || wh.TierName != "Industrial Warehouse" || wh.Upgrade != nil {
+		t.Fatalf("warehouse = %+v", wh)
+	}
+	e.wantError(e.do("POST", "/api/game/facilities/warehouse/upgrade", "joe", nil), 409, "max_level")
+}
+
+func TestExpandErrors(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe")
+
+	e.wantError(e.do("POST", "/api/game/facilities/garage/expand", "joe", map[string]any{}), 400, "invalid_facility_type")
+	e.wantError(e.do("POST", "/api/game/facilities/garage/upgrade", "joe", nil), 400, "invalid_facility_type")
+	e.wantError(e.do("POST", "/api/game/facilities/warehouse/expand", "joe", map[string]any{"resource": "gold"}), 400, "invalid_resource")
+	e.wantError(e.do("POST", "/api/game/facilities/warehouse/expand", "joe", map[string]any{}), 400, "invalid_resource")
+
+	e.setGame("joe", func(g *domain.Game) { g.Capital = 1_000_000; g.ProductionQty = 10 })
+	e.wantError(e.do("POST", "/api/game/facilities/production/expand", "joe", map[string]any{}), 409, "max_quantity")
+}
+
+func TestEndDayLoop(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe")
+	for _, r := range []string{"lemon", "sugar", "ice", "cup"} {
+		if rec := e.do("POST", "/api/game/buy", "joe", map[string]any{"resource": r, "qty": 10}); rec.Code != 200 {
+			t.Fatalf("buy %s: %s", r, rec.Body)
+		}
+	}
+
+	rec := e.do("POST", "/api/game/end-day", "joe", nil)
+	if rec.Code != 200 {
+		t.Fatalf("end-day: %s", rec.Body)
+	}
+	res := decode[endDayResponseDTO](t, rec)
+	if res.Report.Day != 1 || res.Report.Produced != 10 || res.Report.IceMelted != 0 || res.Report.UpkeepPaid != 15 {
+		t.Fatalf("report = %+v", res.Report)
+	}
+	if res.Game.Day != 2 || res.Game.Resources[4].Stock != 10 || res.Game.Resources[2].Stock != 0 {
+		t.Fatalf("game = day %d lemonade %d ice %d", res.Game.Day, res.Game.Resources[4].Stock, res.Game.Resources[2].Stock)
+	}
+	if res.Game.Resources[0].PreviousPrice == nil {
+		t.Fatal("previousPrice should be set after a day passes")
+	}
+	if res.Report.PriceChanges == nil || res.Report.NewEvents == nil || res.Report.ExpiredEvents == nil {
+		t.Fatal("report lists must serialize as [], not null")
+	}
+	if got := len(res.Game.Resources[0].History); got != 2 {
+		t.Fatalf("history length = %d, want 2", got)
+	}
+
+	sell := e.do("POST", "/api/game/sell", "joe", map[string]any{"resource": "lemonade", "qty": 10})
+	if sell.Code != 200 {
+		t.Fatalf("sell lemonade: %s", sell.Body)
+	}
+}
+
+func TestBankruptcyBlocksActionsUntilNewGame(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe")
+	e.setGame("joe", func(g *domain.Game) { g.Capital = 0 })
+
+	rec := e.do("POST", "/api/game/end-day", "joe", nil)
+	if rec.Code != 200 {
+		t.Fatalf("end-day: %s", rec.Body)
+	}
+	res := decode[endDayResponseDTO](t, rec)
+	if !res.Report.Bankrupt || res.Game.Status != domain.StatusBankrupt {
+		t.Fatalf("expected bankrupt: %+v", res)
+	}
+
+	for _, p := range []struct {
+		path string
+		body any
+	}{
+		{"/api/game/buy", map[string]any{"resource": "lemon", "qty": 1}},
+		{"/api/game/sell", map[string]any{"resource": "lemon", "qty": 1}},
+		{"/api/game/facilities/production/expand", map[string]any{}},
+		{"/api/game/facilities/warehouse/upgrade", nil},
+		{"/api/game/end-day", nil},
+	} {
+		e.wantError(e.do("POST", p.path, "joe", p.body), 409, "game_over")
+	}
+
+	rec = e.do("POST", "/api/game/new", "joe", nil)
+	if rec.Code != 200 {
+		t.Fatalf("new game: %s", rec.Body)
+	}
+	if v := decode[gameViewDTO](t, rec); v.Day != 1 || v.Capital != 1000 || v.Status != domain.StatusActive {
+		t.Fatalf("new game view = %+v", v)
+	}
+	if v := e.game("joe"); v.Status != domain.StatusActive {
+		t.Fatal("new game was not persisted")
+	}
+}
+
+func TestNewGameReplacesActiveGame(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe")
+	e.do("POST", "/api/game/buy", "joe", map[string]any{"resource": "lemon", "qty": 5})
+
+	rec := e.do("POST", "/api/game/new", "joe", nil)
+	v := decode[gameViewDTO](t, rec)
+	if v.Capital != 1000 || v.Resources[0].Stock != 0 {
+		t.Fatalf("view = %+v", v)
+	}
+}
+
+// setGame edits a stored game directly, to reach states that are slow to play into.
+func (e *testEnv) setGame(user string, edit func(g *domain.Game)) {
+	e.t.Helper()
+	u, err := e.repo.FindUser(context.Background(), user)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	if _, err := e.repo.Mutate(context.Background(), u.ID, func(g *domain.Game) error { edit(g); return nil }); err != nil {
+		e.t.Fatal(err)
+	}
+}

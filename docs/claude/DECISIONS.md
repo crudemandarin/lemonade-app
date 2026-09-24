@@ -58,3 +58,8 @@ Deviations from DESIGN.md and real tradeoffs made during the build. Newest last.
 - **Did:** removed the rewrite from `nginx.conf.template` and `pathRewrite` from `proxy.conf.json`. `/healthz` is no longer reachable through the web proxy; check it on the API port. The scaffold's sample routes (`/samples`) are no longer proxied either.
 - **Also:** a 401 (stored username unknown to the server, e.g. after a DB reset) now clears the session and routes to `/signin` (`unauthorized.interceptor.ts`).
 - **Verified:** every response from a full flow (login, game, buy, sell, both expands, upgrade, end-day with a live event, six error cases) type-checks against `api.models.ts`; a headless-Chrome run of the UI against the real API and Postgres passes.
+
+## 8. Warehouse upgrade costs follow the addendum, not the first DESIGN draft
+- **Found:** the backend charged $200/$500/$1,200 per building (DESIGN §6, first draft). `UX-MOCKS-AND-CHANGES.md` §1.3, which wins on conflicts, sets $100/$250/$600, and its example says a fresh game's 5 Pantries upgrade to 5 Garages for $500. The backend offered $1,000, which left a new player at $0 after their first upgrade.
+- **Did:** changed `WarehouseTiers` in `internal/domain/config.go`; added a cost-table test and the fresh-game example as tests; corrected the stale row in DESIGN §6. Production upgrade costs were already right.
+- **Audited:** end-of-day order, production min(), upkeep clamp, bankruptcy, bid/ask rounding, price walk, event stacking, and all other tier values match the addendum.

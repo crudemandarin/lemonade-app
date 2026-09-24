@@ -1,6 +1,6 @@
 # lemonade-api
 
-A minimal Gin + GORM REST API on PostgreSQL, layered as controller → service → repository → model, with a `Sample` resource for CRUD.
+The Gin + PostgreSQL API for Lemonade Tycoon. All game rules live in a pure domain package; the API layer loads a game, calls a domain function, and saves the result. See [DESIGN](../docs/claude/DESIGN.md).
 
 ## Dependencies
 
@@ -10,13 +10,13 @@ A minimal Gin + GORM REST API on PostgreSQL, layered as controller → service �
 ## Project layout
 
 ```
-main.go        entrypoint: loads secrets, connects DB, wires routes
-libraries/     secrets loading, database connection
-model/         GORM structs
-repository/    DB access (CRUD queries)
-service/       business logic / validation
-controller/    HTTP handlers (Gin)
-Dockerfile     API image (also used by the top-level docker-compose.yml)
+main.go                 entrypoint: loads secrets, connects DB, migrates, wires routes
+internal/domain/        pure game rules (no I/O, no Gin, no SQL): config, market, events,
+                        actions, facilities, end of day, bankruptcy
+internal/store/         Repository interface, Postgres implementation, in-memory fake
+internal/api/           Gin handlers, DTOs (camelCase JSON), error mapping, /healthz
+libraries/              secrets loading, database connection
+Dockerfile              API image (also used by the top-level docker-compose.yml)
 ```
 
 ## 1. Configure environment
@@ -80,12 +80,15 @@ Postgres reads the credentials only when it sets up an empty volume. To change t
 ## 4. Try it out
 
 ```bash
-curl http://localhost:8080/                          # health check
-curl http://localhost:8080/samples                   # list
-curl http://localhost:8080/samples/1                 # get one
-curl -X POST http://localhost:8080/samples -H "Content-Type: application/json" -d '{"name":"hello"}'
-curl -X PUT http://localhost:8080/samples/1 -H "Content-Type: application/json" -d '{"name":"updated"}'
-curl -X DELETE http://localhost:8080/samples/1
+curl http://localhost:8080/healthz
+curl -X POST http://localhost:8080/api/login -H "Content-Type: application/json" -d '{"username":"lemonjoe"}'
+curl http://localhost:8080/api/game -H "X-Username: lemonjoe"
+```
+
+## Test
+
+```bash
+go test ./...    # the Postgres integration test is skipped unless DATABASE_URL is set
 ```
 
 ## Format and lint
@@ -97,23 +100,19 @@ golangci-lint run    # lint using .golangci.yml; install with: brew install gola
 
 ## API reference
 
-| Method | Path           | Description      |
-|--------|----------------|------------------|
-| GET    | `/`            | Health check     |
-| GET    | `/samples`     | List all samples |
-| GET    | `/samples/:id` | Get one sample   |
-| POST   | `/samples`     | Create a sample  |
-| PUT    | `/samples/:id` | Update a sample  |
-| DELETE | `/samples/:id` | Delete a sample  |
+Every `/api/game` route needs an `X-Username` header (username-only auth, intentionally not secure). Every mutation returns the updated game view; errors return `{"error": "<code>", "message": "..."}`. The response shapes are defined in [api.models.ts](../lemonade-web/src/app/core/api.models.ts).
 
-Request bodies are `{"name": "..."}`. Errors return `{"error": "..."}` with a 400 (`name is required`, `invalid request body`, `invalid id`), 404 (`sample not found`) or 500.
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/healthz` | Liveness check |
+| POST   | `/api/login` `{username}` | Create or get a user (a new user gets a new game) |
+| GET    | `/api/game` | Current game view |
+| POST   | `/api/game/new` | Start a fresh game |
+| POST   | `/api/game/buy` `{resource, qty}` | Buy at ask |
+| POST   | `/api/game/sell` `{resource, qty}` | Sell at bid |
+| POST   | `/api/game/facilities/warehouse/expand` `{resource}` | Add a warehouse building for one resource |
+| POST   | `/api/game/facilities/production/expand` | Add a production building |
+| POST   | `/api/game/facilities/:type/upgrade` | Upgrade every building of `warehouse` or `production` |
+| POST   | `/api/game/end-day` | End the day; returns the day report and the new game view |
 
-## Adding a new resource
-
-Follow the `Sample` pattern:
-
-1. `model/<name>.go`: GORM struct
-2. `repository/<name>.go`: `New<Name>Repository(db)` + CRUD methods
-3. `service/<name>.go`: `New<Name>Service(repository)` + business logic
-4. `controller/<name>.go`: `New<Name>Controller(service)` + Gin handlers
-5. `main.go`: construct repository → service → controller, then register routes
+Game balance (prices, spread, events, tier costs) is one struct: `DefaultConfig()` in `internal/domain/config.go`.

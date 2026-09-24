@@ -58,14 +58,16 @@ source_dir() {
 
 # build_one <service> <tag>: builds and pushes $REGISTRY/<service>:<tag> on Cloud Build.
 # On a fresh project, the Cloud Build API and IAM grants can take a few minutes
-# to take effect and fail with PERMISSION_DENIED meanwhile, so retry those only.
+# to take effect and fail with PERMISSION_DENIED meanwhile. The first build also
+# creates the <project>_cloudbuild source bucket, which may not be visible yet
+# ("bucket does not exist"). Retry those only.
 build_one() {
   local svc="$1" tag="$2" attempt out
   out="$(mktemp)"
   for attempt in 1 2 3 4 5; do
     g builds submit "$(source_dir "$svc")" --region="$REGION" --tag "$REGISTRY/$svc:$tag" 2>&1 | tee "$out" && return 0
-    grep -q PERMISSION_DENIED "$out" || return 1
-    echo "attempt $attempt: permission not active yet; retrying in 30s"
+    grep -q -E 'PERMISSION_DENIED|bucket does not exist' "$out" || return 1
+    echo "attempt $attempt: new project not ready yet; retrying in 30s"
     sleep 30
   done
   return 1

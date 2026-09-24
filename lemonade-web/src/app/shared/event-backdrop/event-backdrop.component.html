@@ -1,0 +1,66 @@
+<div class="backdrop" aria-hidden="true">
+  @for (scene of scenes(); track scene) {
+    @switch (scene) {
+      @case ('heat_wave') {
+        <div class="scene heat">
+          <div class="sun"></div>
+          @for (i of shimmer; track i) {
+            <span class="band" [style]="vars(i, shimmer.length, 9, 4)"></span>
+          }
+        </div>
+      }
+      @case ('rainy_week') {
+        <div class="scene rain">
+          <span class="cloud c1"></span>
+          <span class="cloud c2"></span>
+          @for (i of drops; track i) {
+            <span class="drop" [style]="vars(i, drops.length, 1.1, 0.9)"></span>
+          }
+        </div>
+      }
+      @case ('lemon_blight') {
+        <div class="scene blight">
+          @for (i of leaves; track i) {
+            <span class="leaf" [style]="vars(i, leaves.length, 16, 10)"></span>
+          }
+        </div>
+      }
+      @case ('sugar_glut') {
+        <div class="scene sugar">
+          @for (i of sugar; track i) {
+            <img
+              class="cube"
+              src="assets/resources/sugar.svg"
+              alt=""
+              [style]="vars(i, sugar.length, 18, 12)"
+            />
+          }
+        </div>
+      }
+      @case ('holiday') {
+        <div class="scene holiday">
+          <div class="bunting">
+            @for (i of bunting; track i) {
+              <span class="flag" [style]="vars(i, bunting.length, 4, 2)"></span>
+            }
+          </div>
+          @for (i of confetti; track i) {
+            <span class="piece" [style]="vars(i, confetti.length, 7, 5)"></span>
+          }
+        </div>
+      }
+      @case ('cup_shortage') {
+        <div class="scene cups">
+          @for (i of cups; track i) {
+            <img
+              class="cup"
+              src="assets/resources/cup.svg"
+              alt=""
+              [style]="vars(i, cups.length, 9, 6)"
+            />
+          }
+        </div>
+      }
+    }
+  }
+</div>

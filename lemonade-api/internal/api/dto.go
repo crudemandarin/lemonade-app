@@ -1,0 +1,236 @@
+package api
+
+import "lemonade-api/internal/domain"
+
+// These types mirror lemonade-web/src/app/core/api.models.ts exactly.
+
+type userDTO struct {
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+}
+
+type resourceViewDTO struct {
+	Resource      domain.Resource `json:"resource"`
+	Stock         int             `json:"stock"`
+	Capacity      int             `json:"capacity"`
+	Price         int             `json:"price"`
+	PreviousPrice *int            `json:"previousPrice"`
+	Bid           int             `json:"bid"`
+	Ask           int             `json:"ask"`
+	History       []int           `json:"history"`
+}
+
+type upgradeOptionDTO struct {
+	TierName        string `json:"tierName"`
+	CostPerBuilding int    `json:"costPerBuilding"`
+	TotalCost       int    `json:"totalCost"`
+	SizePerBuilding int    `json:"sizePerBuilding"`
+}
+
+type warehouseResourceDTO struct {
+	Resource domain.Resource `json:"resource"`
+	Count    int             `json:"count"`
+	Capacity int             `json:"capacity"`
+}
+
+type warehouseViewDTO struct {
+	TierName        string                 `json:"tierName"`
+	Level           int                    `json:"level"`
+	MaxLevel        int                    `json:"maxLevel"`
+	Buildings       int                    `json:"buildings"`
+	MaxCount        int                    `json:"maxCount"`
+	SizePerBuilding int                    `json:"sizePerBuilding"`
+	ExpandCost      int                    `json:"expandCost"`
+	UpkeepPerDay    int                    `json:"upkeepPerDay"`
+	Upgrade         *upgradeOptionDTO      `json:"upgrade"`
+	Resources       []warehouseResourceDTO `json:"resources"`
+}
+
+type productionViewDTO struct {
+	TierName        string            `json:"tierName"`
+	Level           int               `json:"level"`
+	MaxLevel        int               `json:"maxLevel"`
+	Buildings       int               `json:"buildings"`
+	MaxCount        int               `json:"maxCount"`
+	SizePerBuilding int               `json:"sizePerBuilding"`
+	ExpandCost      int               `json:"expandCost"`
+	UpkeepPerDay    int               `json:"upkeepPerDay"`
+	Upgrade         *upgradeOptionDTO `json:"upgrade"`
+	RatePerDay      int               `json:"ratePerDay"`
+}
+
+type facilitiesDTO struct {
+	Warehouse  warehouseViewDTO  `json:"warehouse"`
+	Production productionViewDTO `json:"production"`
+}
+
+type gameEventDTO struct {
+	Key         string                      `json:"key"`
+	Name        string                      `json:"name"`
+	Description string                      `json:"description"`
+	Multipliers map[domain.Resource]float64 `json:"multipliers"`
+	DaysLeft    int                         `json:"daysLeft"`
+}
+
+type gameViewDTO struct {
+	Day          int               `json:"day"`
+	Capital      int               `json:"capital"`
+	Status       domain.Status     `json:"status"`
+	UpkeepPerDay int               `json:"upkeepPerDay"`
+	Resources    []resourceViewDTO `json:"resources"`
+	Facilities   facilitiesDTO     `json:"facilities"`
+	Events       []gameEventDTO    `json:"events"`
+}
+
+type priceChangeDTO struct {
+	Resource domain.Resource `json:"resource"`
+	Before   int             `json:"before"`
+	After    int             `json:"after"`
+}
+
+type dayReportDTO struct {
+	Day           int              `json:"day"`
+	Produced      int              `json:"produced"`
+	IceMelted     int              `json:"iceMelted"`
+	UpkeepPaid    int              `json:"upkeepPaid"`
+	CapitalBefore int              `json:"capitalBefore"`
+	CapitalAfter  int              `json:"capitalAfter"`
+	PriceChanges  []priceChangeDTO `json:"priceChanges"`
+	NewEvents     []gameEventDTO   `json:"newEvents"`
+	ExpiredEvents []gameEventDTO   `json:"expiredEvents"`
+	Bankrupt      bool             `json:"bankrupt"`
+}
+
+type endDayResponseDTO struct {
+	Report dayReportDTO `json:"report"`
+	Game   gameViewDTO  `json:"game"`
+}
+
+type errorDTO struct {
+	Error   string `json:"error"`
+	Message string `json:"message"`
+}
+
+func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
+	quotes := domain.Quotes(g, cfg)
+
+	resources := make([]resourceViewDTO, 0, len(domain.Resources))
+	for _, r := range domain.Resources {
+		q := quotes[r]
+		m := g.Market[r]
+		resources = append(resources, resourceViewDTO{
+			Resource:      r,
+			Stock:         g.Inventory[r],
+			Capacity:      domain.Capacity(g, cfg, r),
+			Price:         q.Price,
+			PreviousPrice: m.PreviousEffective,
+			Bid:           q.Bid,
+			Ask:           q.Ask,
+			History:       append([]int{}, m.History...),
+		})
+	}
+
+	return gameViewDTO{
+		Day:          g.Day,
+		Capital:      g.Capital,
+		Status:       g.Status,
+		UpkeepPerDay: domain.TotalUpkeep(g, cfg),
+		Resources:    resources,
+		Facilities: facilitiesDTO{
+			Warehouse:  toWarehouseView(g, cfg),
+			Production: toProductionView(g, cfg),
+		},
+		Events: toEventDTOs(g.Events),
+	}
+}
+
+func toWarehouseView(g domain.Game, cfg domain.Config) warehouseViewDTO {
+	tier := cfg.WarehouseTiers[g.WarehouseLevel-1]
+
+	buildings := 0
+	resources := make([]warehouseResourceDTO, 0, len(domain.Resources))
+	for _, r := range domain.Resources {
+		buildings += g.WarehouseQty[r]
+		resources = append(resources, warehouseResourceDTO{
+			Resource: r,
+			Count:    g.WarehouseQty[r],
+			Capacity: domain.Capacity(g, cfg, r),
+		})
+	}
+
+	return warehouseViewDTO{
+		TierName:        tier.Name,
+		Level:           g.WarehouseLevel,
+		MaxLevel:        cfg.MaxLevel,
+		Buildings:       buildings,
+		MaxCount:        cfg.MaxQuantity,
+		SizePerBuilding: tier.Size,
+		ExpandCost:      tier.BuildCost,
+		UpkeepPerDay:    domain.WarehouseUpkeep(g, cfg),
+		Upgrade:         upgradeOption(cfg.WarehouseTiers, g.WarehouseLevel, cfg.MaxLevel, buildings),
+		Resources:       resources,
+	}
+}
+
+func toProductionView(g domain.Game, cfg domain.Config) productionViewDTO {
+	tier := cfg.ProductionTiers[g.ProductionLevel-1]
+	return productionViewDTO{
+		TierName:        tier.Name,
+		Level:           g.ProductionLevel,
+		MaxLevel:        cfg.MaxLevel,
+		Buildings:       g.ProductionQty,
+		MaxCount:        cfg.MaxQuantity,
+		SizePerBuilding: tier.Size,
+		ExpandCost:      tier.BuildCost,
+		UpkeepPerDay:    domain.ProductionUpkeep(g, cfg),
+		Upgrade:         upgradeOption(cfg.ProductionTiers, g.ProductionLevel, cfg.MaxLevel, g.ProductionQty),
+		RatePerDay:      domain.ProductionCapacity(g, cfg),
+	}
+}
+
+// upgradeOption describes the next level, or nil at max level.
+func upgradeOption(tiers []domain.Tier, level, maxLevel, buildings int) *upgradeOptionDTO {
+	if level >= maxLevel {
+		return nil
+	}
+	current, next := tiers[level-1], tiers[level]
+	return &upgradeOptionDTO{
+		TierName:        next.Name,
+		CostPerBuilding: current.UpgradeCost,
+		TotalCost:       current.UpgradeCost * buildings,
+		SizePerBuilding: next.Size,
+	}
+}
+
+func toEventDTOs(events []domain.ActiveEvent) []gameEventDTO {
+	out := make([]gameEventDTO, 0, len(events))
+	for _, e := range events {
+		out = append(out, gameEventDTO{
+			Key:         e.Key,
+			Name:        e.Name,
+			Description: e.Description,
+			Multipliers: e.Multipliers,
+			DaysLeft:    e.DaysLeft,
+		})
+	}
+	return out
+}
+
+func toDayReport(r domain.DayReport) dayReportDTO {
+	changes := make([]priceChangeDTO, 0, len(r.PriceChanges))
+	for _, c := range r.PriceChanges {
+		changes = append(changes, priceChangeDTO{Resource: c.Resource, Before: c.Before, After: c.After})
+	}
+	return dayReportDTO{
+		Day:           r.Day,
+		Produced:      r.Produced,
+		IceMelted:     r.IceMelted,
+		UpkeepPaid:    r.UpkeepPaid,
+		CapitalBefore: r.CapitalBefore,
+		CapitalAfter:  r.CapitalAfter,
+		PriceChanges:  changes,
+		NewEvents:     toEventDTOs(r.NewEvents),
+		ExpiredEvents: toEventDTOs(r.ExpiredEvents),
+		Bankrupt:      r.Bankrupt,
+	}
+}
