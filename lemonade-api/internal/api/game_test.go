@@ -89,30 +89,30 @@ func (e *testEnv) wantError(rec *httptest.ResponseRecorder, status int, code str
 func TestLoginCreatesThenResumes(t *testing.T) {
 	e := newEnv(t)
 
-	first := e.do("POST", "/api/login", "", map[string]string{"username": "joe"})
+	first := e.do("POST", "/api/login", "", map[string]string{"username": "joe12"})
 	if first.Code != http.StatusOK {
 		t.Fatalf("status = %d", first.Code)
 	}
 	u1 := decode[userDTO](t, first)
-	if u1.Username != "joe" || u1.ID == 0 {
+	if u1.Username != "joe12" || u1.ID == 0 {
 		t.Fatalf("user = %+v", u1)
 	}
 
-	if rec := e.do("POST", "/api/game/buy", "joe", map[string]any{"resource": "lemon", "qty": 2}); rec.Code != http.StatusOK {
+	if rec := e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 2}); rec.Code != http.StatusOK {
 		t.Fatalf("buy: %s", rec.Body)
 	}
-	capital := e.game("joe").Capital
+	capital := e.game("joe12").Capital
 
-	u2 := decode[userDTO](t, e.do("POST", "/api/login", "", map[string]string{"username": "joe"}))
+	u2 := decode[userDTO](t, e.do("POST", "/api/login", "", map[string]string{"username": "joe12"}))
 	if u2.ID != u1.ID {
 		t.Fatal("known username created a new user")
 	}
-	if got := e.game("joe").Capital; got != capital {
+	if got := e.game("joe12").Capital; got != capital {
 		t.Fatalf("login reset the game: capital %d, want %d", got, capital)
 	}
 
-	e.login("ann")
-	if got := e.game("ann").Capital; got != 1000 {
+	e.login("ann12")
+	if got := e.game("ann12").Capital; got != 1000 {
 		t.Fatalf("other user's capital = %d, want 1000", got)
 	}
 }
@@ -121,6 +121,10 @@ func TestLoginValidation(t *testing.T) {
 	e := newEnv(t)
 	e.wantError(e.do("POST", "/api/login", "", map[string]string{"username": "   "}), 400, "invalid_username")
 	e.wantError(e.do("POST", "/api/login", "", map[string]string{"username": strings.Repeat("a", 41)}), 400, "invalid_username")
+	e.wantError(e.do("POST", "/api/login", "", map[string]string{"username": "abcd"}), 400, "invalid_username")
+	for _, bad := range []string{"jo ee", "josée", "日本語日本", "ab\tcd"} {
+		e.wantError(e.do("POST", "/api/login", "", map[string]string{"username": bad}), 400, "invalid_username")
+	}
 
 	req := httptest.NewRequest("POST", "/api/login", bytes.NewBufferString("not json"))
 	rec := httptest.NewRecorder()
@@ -128,9 +132,24 @@ func TestLoginValidation(t *testing.T) {
 	e.wantError(rec, 400, "invalid_request")
 }
 
+func TestUsernameIsCaseInsensitive(t *testing.T) {
+	e := newEnv(t)
+	first := decode[userDTO](t, e.do("POST", "/api/login", "", map[string]string{"username": "Joe12"}))
+	if first.Username != "joe12" {
+		t.Fatalf("username = %q, want it lowercased", first.Username)
+	}
+	second := decode[userDTO](t, e.do("POST", "/api/login", "", map[string]string{"username": "JOE12"}))
+	if second.ID != first.ID {
+		t.Fatal("JOE and Joe are different users")
+	}
+	if rec := e.do("GET", "/api/game", "JoE12", nil); rec.Code != http.StatusOK {
+		t.Fatalf("mixed-case X-Username header: status %d, want 200", rec.Code)
+	}
+}
+
 func TestUsernameMiddleware(t *testing.T) {
 	e := newEnv(t)
-	e.login("joe")
+	e.login("joe12")
 
 	paths := []struct{ method, path string }{
 		{"GET", "/api/game"},
@@ -149,8 +168,8 @@ func TestUsernameMiddleware(t *testing.T) {
 
 func TestGameViewMatchesContract(t *testing.T) {
 	e := newEnv(t)
-	e.login("joe")
-	v := e.game("joe")
+	e.login("joe12")
+	v := e.game("joe12")
 
 	if v.Day != 1 || v.Capital != 1000 || v.Status != domain.StatusActive || v.UpkeepPerDay != 30 {
 		t.Fatalf("view = %+v", v)
@@ -188,7 +207,7 @@ func TestGameViewMatchesContract(t *testing.T) {
 	}
 
 	// Raw JSON: null previousPrice / upgrade at max level, [] (not null) for events.
-	raw := e.do("GET", "/api/game", "joe", nil).Body.String()
+	raw := e.do("GET", "/api/game", "joe12", nil).Body.String()
 	var m map[string]any
 	if err := json.Unmarshal([]byte(raw), &m); err != nil {
 		t.Fatal(err)
@@ -204,9 +223,9 @@ func TestGameViewMatchesContract(t *testing.T) {
 
 func TestBuyAndSell(t *testing.T) {
 	e := newEnv(t)
-	e.login("joe")
+	e.login("joe12")
 
-	rec := e.do("POST", "/api/game/buy", "joe", map[string]any{"resource": "lemon", "qty": 5})
+	rec := e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 5})
 	if rec.Code != 200 {
 		t.Fatalf("buy: %s", rec.Body)
 	}
@@ -215,7 +234,7 @@ func TestBuyAndSell(t *testing.T) {
 		t.Fatalf("after buy: capital=%d stock=%d", v.Capital, v.Resources[0].Stock)
 	}
 
-	rec = e.do("POST", "/api/game/sell", "joe", map[string]any{"resource": "lemon", "qty": 2})
+	rec = e.do("POST", "/api/game/sell", "joe12", map[string]any{"resource": "lemon", "qty": 2})
 	v = decode[gameViewDTO](t, rec)
 	if v.Capital != 1000-5*22+2*18 || v.Resources[0].Stock != 3 {
 		t.Fatalf("after sell: capital=%d stock=%d", v.Capital, v.Resources[0].Stock)
@@ -224,7 +243,7 @@ func TestBuyAndSell(t *testing.T) {
 
 func TestTradeErrors(t *testing.T) {
 	e := newEnv(t)
-	e.login("joe")
+	e.login("joe12")
 
 	tests := []struct {
 		name   string
@@ -242,30 +261,30 @@ func TestTradeErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e.wantError(e.do("POST", tt.path, "joe", tt.body), tt.status, tt.code)
+			e.wantError(e.do("POST", tt.path, "joe12", tt.body), tt.status, tt.code)
 		})
 	}
-	if v := e.game("joe"); v.Capital != 1000 {
+	if v := e.game("joe12"); v.Capital != 1000 {
 		t.Fatalf("failed requests changed capital to %d", v.Capital)
 	}
 }
 
 func TestBuyInsufficientFunds(t *testing.T) {
 	e := newEnv(t)
-	e.login("joe")
-	e.setGame("joe", func(g *domain.Game) { g.Capital = 50 })
+	e.login("joe12")
+	e.setGame("joe12", func(g *domain.Game) { g.Capital = 50 })
 
-	e.wantError(e.do("POST", "/api/game/buy", "joe", map[string]any{"resource": "lemonade", "qty": 1}), 409, "insufficient_funds")
-	if v := e.game("joe"); v.Capital != 50 || v.Resources[4].Stock != 0 {
+	e.wantError(e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemonade", "qty": 1}), 409, "insufficient_funds")
+	if v := e.game("joe12"); v.Capital != 50 || v.Resources[4].Stock != 0 {
 		t.Fatalf("failed buy changed the game: capital=%d stock=%d", v.Capital, v.Resources[4].Stock)
 	}
 }
 
 func TestExpandAndUpgrade(t *testing.T) {
 	e := newEnv(t)
-	e.login("joe")
+	e.login("joe12")
 
-	rec := e.do("POST", "/api/game/facilities/warehouse/expand", "joe", map[string]any{"resource": "ice"})
+	rec := e.do("POST", "/api/game/facilities/warehouse/expand", "joe12", map[string]any{"resource": "ice"})
 	if rec.Code != 200 {
 		t.Fatalf("expand warehouse: %s", rec.Body)
 	}
@@ -274,7 +293,7 @@ func TestExpandAndUpgrade(t *testing.T) {
 		t.Fatalf("after expand: %+v", v)
 	}
 
-	rec = e.do("POST", "/api/game/facilities/production/expand", "joe", map[string]any{})
+	rec = e.do("POST", "/api/game/facilities/production/expand", "joe12", map[string]any{})
 	if rec.Code != 200 {
 		t.Fatalf("expand production: %s", rec.Body)
 	}
@@ -283,53 +302,53 @@ func TestExpandAndUpgrade(t *testing.T) {
 		t.Fatalf("after production expand: %+v", v)
 	}
 
-	rec = e.do("POST", "/api/game/facilities/production/upgrade", "joe", nil)
+	rec = e.do("POST", "/api/game/facilities/production/upgrade", "joe12", nil)
 	e.wantError(rec, 409, "insufficient_funds") // 2 buildings x $1000
 
-	rec = e.do("POST", "/api/game/facilities/warehouse/upgrade", "joe", nil)
+	rec = e.do("POST", "/api/game/facilities/warehouse/upgrade", "joe12", nil)
 	e.wantError(rec, 409, "insufficient_funds") // 6 buildings x $100 = $600 > $400
 }
 
 func TestUpgradeSuccessAndMaxLevel(t *testing.T) {
 	e := newEnv(t)
-	e.login("joe")
-	e.setGame("joe", func(g *domain.Game) { g.Capital = 1_000_000 })
+	e.login("joe12")
+	e.setGame("joe12", func(g *domain.Game) { g.Capital = 1_000_000 })
 
 	for level := 1; level < 4; level++ {
-		if rec := e.do("POST", "/api/game/facilities/warehouse/upgrade", "joe", nil); rec.Code != 200 {
+		if rec := e.do("POST", "/api/game/facilities/warehouse/upgrade", "joe12", nil); rec.Code != 200 {
 			t.Fatalf("upgrade from level %d: %s", level, rec.Body)
 		}
 	}
-	v := e.game("joe")
+	v := e.game("joe12")
 	if wh := v.Facilities.Warehouse; wh.Level != 4 || wh.TierName != "Industrial Warehouse" || wh.Upgrade != nil {
 		t.Fatalf("warehouse = %+v", wh)
 	}
-	e.wantError(e.do("POST", "/api/game/facilities/warehouse/upgrade", "joe", nil), 409, "max_level")
+	e.wantError(e.do("POST", "/api/game/facilities/warehouse/upgrade", "joe12", nil), 409, "max_level")
 }
 
 func TestExpandErrors(t *testing.T) {
 	e := newEnv(t)
-	e.login("joe")
+	e.login("joe12")
 
-	e.wantError(e.do("POST", "/api/game/facilities/garage/expand", "joe", map[string]any{}), 400, "invalid_facility_type")
-	e.wantError(e.do("POST", "/api/game/facilities/garage/upgrade", "joe", nil), 400, "invalid_facility_type")
-	e.wantError(e.do("POST", "/api/game/facilities/warehouse/expand", "joe", map[string]any{"resource": "gold"}), 400, "invalid_resource")
-	e.wantError(e.do("POST", "/api/game/facilities/warehouse/expand", "joe", map[string]any{}), 400, "invalid_resource")
+	e.wantError(e.do("POST", "/api/game/facilities/garage/expand", "joe12", map[string]any{}), 400, "invalid_facility_type")
+	e.wantError(e.do("POST", "/api/game/facilities/garage/upgrade", "joe12", nil), 400, "invalid_facility_type")
+	e.wantError(e.do("POST", "/api/game/facilities/warehouse/expand", "joe12", map[string]any{"resource": "gold"}), 400, "invalid_resource")
+	e.wantError(e.do("POST", "/api/game/facilities/warehouse/expand", "joe12", map[string]any{}), 400, "invalid_resource")
 
-	e.setGame("joe", func(g *domain.Game) { g.Capital = 1_000_000; g.ProductionQty = 10 })
-	e.wantError(e.do("POST", "/api/game/facilities/production/expand", "joe", map[string]any{}), 409, "max_quantity")
+	e.setGame("joe12", func(g *domain.Game) { g.Capital = 1_000_000; g.ProductionQty = 10 })
+	e.wantError(e.do("POST", "/api/game/facilities/production/expand", "joe12", map[string]any{}), 409, "max_quantity")
 }
 
 func TestEndDayLoop(t *testing.T) {
 	e := newEnv(t)
-	e.login("joe")
+	e.login("joe12")
 	for _, r := range []string{"lemon", "sugar", "ice", "cup"} {
-		if rec := e.do("POST", "/api/game/buy", "joe", map[string]any{"resource": r, "qty": 10}); rec.Code != 200 {
+		if rec := e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": r, "qty": 10}); rec.Code != 200 {
 			t.Fatalf("buy %s: %s", r, rec.Body)
 		}
 	}
 
-	rec := e.do("POST", "/api/game/end-day", "joe", nil)
+	rec := e.do("POST", "/api/game/end-day", "joe12", nil)
 	if rec.Code != 200 {
 		t.Fatalf("end-day: %s", rec.Body)
 	}
@@ -350,7 +369,7 @@ func TestEndDayLoop(t *testing.T) {
 		t.Fatalf("history length = %d, want 2", got)
 	}
 
-	sell := e.do("POST", "/api/game/sell", "joe", map[string]any{"resource": "lemonade", "qty": 10})
+	sell := e.do("POST", "/api/game/sell", "joe12", map[string]any{"resource": "lemonade", "qty": 10})
 	if sell.Code != 200 {
 		t.Fatalf("sell lemonade: %s", sell.Body)
 	}
@@ -358,13 +377,13 @@ func TestEndDayLoop(t *testing.T) {
 
 func TestEndDayReportsForcedSale(t *testing.T) {
 	e := newEnv(t)
-	e.login("joe")
-	e.setGame("joe", func(g *domain.Game) {
+	e.login("joe12")
+	e.setGame("joe12", func(g *domain.Game) {
 		g.Capital = 0
 		g.Inventory[domain.Lemonade] = 3
 	})
 
-	rec := e.do("POST", "/api/game/end-day", "joe", nil)
+	rec := e.do("POST", "/api/game/end-day", "joe12", nil)
 	if rec.Code != 200 {
 		t.Fatalf("end-day: %s", rec.Body)
 	}
@@ -389,10 +408,10 @@ func TestEndDayReportsForcedSale(t *testing.T) {
 
 func TestBankruptcyBlocksActionsUntilNewGame(t *testing.T) {
 	e := newEnv(t)
-	e.login("joe")
-	e.setGame("joe", func(g *domain.Game) { g.Capital = 0 })
+	e.login("joe12")
+	e.setGame("joe12", func(g *domain.Game) { g.Capital = 0 })
 
-	rec := e.do("POST", "/api/game/end-day", "joe", nil)
+	rec := e.do("POST", "/api/game/end-day", "joe12", nil)
 	if rec.Code != 200 {
 		t.Fatalf("end-day: %s", rec.Body)
 	}
@@ -411,27 +430,27 @@ func TestBankruptcyBlocksActionsUntilNewGame(t *testing.T) {
 		{"/api/game/facilities/warehouse/upgrade", nil},
 		{"/api/game/end-day", nil},
 	} {
-		e.wantError(e.do("POST", p.path, "joe", p.body), 409, "game_over")
+		e.wantError(e.do("POST", p.path, "joe12", p.body), 409, "game_over")
 	}
 
-	rec = e.do("POST", "/api/game/new", "joe", nil)
+	rec = e.do("POST", "/api/game/new", "joe12", nil)
 	if rec.Code != 200 {
 		t.Fatalf("new game: %s", rec.Body)
 	}
 	if v := decode[gameViewDTO](t, rec); v.Day != 1 || v.Capital != 1000 || v.Status != domain.StatusActive {
 		t.Fatalf("new game view = %+v", v)
 	}
-	if v := e.game("joe"); v.Status != domain.StatusActive {
+	if v := e.game("joe12"); v.Status != domain.StatusActive {
 		t.Fatal("new game was not persisted")
 	}
 }
 
 func TestNewGameReplacesActiveGame(t *testing.T) {
 	e := newEnv(t)
-	e.login("joe")
-	e.do("POST", "/api/game/buy", "joe", map[string]any{"resource": "lemon", "qty": 5})
+	e.login("joe12")
+	e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 5})
 
-	rec := e.do("POST", "/api/game/new", "joe", nil)
+	rec := e.do("POST", "/api/game/new", "joe12", nil)
 	v := decode[gameViewDTO](t, rec)
 	if v.Capital != 1000 || v.Resources[0].Stock != 0 {
 		t.Fatalf("view = %+v", v)

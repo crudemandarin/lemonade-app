@@ -6,3 +6,6 @@
 *.tfstate
 *.tfstate.*
 *.tfvars
+
+# Claude Code local settings
+.claude/

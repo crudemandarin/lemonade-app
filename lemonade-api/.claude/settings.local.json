@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(go build *)",
-      "Bash(gofmt -l .)",
-      "Bash(git -C . rev-parse --is-inside-work-tree)"
-    ]
-  }
-}

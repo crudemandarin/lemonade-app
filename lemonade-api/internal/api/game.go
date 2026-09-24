@@ -15,8 +15,25 @@ import (
 const (
 	usernameHeader = "X-Username"
 	userKey        = "user"
+	minUsernameLen = 5
 	maxUsernameLen = 40
 )
+
+// normalizeUsername trims and lowercases a username so logins are case-insensitive,
+// and reports whether the result is minUsernameLen to maxUsernameLen printable ASCII characters
+// (letters, digits and punctuation; no spaces or control characters).
+func normalizeUsername(raw string) (string, bool) {
+	name := strings.ToLower(strings.TrimSpace(raw))
+	if len(name) < minUsernameLen || len(name) > maxUsernameLen {
+		return "", false
+	}
+	for i := 0; i < len(name); i++ {
+		if name[i] <= ' ' || name[i] > '~' {
+			return "", false
+		}
+	}
+	return name, true
+}
 
 // Game serves the /api game endpoints. Handlers stay thin: load, call a domain
 // function, save, and map the result to a DTO.
@@ -52,8 +69,8 @@ func (h *Game) Register(router gin.IRouter) {
 // requireUser identifies the player from X-Username. Intentionally not secure
 // (SPEC rule 22).
 func (h *Game) requireUser(c *gin.Context) {
-	username := strings.TrimSpace(c.GetHeader(usernameHeader))
-	if username == "" {
+	username, ok := normalizeUsername(c.GetHeader(usernameHeader))
+	if !ok {
 		abort(c, http.StatusUnauthorized, "unauthorized", "Sign in first: the X-Username header is required.")
 		return
 	}
@@ -82,9 +99,9 @@ func (h *Game) login(c *gin.Context) {
 		abort(c, http.StatusBadRequest, "invalid_request", "Request body must be JSON with a username.")
 		return
 	}
-	username := strings.TrimSpace(req.Username)
-	if username == "" || len(username) > maxUsernameLen {
-		abort(c, http.StatusBadRequest, "invalid_username", "Username must be 1 to 40 characters.")
+	username, ok := normalizeUsername(req.Username)
+	if !ok {
+		abort(c, http.StatusBadRequest, "invalid_username", "Username must be 5 to 40 standard ASCII characters, with no spaces.")
 		return
 	}
 

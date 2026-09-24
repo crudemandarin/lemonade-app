@@ -5,6 +5,9 @@
     id="username"
     class="input"
     autocomplete="username"
+    minlength="5"
+    maxlength="40"
+    autocapitalize="none"
     [attr.aria-invalid]="!!fieldError()"
   />
   @if (message(); as message) {
@@ -18,5 +21,7 @@
   >
     Continue
   </button>
-  <p class="hint">New name? We'll start a game for it.</p>
+  <p class="hint">
+    At least 5 characters, not case sensitive. New name? We'll start a game for it.
+  </p>
 </form>

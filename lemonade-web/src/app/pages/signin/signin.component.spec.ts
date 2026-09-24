@@ -39,10 +39,17 @@ describe('SigninComponent', () => {
     expect(el.querySelector('.field-error')?.textContent).toContain('Enter a username');
   });
 
+  it('rejects names with spaces or non-ASCII characters without calling the API', () => {
+    for (const bad of ['a bcde', 'josé!', 'abcd']) {
+      submit(bad);
+      expect(el.querySelector('.field-error')?.textContent).toContain('5 to 40');
+    }
+  });
+
   it('logs in and routes to /game', fakeAsync(() => {
     const navigate = spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
 
-    submit(' lemonjoe ');
+    submit(' LemonJoe ');
     const req = http.expectOne('/api/login');
     expect(req.request.body).toEqual({ username: 'lemonjoe' });
     req.flush({ id: 1, username: 'lemonjoe' });

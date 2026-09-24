@@ -24,9 +24,13 @@ export class SigninComponent {
 
   protected async submit(event: Event, raw: string): Promise<void> {
     event.preventDefault();
-    const username = raw.trim();
+    const username = raw.trim().toLowerCase();
     if (!username) {
       this.fieldError.set('Enter a username');
+      return;
+    }
+    if (!/^[\x21-\x7e]{5,40}$/.test(username)) {
+      this.fieldError.set('Use 5 to 40 letters, numbers or symbols, with no spaces');
       return;
     }
     this.fieldError.set(null);

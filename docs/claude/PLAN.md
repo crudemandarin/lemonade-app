@@ -40,7 +40,7 @@ Time estimates are rough and cumulative.
   - Acceptance: rules 20, 21. An event affects only its target resources' effective prices, stacks multiplicatively, and expires after its duration.
   - Tests: spawn with a forced RNG, expiry, stacking, no effect on the walked price.
 
-- [ ] **Slice 7: PWA (≈15m, 130m)**
+- [x] **Slice 7: PWA (≈15m, 130m)**
   - Do: run `ng add @angular/pwa`; set app name, theme color, and lemon-themed icons in `manifest.webmanifest`; `ngsw-config.json` prefetches the app shell and has no data group for `/api/**`; `online.service.ts` signal; offline banner; disable all action buttons while offline; deploy the production build.
   - Acceptance: rule 28. The deployed HTTPS site passes Lighthouse installability and Chrome offers Install; with the network off, the cached shell loads and shows the offline banner with actions disabled; API responses are never served from the service worker cache; `ng build` output contains `ngsw.json`.
   - Tests: `online.service` reacts to online/offline events; action buttons disabled when offline; manual Lighthouse check recorded in README. Note: the service worker runs in production builds only, so verify with a built app, not `ng serve`.
@@ -61,7 +61,7 @@ Time estimates are rough and cumulative.
 - Price impact from the player's own trades and limited market depth.
 - Event forecasting ("heat wave expected tomorrow").
 - Bulk-purchase discounts and contracts; loans and interest.
-- Alternative grace rules (lemonade-only, or inventory value at bid must cover a day's upkeep).
+- Gentler bankruptcy variants (e.g. a one-day grace period) if the balance proves too harsh.
 - User-tweakable recipe.
 - Leaderboard using `capital` and `day`.
 - Real authentication.

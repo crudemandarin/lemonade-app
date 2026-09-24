@@ -90,3 +90,21 @@ Deviations from DESIGN.md and real tradeoffs made during the build. Newest last.
 - **Alternatives considered:** upkeep x3/x4 (the careful player also started dying, 6% to 26%); lemonade at $85 or $80 (opening too slow: level 1 full by day 23 and 30); a "skip bad days" trader bot never beat always-producing, so no market-timing mechanic was added.
 - **Trade-off:** harsher for real players than the original spec, and the earlier design's "leniency" trade-off (DESIGN §9 item 7) is reversed on purpose. The guard-rail tests (`TestBalance*`) keep future tuning inside these bands.
 - **Also:** the balance simulator became `balance_test.go`; a few test expectations that hard-coded $100 lemonade or $15 upkeep now derive from the config or use the new values.
+
+## 13. Forced upkeep sales use today's bid and a fixed order (decision 12 follow-up)
+- **Did:** when cash is short, stock is sold at the bid in `Quotes` *before* the day's market tick, in the order lemonade, lemon, sugar, cup, ice, and only as many cases as needed (the last resource may overshoot by less than one bid).
+- **Why:** upkeep is charged for the day that just ended, so it settles at that day's prices; using tomorrow's prices would let the random walk decide the outcome of a decision the player already made. Lemonade goes first because it exists only to be sold, so selling it loses the least (raw inputs still need a batch to be worth anything). Ice is last because it has already melted and is always 0.
+- **Trade-off:** the player does not choose what is sold, and the sale happens silently overnight (the day report shows cases and proceeds). Player-chosen liquidation would need a new prompt and API, which is out of scope.
+
+## 14. Bankruptcy depends on prices, not on holding stock (decision 12 follow-up)
+- **Did:** a player can be bankrupt while still holding stock, if that stock's bid value plus cash is below one day's upkeep. The game-over screen says so ("even after selling all your stock").
+- **Why:** this is the point of decision 12. Under "any inventory is a grace", $0 capital plus one case of anything could never lose, which the simulations showed as 54-69% zombie games. Judging stock by what it would raise at bid is the same test the player has always had (selling at bid), applied automatically.
+- **Trade-off:** harsher than the first draft, and a price drop can tip a marginal player over. The day report warns at $0 capital ("You're out of cash"), and `TestBalance*` keeps the difficulty in a known band.
+- **Not done:** a grace day or partial-payment ledger; listed in Future work.
+
+## 15. Usernames: 5 to 40 ASCII characters, case-insensitive; header lookup on every request
+- **Did:** usernames are trimmed, lowercased, and must be 5 to 40 printable ASCII characters with no spaces (`normalizeUsername` in `internal/api/game.go`, applied to login and to the `X-Username` header). The frontend mirrors the rule and sends the lowercase name.
+- **Why case-insensitive and ASCII:** with no password, `Joe`, `joe` and a look-alike Unicode name would otherwise be three players that are easy to confuse, and normalizing to one form removes the confusion. The 5-character minimum makes trivially guessable names like `a` or `bob` unavailable, which matters a little when the name is the only credential; 40 is the original upper bound.
+- **Why a database lookup per request (not a signed session):** the brief asks for username-only login, so the header is the identity. `requireUser` resolves it to a user row on every game call, a single indexed query, which also means a name the server does not know (for example after a database reset) gets a 401 and the UI signs out (decision 7). Cheap at this scale; a session token or cache would be the first change if real authentication were added (Future work).
+- **Trade-off:** anyone can play as anyone by typing their name. Known and documented in the README. Users created before this change with longer or mixed-case names cannot log in as before; a fresh database has none.
+

@@ -24,7 +24,7 @@ Upgrade(g *Game, k FacilityKind) error    // level + 1 for all buildings
 EndDay(g *Game, cfg Config) DayReport     // produce, melt, upkeep, advance, market tick, events, bankruptcy
 Quotes(g Game) map[Resource]Quote         // effective price, bid, ask (whole dollars)
 Capacity(g Game, r Resource) int          // quantity * size(level)
-IsBankrupt(g Game) bool                   // capital == 0 && total inventory == 0
+// bankruptcy is decided inside EndDay: upkeep unpayable even after selling all stock at bid (DECISIONS 12)
 ```
 **Determinism:** randomness comes from `rand.New(rand.NewSource(seed ^ int64(day)))` created inside `EndDay`. No `time.Now()` in the domain. Same seed and same actions give the same game.
 
@@ -110,6 +110,6 @@ Events (table-driven): Heat Wave (lemonade ×1.4, ice ×1.3, 2d), Rainy Week (le
 4. Bid/ask spread vs. flat price: one line of code that blocks a trivial buy-sell exploit.
 5. Whole-dollar money with "case" units: avoids float and cent handling, at the cost of bulk-sized prices and rounding on quotes.
 6. One shared level per facility (upgrade is all-or-nothing): simple and matches the design; loses mixed-tier setups.
-7. Bankruptcy = capital 0 and no inventory at all: avoids dying while holding sellable lemonade, and avoids the ice-melt trap (a "can make lemonade" test could never pass after ice melts). Slightly lenient; easy to tighten.
+7. Bankruptcy = upkeep cannot be paid even after selling all stock at bid (DECISIONS 12-14): no zombie games at $0 holding a little stock, at the cost of a harsher game than the first draft.
 8. Username-header "auth": matches the brief, not secure; documented.
 9. PWA = installable shell only, API never cached: avoids stale-state bugs in a server-authoritative game, at the cost of no offline play.

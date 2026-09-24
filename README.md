@@ -170,4 +170,4 @@ Changing a price, cost or upkeep also changes a few exact numbers asserted in th
 
 ## Known limitations
 
-- Login is username-only (sent as an `X-Username` header), by design of the brief. Not secure.
+- Login is username-only (sent as an `X-Username` header), by design of the brief. Not secure: anyone can play as anyone by typing their name. Usernames are 5 to 40 ASCII characters and not case sensitive (`Joe` and `joe` are the same player).
