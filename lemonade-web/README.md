@@ -14,19 +14,23 @@ The app calls `/api/...` on its own origin. The dev server (`proxy.conf.json`) a
 ```
 src/app/
   core/            API contract (api.models.ts), ApiService, GameStore (signals),
-                   SessionService, X-Username and 401 interceptors, auth guard
-  shared/          nav-bar, card, icon, money pipe
+                   SessionService, OnlineService, X-Username and 401 interceptors,
+                   auth guard, testing/fixtures.ts
+  shared/          nav-bar, card, icon, money pipe, offline-banner, price-sparkline,
+                   timeline-charts (capital/stock history), event-backdrop (CSS scenes)
   pages/home/      landing page ("Play game" / "Continue game")
   pages/signin/    username-only sign in
   pages/game/      dashboard + game over; presentational components in components/:
                    stats-strip, events-banner, market-panel, facilities-panel,
                    day-report-modal, game-over
 src/styles.scss    theme tokens (light/dark), buttons, inputs
+ngsw-config.json   PWA service worker: caches the app shell, never /api
+design-preview/    standalone event-backdrop preview (node design-preview/build.mjs)
 ```
 
 Routes: `/` home, `/signin`, `/game` (guarded: redirects to `/signin` without a stored username).
 
-Only `GameStore` talks to `ApiService`. Page components read store signals and pass data down to presentational components, which emit events back up.
+It is an installable PWA (service worker in production builds only; the API is never cached, and actions are disabled offline). Only `GameStore` talks to `ApiService`. Page components read store signals and pass data down to presentational components, which emit events back up.
 
 ## Run locally
 

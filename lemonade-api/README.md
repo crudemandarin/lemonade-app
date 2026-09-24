@@ -11,8 +11,9 @@ The Gin + PostgreSQL API for Lemonade Tycoon. All game rules live in a pure doma
 
 ```
 main.go                 entrypoint: loads secrets, connects DB, migrates, wires routes
-internal/domain/        pure game rules (no I/O, no Gin, no SQL): config, market, events,
-                        actions, facilities, end of day, bankruptcy
+internal/domain/        pure game rules (no I/O, no Gin, no SQL): config (all balance knobs),
+                        newgame, quotes, market, events, actions (buy/sell), facilities,
+                        endday, bankruptcy, timeline; *_test.go beside each, plus balance_test.go
 internal/store/         Repository interface, Postgres implementation, in-memory fake
 internal/api/           Gin handlers, DTOs (camelCase JSON), error mapping, /api/health
 libraries/              secrets loading, database connection
