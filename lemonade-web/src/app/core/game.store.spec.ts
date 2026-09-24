@@ -126,4 +126,67 @@ describe('GameStore', () => {
     expect(session.username()).toBeNull();
     expect(store.game()).toBeNull();
   });
+
+  it('loading is true while a request is in flight and false after it succeeds or fails', async () => {
+    const ok = store.load();
+    expect(store.loading()).toBeTrue();
+    http.expectOne('/api/game').flush(newGameView());
+    await ok;
+    expect(store.loading()).toBeFalse();
+
+    const failed = store.load();
+    expect(store.loading()).toBeTrue();
+    http
+      .expectOne('/api/game')
+      .flush({ error: 'internal', message: 'Boom' }, { status: 500, statusText: '' });
+    await failed;
+    expect(store.loading()).toBeFalse();
+  });
+
+  it('a failed end-of-day leaves the game and the previous report alone', async () => {
+    const first = store.endDay();
+    http
+      .expectOne('/api/game/end-day')
+      .flush({ report: dayReport({ day: 1 }), game: newGameView({ day: 2 }) });
+    await first;
+
+    const second = store.endDay();
+    http
+      .expectOne('/api/game/end-day')
+      .flush({ error: 'game_over', message: 'Game over' }, { status: 409, statusText: '' });
+    await second;
+
+    expect(store.error()).toBe('Game over');
+    expect(store.report()?.day).toBe(1);
+    expect(store.game()?.day).toBe(2);
+  });
+
+  it('starting a new game clears the last day report', async () => {
+    const day = store.endDay();
+    http.expectOne('/api/game/end-day').flush({ report: dayReport(), game: newGameView() });
+    await day;
+    expect(store.report()).not.toBeNull();
+
+    const fresh = store.newGame();
+    expect(store.report()).toBeNull();
+    http.expectOne('/api/game/new').flush(newGameView());
+    await fresh;
+  });
+
+  it('dismissReport and clearError reset their signals', async () => {
+    const day = store.endDay();
+    http.expectOne('/api/game/end-day').flush({ report: dayReport(), game: newGameView() });
+    await day;
+    store.dismissReport();
+    expect(store.report()).toBeNull();
+
+    const failed = store.load();
+    http
+      .expectOne('/api/game')
+      .flush({ error: 'internal', message: 'Boom' }, { status: 500, statusText: '' });
+    await failed;
+    expect(store.error()).toBe('Boom');
+    store.clearError();
+    expect(store.error()).toBeNull();
+  });
 });
