@@ -1,7 +1,7 @@
 variable "project_id" {
   description = "Google Cloud project to deploy into."
   type        = string
-  default     = "numeric-lemonade-app"
+  default     = "lemonade-app-509618"
 }
 
 variable "region" {

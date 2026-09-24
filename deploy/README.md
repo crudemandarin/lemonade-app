@@ -20,7 +20,7 @@ Infrastructure is defined in [infra/](infra/) (Terraform, state in `gs://<projec
 ./deploy/scripts/teardown.sh           # delete everything
 ```
 
-All default to project `numeric-lemonade-app` in `us-central1`. Override with `PROJECT_ID=… REGION=…`. They pass `--project` on every gcloud call and never change your gcloud default project.
+All default to project `lemonade-app-509618` in `us-central1`. Override with `PROJECT_ID=… REGION=…`. They pass `--project` on every gcloud call and never change your gcloud default project.
 
 **bootstrap.sh** creates the state bucket, then applies Terraform in two phases: first the registry, then (after Cloud Build pushes the `api` and `web` images) Cloud SQL, Cloud Run, domains and the budget. The first run takes about 10 minutes, mostly Cloud SQL. Re-running it is safe.
 
@@ -28,7 +28,7 @@ All default to project `numeric-lemonade-app` in `us-central1`. Override with `P
 
 **teardown.sh** runs `terraform destroy`, then sweeps the same resources by name with gcloud in case Terraform state was lost or destroy failed. It also deletes the budget, the Cloud Build source bucket(s) and the state bucket, then checks that nothing remains and exits non-zero if something does. It asks you to type the project id first. Flags: `--yes` (skip the prompt), `--keep-state` (keep the state bucket). APIs stay enabled; that costs nothing.
 
-> For an absolute guarantee that nothing keeps billing, delete the project: `gcloud projects delete numeric-lemonade-app`. The scripts never do this.
+> For an absolute guarantee that nothing keeps billing, delete the project: `gcloud projects delete lemonade-app-509618`. The scripts never do this.
 
 In Cloud Run, `web`'s nginx proxies `/api/*` to the `api` service URL (the `API_UPSTREAM` env var), and `api` connects to Cloud SQL through the `/cloudsql` Unix socket. No app code differs between Compose and Cloud Run.
 
