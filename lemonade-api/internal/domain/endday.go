@@ -25,6 +25,15 @@ func EndDay(g *Game, cfg Config) (DayReport, error) {
 	g.Stats.UpkeepPaid += paid
 	g.record(TimelinePoint{Day: g.Day, Kind: PointEndDay, Amount: paid, Produced: report.Produced})
 
+	if insolvent {
+		// The game ends on the day it was lost: no day advance, market tick or new
+		// events, so the final state shows the prices the player last traded at.
+		g.Status = StatusBankrupt
+		report.Bankrupt = true
+		report.CapitalAfter = g.Capital
+		return report, nil
+	}
+
 	before := make(map[Resource]int, len(Resources))
 	for _, r := range Resources {
 		before[r] = effectivePrice(g.Market[r].Price, g.Events, r)
@@ -56,10 +65,6 @@ func EndDay(g *Game, cfg Config) (DayReport, error) {
 		}
 	}
 
-	if insolvent {
-		g.Status = StatusBankrupt
-	}
-	report.Bankrupt = g.Status == StatusBankrupt
 	report.CapitalAfter = g.Capital
 
 	return report, nil

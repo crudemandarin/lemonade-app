@@ -31,6 +31,8 @@ func abortErr(c *gin.Context, err error) {
 		abort(c, http.StatusConflict, "capacity_exceeded", "Not enough warehouse space.")
 	case errors.Is(err, domain.ErrMaxQuantity):
 		abort(c, http.StatusConflict, "max_quantity", "Already at the maximum number of buildings.")
+	case errors.Is(err, domain.ErrInvalidFacility):
+		abort(c, http.StatusBadRequest, "invalid_facility_type", "Facility type must be warehouse or production.")
 	case errors.Is(err, domain.ErrMaxLevel):
 		abort(c, http.StatusConflict, "max_level", "Already at the maximum level.")
 	case errors.Is(err, store.ErrNotFound):

@@ -12,4 +12,5 @@ var (
 	ErrCapacityExceeded  = errors.New("warehouse capacity exceeded")
 	ErrMaxQuantity       = errors.New("facility already at max quantity")
 	ErrMaxLevel          = errors.New("facility already at max level")
+	ErrInvalidFacility   = errors.New("unknown facility type")
 )

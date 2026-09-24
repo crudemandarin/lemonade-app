@@ -743,3 +743,50 @@ func copyInv(m map[Resource]int) map[Resource]int {
 	}
 	return out
 }
+
+// The game ends on the day it was lost: nothing after upkeep runs.
+func TestBankruptEndDayDoesNotTick(t *testing.T) {
+	g, cfg := newTestGame()
+	g.Capital = 0
+	g.Events = []ActiveEvent{{Key: "holiday", Name: "Holiday", Multipliers: map[Resource]float64{Lemonade: 1.35}, DaysLeft: 1}}
+	before := g.Clone()
+
+	report, err := EndDay(&g, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Bankrupt || g.Status != StatusBankrupt {
+		t.Fatal("expected bankrupt")
+	}
+	if g.Day != before.Day || report.Day != before.Day {
+		t.Fatalf("day advanced: g.Day=%d report.Day=%d, want %d", g.Day, report.Day, before.Day)
+	}
+	if len(g.Events) != 1 || g.Events[0].DaysLeft != 1 || len(report.NewEvents)+len(report.ExpiredEvents) != 0 {
+		t.Fatalf("events ticked: %+v", g.Events)
+	}
+	if len(report.PriceChanges) != 0 {
+		t.Fatalf("prices changed: %+v", report.PriceChanges)
+	}
+	for _, r := range Resources {
+		if g.Market[r].Price != before.Market[r].Price || len(g.Market[r].History) != len(before.Market[r].History) {
+			t.Fatalf("%s market ticked", r)
+		}
+	}
+	if report.CapitalAfter != g.Capital {
+		t.Fatalf("CapitalAfter = %d, want %d", report.CapitalAfter, g.Capital)
+	}
+}
+
+func TestUnknownFacilityTypeIsRejected(t *testing.T) {
+	g, cfg := newTestGame()
+	before := g.Clone()
+	if err := Expand(&g, cfg, FacilityType("garage"), ""); !errors.Is(err, ErrInvalidFacility) {
+		t.Fatalf("Expand err = %v, want ErrInvalidFacility", err)
+	}
+	if err := Upgrade(&g, cfg, FacilityType("garage")); !errors.Is(err, ErrInvalidFacility) {
+		t.Fatalf("Upgrade err = %v, want ErrInvalidFacility", err)
+	}
+	if g.Capital != before.Capital {
+		t.Fatal("a rejected action changed capital")
+	}
+}

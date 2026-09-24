@@ -77,6 +77,8 @@ func Expand(g *Game, cfg Config, kind FacilityType, resource Resource) error {
 		g.Capital -= cost
 		g.ProductionQty++
 		g.recordFacility(PointExpand, kind, "", 1, cost)
+	default:
+		return ErrInvalidFacility
 	}
 	return nil
 }
@@ -110,6 +112,8 @@ func Upgrade(g *Game, cfg Config, kind FacilityType) error {
 		g.Capital -= total
 		g.ProductionLevel++
 		g.recordFacility(PointUpgrade, kind, "", 0, total)
+	default:
+		return ErrInvalidFacility
 	}
 	return nil
 }
