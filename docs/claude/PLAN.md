@@ -12,7 +12,7 @@ Time estimates are rough and cumulative.
 - [x] **Slice 1: Login to see a persisted game (≈20m, cumulative 30m)**
   - Do: domain `Game`, `Config` (tier tables, prices), `NewGame`, `Capacity`; `users` and `games` tables (migration); `POST /api/login`, `GET /api/game`, `POST /api/game/new`; Angular login page and a read-only dashboard (day, capital, inventory vs. capacity, facilities with tier name/level/quantity, static initial quotes).
   - Acceptance: rules 1-4. A new username creates a game at Day 1 with $1,000, empty inventory, and every facility at level 1, quantity 1 (5 Pantries at 10 capacity each, 1 Kitchen at 10/day); logging in again shows the same game; a different username gets a separate game.
-  - Tests: `NewGame` values; `Capacity` = quantity × size(level); repo save/load round trip (Postgres integration); API login create-or-get; `game.store` unit test.
+  - Tests: `NewGame` values; `Capacity` = quantity × size(level); repo save/load round trip; API login create-or-get; `game.store` unit test.
 
 - [x] **Slice 2: Buy and sell (≈15m, 45m)**
   - Do: domain `Buy`, `Sell`, `Quotes` (whole-dollar bid/ask with ceil/floor); endpoints; market panel and inventory panel with qty inputs and buttons; error display.
@@ -42,8 +42,8 @@ Time estimates are rough and cumulative.
 
 - [x] **Slice 7: PWA (≈15m, 130m)**
   - Do: run `ng add @angular/pwa`; set app name, theme color, and lemon-themed icons in `manifest.webmanifest`; `ngsw-config.json` prefetches the app shell and has no data group for `/api/**`; `online.service.ts` signal; offline banner; disable all action buttons while offline; deploy the production build.
-  - Acceptance: rule 28. The deployed HTTPS site passes Lighthouse installability and Chrome offers Install; with the network off, the cached shell loads and shows the offline banner with actions disabled; API responses are never served from the service worker cache; `ng build` output contains `ngsw.json`.
-  - Tests: `online.service` reacts to online/offline events; action buttons disabled when offline; manual Lighthouse check recorded in README. Note: the service worker runs in production builds only, so verify with a built app, not `ng serve`.
+  - Acceptance: rule 28. The deployed HTTPS site passes Chrome's installability check and Chrome offers Install; with the network off, the cached shell loads and shows the offline banner with actions disabled; API responses are never served from the service worker cache; `ng build` output contains `ngsw.json`.
+  - Tests: `online.service` reacts to online/offline events; action buttons disabled when offline; manual installability check recorded in DECISIONS 6. Note: the service worker runs in production builds only, so verify with a built app, not `ng serve`.
 
 - [x] **Slice 8 (stretch): Sparklines and polish (≈10m, 140m)**
   - Do: inline-SVG sparkline per resource from price history; loading and empty states; README section on tuning the physics.

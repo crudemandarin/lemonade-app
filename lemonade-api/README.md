@@ -89,7 +89,7 @@ curl http://localhost:8080/api/game -H "X-Username: lemonjoe"
 ## Test
 
 ```bash
-go test ./...    # the Postgres integration test is skipped unless DATABASE_URL is set
+go test ./...
 ```
 
 ## Format and lint

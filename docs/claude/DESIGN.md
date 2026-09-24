@@ -9,7 +9,7 @@ All game rules live in a **pure Go domain package** (no I/O, no Gin, no SQL). AP
 
 ## 3. Backend modules
 ```
-cmd/server/            main: wiring, config, router
+main.go (module root)  wiring, config, router (DECISIONS 1)
 internal/domain/       PURE. types, config, market, events, actions, facilities, endday, bankruptcy
 internal/store/        Repository interface + Postgres impl (+ in-memory fake for tests)
 internal/api/          Gin handlers, DTOs, error mapping, username middleware
@@ -17,13 +17,13 @@ internal/api/          Gin handlers, DTOs, error mapping, username middleware
 Domain public surface (mutating funcs return a typed error; `EndDay` returns a report):
 ```go
 NewGame(cfg Config, seed int64) Game
-Buy(g *Game, r Resource, qty int) error
-Sell(g *Game, r Resource, qty int) error
-Expand(g *Game, k FacilityKind) error     // quantity + 1 at current level
-Upgrade(g *Game, k FacilityKind) error    // level + 1 for all buildings
-EndDay(g *Game, cfg Config) DayReport     // produce, melt, upkeep, advance, market tick, events, bankruptcy
-Quotes(g Game) map[Resource]Quote         // effective price, bid, ask (whole dollars)
-Capacity(g Game, r Resource) int          // quantity * size(level)
+Buy(g *Game, cfg Config, r Resource, qty int) error
+Sell(g *Game, cfg Config, r Resource, qty int) error
+Expand(g *Game, cfg Config, k FacilityType, r Resource) error  // +1 building at current level; r picks the warehouse (ignored for production)
+Upgrade(g *Game, cfg Config, k FacilityType) error             // level + 1 for all buildings of the type
+EndDay(g *Game, cfg Config) (DayReport, error)                 // produce, melt, upkeep, advance, market tick, events, bankruptcy; ErrGameOver if finished
+Quotes(g Game, cfg Config) map[Resource]Quote                  // effective price, bid, ask (whole dollars)
+Capacity(g Game, cfg Config, r Resource) int                   // warehouse count[r] * size(level)
 // bankruptcy is decided inside EndDay: upkeep unpayable even after selling all stock at bid (DECISIONS 16)
 ```
 **Determinism:** randomness comes from `rand.New(rand.NewSource(seed ^ int64(day)))` created inside `EndDay`. No `time.Now()` in the domain. Same seed and same actions give the same game.
@@ -34,9 +34,9 @@ Money is `int` whole dollars. Each user has one active game. The game's mutable 
 | Table | Columns |
 |---|---|
 | `users` | `id`, `username` (unique), `created_at` |
-| `games` | `id`, `user_id` (unique among active), `seed`, `day`, `capital`, `status` (`active`/`bankrupt`), `inventory` JSONB `{lemon,sugar,ice,cup,lemonade}`, `facilities` JSONB `{kind: {level, quantity}}`, `market` JSONB (walked price as float + price history array per resource, last 14), `events` JSONB (active events with days remaining), `updated_at` |
+| `games` | `id`, `user_id` (unique among active), `seed`, `day`, `capital`, `status` (`active`/`bankrupt`), `inventory` JSONB `{lemon,sugar,ice,cup,lemonade}`, `warehouse_level`, `production_level`, `production_qty`, `warehouse_qty` JSONB `{resource: count}`, `market` JSONB (walked price as float + price history array per resource, last 14), `events` JSONB (active events with days remaining), `timeline` and `stats` JSONB (SPEC rule 29), `updated_at` |
 
-Facility kinds: `warehouse_lemon`, `warehouse_sugar`, `warehouse_ice`, `warehouse_cup`, `warehouse_lemonade`, `production`. The tier name (Pantry, Garage, ...) is derived from kind family + level via config, never stored.
+Facility types: `warehouse` (one shared level, a building count per resource) and `production` (DECISIONS 7). The tier name (Pantry, Garage, ...) is derived from type + level via config, never stored.
 
 Rationale: the domain loads and saves a whole `Game` in one transaction, so JSONB avoids join tables that add no query value. Trade-off: no SQL analytics on inventory or history; fine for this scope (a leaderboard would use `capital` and `day`, both real columns).
 
@@ -50,8 +50,8 @@ Persistence rule: every mutating request does `load game -> domain call -> save 
 | `POST /api/game/new` | Start fresh game (replaces bankrupt or active one) |
 | `POST /api/game/buy` `{resource, qty}` | Buy at ask |
 | `POST /api/game/sell` `{resource, qty}` | Sell at bid |
-| `POST /api/game/facilities/:kind/expand` | Add one building |
-| `POST /api/game/facilities/:kind/upgrade` | Upgrade all buildings one level |
+| `POST /api/game/facilities/:type/expand` | Add one building (`{resource}` body for `warehouse`) |
+| `POST /api/game/facilities/:type/upgrade` | Upgrade all buildings of the type one level |
 | `POST /api/game/end-day` | Returns `DayReport` + new game view |
 | `GET /api/health` | Health (deployment check; not `/healthz`, which Cloud Run reserves) |
 
@@ -82,25 +82,25 @@ Facility tiers (L1 → L4). Size/rate is per building; costs and upkeep are per 
 | Upgrade cost to next | $1,000 | $2,500 | $6,000 | n/a |
 | Upkeep/day | $20 | $50 | $120 | $280 |
 
-Upgrade total = per-building upgrade cost × quantity. Upkeep total = per-building upkeep × quantity, summed over all six facilities.
+Upgrade total = per-building upgrade cost × total buildings of the type. Upkeep total = per-building upkeep × buildings, summed over all warehouse buildings and production.
 
-Sanity check: start = 5 Pantries + 1 Kitchen, upkeep $30/day, 10 cases capacity each. One batch of 10 costs about $550 at ask; it yields 10 lemonade selling at about $81 bid = $810. Profit ≈ $230/day at start after upkeep. To scale up, production and **all** input and output warehouses must grow together, so the bottleneck shifts between them (the intended strategic tension). Balance was tuned by simulation (`balance_test.go`); see the README's "Game physics" section. Upkeep is always owed: short cash sells stock at bid, and if that is not enough the game ends (DECISIONS 16).
+Sanity check: start = 5 Pantries + 1 Kitchen, upkeep $30/day, 10 cases capacity each. One batch of 10 costs about $550 at ask; it yields 10 lemonade selling at about $81 bid = $810. Profit ≈ $230/day at start after upkeep. To scale up, production and **all** input and output warehouses must grow together, so the bottleneck shifts between them (the intended strategic tension). Balance was tuned by simulation (`balance_test.go`); see the README's "Tuning the game" section and `docs/numeric-tdd.md` §9. Upkeep is always owed: short cash sells stock at bid, and if that is not enough the game ends (DECISIONS 16).
 
 Events (table-driven): Heat Wave (lemonade ×1.4, ice ×1.3, 2d), Rainy Week (lemonade ×0.75, 3d), Lemon Blight (lemon ×1.7, 3d), Sugar Glut (sugar ×0.7, 2d), Holiday (lemonade ×1.35, 1d), Cup Shortage (cup ×1.5, 2d). Adding an event is one table row.
 
 ## 7. Frontend
 - `core/api.service.ts`: typed HTTP client, adds `X-Username`. `core/game.store.ts`: signals holding the latest game view and last day report.
-- Pages: `login`, `game` (dashboard: header stats, `market-panel`, `inventory-panel`, `facilities-panel`, `events-banner`, `day-report-modal`), `game-over`.
+- Pages: `home`, `signin`, `game` (dashboard: `stats-strip`, `market-panel` (market and inventory), `facilities-panel`, `events-banner`, `timeline-charts`, `day-report-modal`; `game-over` replaces the dashboard on bankruptcy).
 - `app-event-backdrop` (app shell) draws a looping CSS-only background for up to two active events; see EVENT-BACKDROPS.md.
 - Components are presentational, with inputs and outputs. Only `game.store` talks to the API. Sparkline is a small inline-SVG component (no chart library).
 - Facility images: 4 warehouse-tier and 4 production-tier static assets, chosen by level, with a small resource icon for warehouses.
-- **PWA (slice 7):** added with `ng add @angular/pwa` (manifest, icons, `ngsw-config.json`, service worker registered in production builds only). `ngsw-config.json` prefetches the app shell as an asset group and defines **no** data group for `/api/**`, so API calls always hit the network. An `online.service.ts` signal (from `navigator.onLine` and the `online`/`offline` events) drives an offline banner and disables all action buttons. Installability is verified with Lighthouse on the deployed HTTPS URL, since service workers do not run in `ng serve`.
+- **PWA (slice 7):** added with `ng add @angular/pwa` (manifest, icons, `ngsw-config.json`, service worker registered in production builds only). `ngsw-config.json` prefetches the app shell as an asset group and defines **no** data group for `/api/**`, so API calls always hit the network. An `online.service.ts` signal (from `navigator.onLine` and the `online`/`offline` events) drives an offline banner and disables all action buttons. Installability is verified with Chrome's installability check on the deployed HTTPS URL (Lighthouse dropped its PWA category; DECISIONS 6), since service workers do not run in `ng serve`.
 
 ## 8. Testing strategy
 - **Domain (most tests):** table-driven Go unit tests per SPEC rule (buy/sell limits, capacity = quantity × size, bid/ask rounding, expand, upgrade multiplying by quantity, production min(), melt, upkeep clamp, bankruptcy truth table (capital 0 × any inventory; ice is already melted), price clamp, event expiry). Determinism test: same seed and actions give identical state.
 - **API:** handler tests using the in-memory repo fake: status codes, error JSON shape, username middleware.
-- **Store:** one integration test against real Postgres (skipped if `DATABASE_URL` is unset): save/load round trip and lock behavior.
-- **Frontend:** unit test for `game.store`; component tests for the market panel (buy/sell emit), facilities panel (expand/upgrade emit), and game-over; `online.service` (mocked online/offline events) and offline-disabled action buttons. Manual Lighthouse installability check on the deployed URL. No e2e (Future work).
+- **Store:** the Repository contract test (save/load round trip, error rollback, concurrent mutations) runs against the in-memory fake.
+- **Frontend:** unit test for `game.store`; component tests for the market panel (buy/sell emit), facilities panel (expand/upgrade emit), and game-over; `online.service` (mocked online/offline events) and offline-disabled action buttons. Manual Chrome installability check on the deployed URL (DECISIONS 6). No e2e (Future work).
 - Full test suite plus a manual run of the app before every slice is ticked.
 
 ## 9. Key trade-offs (each becomes a DECISIONS.md entry when built)

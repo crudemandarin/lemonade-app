@@ -73,8 +73,8 @@ docker compose logs -f api    # tail logs (also: web, db)
 
 ```bash
 docker compose up -d db                                  # database only
-cd lemonade-api && cp ../.env .env && go run .           # API on :8080
-cd lemonade-web && npm start                             # web on :4200, proxies /api to :8080
+(cd lemonade-api && cp ../.env .env && go run .)         # API on :8080 (keeps running; use a new terminal for the next line)
+(cd lemonade-web && npm start)                           # web on :4200, proxies /api to :8080
 ```
 
 Inside Compose the API always connects to `db:5432`. `DB_HOST` only matters when you run the API outside Docker.
@@ -82,11 +82,11 @@ Inside Compose the API always connects to `db:5432`. `DB_HOST` only matters when
 ## Test
 
 ```bash
-cd lemonade-api && go test ./...
-cd lemonade-web && npx ng test --watch=false --browsers=ChromeHeadless
+(cd lemonade-api && go test ./...)
+(cd lemonade-web && npx ng test --watch=false --browsers=ChromeHeadless)
 ```
 
-The Postgres integration test in `lemonade-api` is skipped unless `DATABASE_URL` is set. Lint and format: `gofmt -w . && go vet ./...` in `lemonade-api/`; `npm run lint && npm run format` in `lemonade-web/`.
+Lint and format: `gofmt -w . && go vet ./...` in `lemonade-api/`; `npm run lint && npm run format` in `lemonade-web/`.
 
 ## Deploy
 

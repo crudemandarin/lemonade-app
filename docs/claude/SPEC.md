@@ -71,7 +71,7 @@ Turn-based lemonade business game. One core loop: the passage of a **day**. Scor
 28. The frontend is an installable PWA: web app manifest, icons, and a service worker that caches the app shell (HTML, JS, CSS, icons). Offline, the shell loads and shows an offline notice. API responses are never cached, and buy, sell, expand, upgrade, and end-day are disabled while offline. The service worker is enabled in production builds only.
 
 ## 4. Starting values
-Tunable, all in one config file (see DESIGN §6). Starting capital $1,000; base prices per case: lemon $20, sugar $10, ice $10, cup $10, lemonade $90 (tuned, DECISIONS 16); spread 10%; sizes, rates, costs, and upkeep per tier in DESIGN §6 (current numbers and tuning guide: README "Game physics").
+Tunable, all in one config file (see DESIGN §6). Starting capital $1,000; base prices per case: lemon $20, sugar $10, ice $10, cup $10, lemonade $90 (tuned, DECISIONS 16); spread 10%; sizes, rates, costs, and upkeep per tier in DESIGN §6 (current numbers and tuning guide: README "Tuning the game", which links to `docs/numeric-tdd.md` §9).
 
 ## 5. Assumptions
 - Warehouse tier sizes (10 / 20 / 40 / 80) and Production rates (10 / 20 / 40 / 80 lemonade per day) double per level.
