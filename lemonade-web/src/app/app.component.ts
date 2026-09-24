@@ -18,7 +18,9 @@ export class AppComponent {
   private readonly router = inject(Router);
   private readonly store = inject(GameStore);
   protected readonly username = inject(SessionService).username;
-  protected readonly events = computed(() => this.store.game()?.events ?? []);
+  protected readonly events = computed(() =>
+    this.store.game()?.status === 'bankrupt' ? [] : (this.store.game()?.events ?? []),
+  );
 
   protected logOut(): void {
     this.store.signOut();

@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Event backdrops preview</title>
+    <style>
+:root {
+  color-scheme: light;
+  --bg: #f5f6fb;
+  --surface: #ffffff;
+  --text: #1a1d2e;
+  --text-muted: #6b7086;
+  --border: #e4e6ef;
+  --hover: #f4f5fa;
+  --code-bg: #f3f4f9;
+  --accent: #facc15;
+  --accent-hover: #eab308;
+  --accent-soft: #fefce8;
+  --accent-border: #fde68a;
+  --accent-strong: #a16207;
+  --accent-contrast: #1a1d2e;
+  --green: #16a34a;
+  --blue: #2563eb;
+  --amber: #d97706;
+  --red: #dc2626;
+  --shadow: 0 1px 2px rgb(20 20 50 / 0.04), 0 4px 16px rgb(20 20 50 / 0.05);
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --page-width: 72rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme=light]) {
+    color-scheme: dark;
+    --bg: #0f1117;
+    --surface: #171a23;
+    --text: #e6e7ee;
+    --text-muted: #8d91a7;
+    --border: #272b38;
+    --hover: #1d212c;
+    --code-bg: #10131a;
+    --accent: #facc15;
+    --accent-hover: #fde047;
+    --accent-soft: #2a2610;
+    --accent-border: #5c4f12;
+    --accent-strong: #facc15;
+    --accent-contrast: #1a1d2e;
+    --green: #4ade80;
+    --blue: #60a5fa;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+  }
+}
+:root[data-theme=dark] {
+  color-scheme: dark;
+  --bg: #0f1117;
+  --surface: #171a23;
+  --text: #e6e7ee;
+  --text-muted: #8d91a7;
+  --border: #272b38;
+  --hover: #1d212c;
+  --code-bg: #10131a;
+  --accent: #facc15;
+  --accent-hover: #fde047;
+  --accent-soft: #2a2610;
+  --accent-border: #5c4f12;
+  --accent-strong: #facc15;
+  --accent-contrast: #1a1d2e;
+  --green: #4ade80;
+  --blue: #60a5fa;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.input {
+  height: 2.375rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.input.input-sm {
+  width: 100%;
+  height: 2rem;
+}
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  height: 2.375rem;
+  padding: 0 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.btn:hover:not(:disabled) {
+  background: var(--hover);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.btn-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-sm {
+  height: 2rem;
+  padding: 0 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.btn-ghost {
+  height: 2rem;
+  padding: 0 0.625rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.icon-btn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.icon-btn:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
+.icon-btn.ok:hover:not(:disabled) {
+  color: var(--green);
+}
+.icon-btn.danger:hover:not(:disabled) {
+  color: var(--red);
+}
+.icon-btn:disabled {
+  cursor: default;
+}
+
+.is-loading {
+  color: transparent !important;
+}
+.is-loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 1rem;
+  height: 1rem;
+  margin: auto;
+  border: 2px solid var(--text-muted);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+.is-loading.btn-primary::after {
+  border-color: var(--accent-contrast);
+  border-right-color: transparent;
+}
+
+.field-error {
+  margin: 0.625rem 0 0;
+  color: var(--red);
+  font-size: 0.8125rem;
+}
+
+.fade-in {
+  animation: fade-in 0.25s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+    </style>
+    <style>
+:host {
+  display: contents;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.scene {
+  position: absolute;
+  inset: 0;
+  animation: scene-in 1.2s ease-out both;
+}
+
+@keyframes scene-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fall {
+  from {
+    translate: 0 -12vh;
+    rotate: 0deg;
+  }
+  50% {
+    translate: var(--sway, 0) 50vh;
+  }
+  to {
+    translate: 0 112vh;
+    rotate: var(--spin, 0deg);
+  }
+}
+.piece, .cube, .leaf, .drop {
+  position: absolute;
+  top: 0;
+  left: var(--x);
+  animation: fall var(--dur) var(--delay) linear infinite;
+  will-change: translate, rotate;
+}
+
+.heat {
+  background: linear-gradient(to bottom, rgba(250, 170, 30, 0.1), rgba(250, 120, 30, 0.16));
+}
+
+.sun {
+  position: absolute;
+  top: -18vmax;
+  right: -18vmax;
+  width: 52vmax;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(253, 224, 71, 0.85) 0 30%, rgba(250, 204, 21, 0.3) 55%, transparent 72%);
+  animation: sun-pulse 7s ease-in-out infinite;
+}
+.sun::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(rgba(253, 224, 71, 0.35) 0 6deg, transparent 6deg 24deg);
+  mask: radial-gradient(circle, transparent 28%, #000 40%, transparent 70%);
+  animation: spin 90s linear infinite;
+}
+
+@keyframes sun-pulse {
+  50% {
+    scale: 1.07;
+  }
+}
+@keyframes spin {
+  to {
+    rotate: 360deg;
+  }
+}
+.band {
+  position: absolute;
+  left: -10%;
+  width: 120%;
+  height: 12vh;
+  bottom: -12vh;
+  background: linear-gradient(to bottom, transparent, rgba(255, 190, 70, 0.18), transparent);
+  animation: rise var(--dur) var(--delay) ease-in-out infinite;
+}
+
+@keyframes rise {
+  to {
+    translate: 4vw -112vh;
+  }
+}
+.rain {
+  background: linear-gradient(to bottom, rgba(71, 85, 105, 0.22), rgba(100, 116, 139, 0.1));
+}
+
+.cloud {
+  position: absolute;
+  top: -6vh;
+  width: 55vw;
+  height: 22vh;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(100, 116, 139, 0.45), transparent);
+  animation: drift 80s linear infinite;
+}
+.cloud.c2 {
+  top: 2vh;
+  width: 45vw;
+  animation-duration: 110s;
+  animation-delay: -55s;
+}
+
+@keyframes drift {
+  from {
+    translate: -60vw 0;
+  }
+  to {
+    translate: 110vw 0;
+  }
+}
+.drop {
+  width: 2px;
+  height: 7vh;
+  background: linear-gradient(to bottom, transparent, rgba(147, 197, 253, 0.7));
+  rotate: 10deg;
+  animation-name: rain-fall;
+}
+
+@keyframes rain-fall {
+  from {
+    translate: 0 -10vh;
+  }
+  to {
+    translate: -12vh 112vh;
+  }
+}
+.blight {
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(120, 113, 30, 0.25));
+}
+
+.leaf {
+  width: 3vmin;
+  height: 3vmin;
+  min-width: 18px;
+  min-height: 18px;
+  border-radius: 0 100% 0 100%;
+  background: #a16207;
+  --sway: 6vw;
+  --spin: 540deg;
+}
+.leaf:nth-child(3n) {
+  background: #854d0e;
+  --sway: -7vw;
+}
+.leaf:nth-child(3n+1) {
+  background: #65a30d;
+  --spin: -480deg;
+}
+
+.sugar {
+  background: linear-gradient(to bottom, rgba(147, 197, 253, 0.08), rgba(255, 255, 255, 0.1));
+}
+
+.cube {
+  width: calc(4vmin + var(--j) * 4vmin);
+  min-width: 28px;
+  --sway: 3vw;
+  --spin: 300deg;
+  opacity: 0.6;
+}
+
+.holiday {
+  background: linear-gradient(to bottom, rgba(244, 114, 182, 0.12), rgba(167, 139, 250, 0.1));
+}
+
+.bunting {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  border-top: 2px solid rgba(100, 116, 139, 0.4);
+  transform-origin: top;
+}
+
+.flag {
+  width: 4.5vw;
+  min-width: 22px;
+  aspect-ratio: 1/1.1;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  background: #f43f5e;
+  transform-origin: top center;
+  animation: sway var(--dur) var(--delay) ease-in-out infinite;
+}
+.flag:nth-child(4n+1) {
+  background: #facc15;
+}
+.flag:nth-child(4n+2) {
+  background: #38bdf8;
+}
+.flag:nth-child(4n+3) {
+  background: #4ade80;
+}
+
+@keyframes sway {
+  50% {
+    rotate: 8deg;
+  }
+}
+.piece {
+  width: 1.1vmin;
+  height: 2vmin;
+  min-width: 7px;
+  min-height: 12px;
+  background: #f43f5e;
+  --sway: 4vw;
+  --spin: 720deg;
+}
+.piece:nth-child(4n+1) {
+  background: #facc15;
+  --sway: -4vw;
+}
+.piece:nth-child(4n+2) {
+  background: #38bdf8;
+}
+.piece:nth-child(4n+3) {
+  background: #4ade80;
+  --sway: -3vw;
+}
+
+.cups {
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(220, 38, 38, 0.1));
+}
+
+.cup {
+  position: absolute;
+  left: var(--x);
+  top: calc(8% + var(--j) * 78%);
+  width: calc(6vmin + var(--j) * 4vmin);
+  min-width: 36px;
+  opacity: 0;
+  animation: vanish var(--dur) var(--delay) ease-in-out infinite;
+}
+
+@keyframes vanish {
+  0%, 100% {
+    opacity: 0;
+    translate: 0 2vh;
+    rotate: 0deg;
+  }
+  20%, 55% {
+    opacity: 0.7;
+    translate: 0 0;
+  }
+  80% {
+    opacity: 0;
+    translate: 0 -3vh;
+    rotate: -18deg;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .backdrop *,
+  .backdrop *::after {
+    animation: none !important;
+  }
+  .band,
+  .cloud,
+  .drop,
+  .leaf,
+  .cube,
+  .piece,
+  .cup {
+    display: none;
+  }
+}
+    </style>
+    <style>
+      body { min-height: 100vh; }
+      .controls { position: fixed; left: 1rem; bottom: 1rem; max-width: calc(100vw - 2rem); z-index: 5; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
+        padding: .75rem 1rem; background: var(--surface); }
+      .controls button { font: inherit; padding: .35rem .7rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+        background: var(--surface); color: var(--text); cursor: pointer; }
+      .controls button[aria-pressed='true'] { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent-hover); }
+      .controls .sep { width: 1px; align-self: stretch; background: var(--border); }
+      .controls .hint { color: var(--text-muted); font-size: .85rem; }
+      main { max-width: var(--page-width); margin: 0 auto; padding: 1.5rem 1rem 3rem; display: grid; gap: 1rem; }
+      .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem 1.25rem; }
+      .card h2 { margin: 0 0 .5rem; font-size: 1rem; }
+      table { width: 100%; border-collapse: collapse; }
+      td, th { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid var(--border); }
+      .banner { background: var(--accent-soft); border: 1px solid var(--accent-border); color: var(--accent-strong); border-radius: var(--radius); padding: .6rem 1rem; }
+      .primary { font: inherit; padding: .5rem 1rem; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: var(--accent-contrast); font-weight: 600; }
+      .reduce .backdrop *, .reduce .backdrop *::after { animation: none !important; }
+      .reduce .band, .reduce .cloud, .reduce .drop, .reduce .leaf, .reduce .cube, .reduce .piece, .reduce .cup { display: none; }
+    </style>
+  </head>
+  <body>
+    <div class="controls" id="controls"></div>
+    <div id="backdrop-root"></div>
+    <main>
+      <div class="banner" id="banner">Pick up to two events above</div>
+      <div class="card">
+        <h2>Market and inventory</h2>
+        <table>
+          <tr><th>Resource</th><th>Stock</th><th>Price</th><th>Bid</th><th>Ask</th></tr>
+          <tr><td>Lemon</td><td>12 / 20</td><td>$20</td><td>$18</td><td>$22</td></tr>
+          <tr><td>Sugar</td><td>8 / 20</td><td>$10</td><td>$9</td><td>$11</td></tr>
+          <tr><td>Ice</td><td>4 / 10</td><td>$10</td><td>$9</td><td>$11</td></tr>
+          <tr><td>Cup</td><td>15 / 20</td><td>$10</td><td>$9</td><td>$11</td></tr>
+          <tr><td>Lemonade</td><td>3 / 10</td><td>$100</td><td>$90</td><td>$110</td></tr>
+        </table>
+      </div>
+      <div class="card"><h2>Facilities</h2><p>Pantry ×5 · Kitchen ×1</p><button class="primary">End day</button></div>
+    </main>
+    <script>
+      const EVENTS = [
+        ['heat_wave', 'Heat wave'], ['rainy_week', 'Rainy week'], ['lemon_blight', 'Lemon blight'],
+        ['sugar_glut', 'Sugar glut'], ['holiday', 'Holiday'], ['cup_shortage', 'Cup shortage'],
+      ];
+      const COUNTS = { drops: 36, leaves: 12, sugar: 12, confetti: 32, cups: 10, bunting: 12, shimmer: 3 };
+      const range = (n) => Array.from({ length: n }, (_, i) => i);
+      // Same maths as EventBackdropComponent.vars().
+      const vars = (i, n, minDur, spread) => {
+        const j = (i * 0.6180339887) % 1;
+        const dur = minDur + ((i * 0.3819660113) % 1) * spread;
+        return `--x:${(((i + 0.5) / n) * 100)}%;--dur:${dur.toFixed(2)}s;--delay:${(-j * dur).toFixed(2)}s;--j:${j.toFixed(3)}`;
+      };
+      const each = (n, fn) => range(n).map(fn).join('');
+      const scene = {
+        heat_wave: () => `<div class="scene heat"><div class="sun"></div>${each(COUNTS.shimmer, (i) => `<span class="band" style="${vars(i, COUNTS.shimmer, 9, 4)}"></span>`)}</div>`,
+        rainy_week: () => `<div class="scene rain"><span class="cloud c1"></span><span class="cloud c2"></span>${each(COUNTS.drops, (i) => `<span class="drop" style="${vars(i, COUNTS.drops, 1.1, 0.9)}"></span>`)}</div>`,
+        lemon_blight: () => `<div class="scene blight">${each(COUNTS.leaves, (i) => `<span class="leaf" style="${vars(i, COUNTS.leaves, 16, 10)}"></span>`)}</div>`,
+        sugar_glut: () => `<div class="scene sugar">${each(COUNTS.sugar, (i) => `<img class="cube" src="../src/assets/resources/sugar.svg" alt="" style="${vars(i, COUNTS.sugar, 18, 12)}">`)}</div>`,
+        holiday: () => `<div class="scene holiday"><div class="bunting">${each(COUNTS.bunting, (i) => `<span class="flag" style="${vars(i, COUNTS.bunting, 4, 2)}"></span>`)}</div>${each(COUNTS.confetti, (i) => `<span class="piece" style="${vars(i, COUNTS.confetti, 7, 5)}"></span>`)}</div>`,
+        cup_shortage: () => `<div class="scene cups">${each(COUNTS.cups, (i) => `<img class="cup" src="../src/assets/resources/cup.svg" alt="" style="${vars(i, COUNTS.cups, 9, 6)}">`)}</div>`,
+      };
+      // Same rule as the component: at most two scenes; oldest-selected first here.
+      let active = new URLSearchParams(location.search).get('events')?.split(',').filter((k) => scene[k]) ?? ['heat_wave'];
+      let theme = new URLSearchParams(location.search).get('theme') ?? 'auto';
+      let still = false;
+      const render = () => {
+        const shown = active.slice(0, 2);
+        document.getElementById('backdrop-root').innerHTML =
+          `<div class="backdrop" aria-hidden="true">${shown.map((k) => scene[k]()).join('')}</div>`;
+        document.getElementById('banner').textContent = shown.length
+          ? 'Active: ' + shown.map((k) => EVENTS.find((e) => e[0] === k)[1]).join(' + ') + (active.length > 2 ? ' (extra events not drawn)' : '')
+          : 'No active events';
+        document.documentElement.dataset.theme = theme === 'auto' ? '' : theme;
+        document.body.classList.toggle('reduce', still);
+        controls();
+      };
+      const controls = () => {
+        const b = (label, pressed, on) => `<button aria-pressed="${pressed}" onclick="${on}">${label}</button>`;
+        document.getElementById('controls').innerHTML =
+          EVENTS.map(([k, n]) => b(n, active.includes(k), `toggle('${k}')`)).join('') +
+          '<span class="sep"></span>' +
+          ['auto', 'light', 'dark'].map((t) => b(t, theme === t, `setTheme('${t}')`)).join('') +
+          '<span class="sep"></span>' + b('Reduced motion', still, 'toggleStill()') +
+          '<span class="hint">Toggle events (up to two are drawn, longest-running first in the app)</span>';
+      };
+      window.toggle = (k) => { active = active.includes(k) ? active.filter((x) => x !== k) : [...active, k]; render(); };
+      window.setTheme = (t) => { theme = t; render(); };
+      window.toggleStill = () => { still = !still; render(); };
+      render();
+    </script>
+  </body>
+</html>

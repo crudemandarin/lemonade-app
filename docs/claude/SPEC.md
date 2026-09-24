@@ -52,7 +52,7 @@ Turn-based lemonade business game. One core loop: the passage of a **day**. Scor
 18. Each resource has a base price. Each day the walked price does a mean-reverting random walk toward its base price, bounded to [0.25×, 4×] base. Walk state may be fractional internally; every quote shown or charged is a whole dollar (min $1).
 19. Market evolution is deterministic given the game's seed and day number (so tests and replays are reproducible).
 20. Each day there is a chance a new event starts. An event has a name, description, duration in days (1-3), and price multipliers on one or more resources. Active event multipliers stack multiplicatively on the walked price to give the effective price.
-21. Events are visible to the player as soon as they are active (same day prices reflect them). No forecasting.
+21. Events are visible to the player as soon as they are active (same day prices reflect them). No forecasting. Each active event also shows a looping, low-detail animated background (at most two at once; see EVENT-BACKDROPS.md); it is decorative only.
 
 ### API and access
 22. Every game endpoint requires an identified user (username in a request header). This is intentionally not secure, per the brief's "no password" login.

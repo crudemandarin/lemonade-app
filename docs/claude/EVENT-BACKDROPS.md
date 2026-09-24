@@ -30,7 +30,7 @@ Keys match `lemonade-api/internal/domain/config.go`. Adding an event to the tabl
 - **Input:** the active `GameEvent[]` from `GameStore.game()`. Nothing else; the component is presentational.
 - **Cap of 2 scenes.** Events can overlap (only same-key copies are blocked, DECISIONS §4). Take known keys, sort by `daysLeft` descending (longest-running first, ties keep server order), draw the first two. Others are ignored.
 - **Same-slot conflicts.** Two scenes can both want the top of the screen or the falling layer, so each scene declares which slots it uses (§5); if the top two collide, still draw both (they are faint and translucent) but the second gets `opacity: 0.6` of its own so the first reads.
-- **Whole layer opacity 0.55**, individual particles 0.35-0.7. Both tints and particles are semi-transparent so cards (opaque `--surface`) always sit cleanly on top.
+- **Whole layer opacity 0.8**, individual particles 0.35-0.7. Both tints and particles are semi-transparent so cards (opaque `--surface`) always sit cleanly on top.
 - **Fade-in** 1.2 s when a scene appears; fade-out is not needed (the scene is removed on expiry, at a day boundary the player has just clicked through).
 - **Bankrupt / game over:** backdrop hidden (`status === 'bankrupt'`).
 
@@ -133,18 +133,15 @@ Each scene = a **tint** (full-viewport gradient wash, static) + **motion** (loop
 - **Fixed layer vs per-page:** one backdrop in the shell means no per-page wiring and no unmount/remount when navigating.
 - **Prefers-reduced-motion keeps the tint:** the mood still communicates the event, so reduced-motion users lose motion only.
 
-## 10. Open questions
+## 10. Open questions (resolved: cap is 2; loops are infinite)
 
 1. Cap at 2 scenes, or 1 (the strongest only)? Recommendation: 2.
 2. Should the falling layers (rain, sugar, confetti, leaves) stay clear of the centre column to avoid crossing text? Recommendation: no, they're faint and behind opaque cards.
 3. Include the optional extras (lightning, sugar pile, fireworks) in v1? Recommendation: no, follow up.
 
-## 11. State of the prototype
+## 11. Status
 
-Uncommitted, not yet reviewed against this design:
+Implemented and integrated: `app.component` renders `app-event-backdrop` with the active events (none once bankrupt). Cap of 2 scenes, infinite loops, style budget 6 kB warn / 8 kB error, component and shell specs pass.
 
-- `lemonade-web/src/app/shared/event-backdrop/` (component, all six scenes)
-- `app.component.{ts,html}` wired to it
-- The build passes; the only warning is the style budget (§7 fix not yet applied).
-
-Not done yet: raising the budget, component and shell specs, bankrupt handling in the shell, visual review in light/dark and reduced-motion, and doc updates (SPEC, DESIGN §7, PLAN slice 6).
+- **Review page:** `node design-preview/build.mjs` (from `lemonade-web/`) writes `design-preview/event-backdrops.html`, a standalone page using the real SCSS.
+- Still to do: doc updates (SPEC, DESIGN §7, PLAN slice 6).

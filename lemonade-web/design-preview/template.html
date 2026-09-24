@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Event backdrops preview</title>
+    <style>
+/*THEME*/
+    </style>
+    <style>
+/*BACKDROP*/
+    </style>
+    <style>
+      body { min-height: 100vh; }
+      .controls { position: fixed; left: 1rem; bottom: 1rem; max-width: calc(100vw - 2rem); z-index: 5; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
+        padding: .75rem 1rem; background: var(--surface); }
+      .controls button { font: inherit; padding: .35rem .7rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+        background: var(--surface); color: var(--text); cursor: pointer; }
+      .controls button[aria-pressed='true'] { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent-hover); }
+      .controls .sep { width: 1px; align-self: stretch; background: var(--border); }
+      .controls .hint { color: var(--text-muted); font-size: .85rem; }
+      main { max-width: var(--page-width); margin: 0 auto; padding: 1.5rem 1rem 3rem; display: grid; gap: 1rem; }
+      .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem 1.25rem; }
+      .card h2 { margin: 0 0 .5rem; font-size: 1rem; }
+      table { width: 100%; border-collapse: collapse; }
+      td, th { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid var(--border); }
+      .banner { background: var(--accent-soft); border: 1px solid var(--accent-border); color: var(--accent-strong); border-radius: var(--radius); padding: .6rem 1rem; }
+      .primary { font: inherit; padding: .5rem 1rem; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: var(--accent-contrast); font-weight: 600; }
+      .reduce .backdrop *, .reduce .backdrop *::after { animation: none !important; }
+      .reduce .band, .reduce .cloud, .reduce .drop, .reduce .leaf, .reduce .cube, .reduce .piece, .reduce .cup { display: none; }
+    </style>
+  </head>
+  <body>
+    <div class="controls" id="controls"></div>
+    <div id="backdrop-root"></div>
+    <main>
+      <div class="banner" id="banner">Pick up to two events above</div>
+      <div class="card">
+        <h2>Market and inventory</h2>
+        <table>
+          <tr><th>Resource</th><th>Stock</th><th>Price</th><th>Bid</th><th>Ask</th></tr>
+          <tr><td>Lemon</td><td>12 / 20</td><td>$20</td><td>$18</td><td>$22</td></tr>
+          <tr><td>Sugar</td><td>8 / 20</td><td>$10</td><td>$9</td><td>$11</td></tr>
+          <tr><td>Ice</td><td>4 / 10</td><td>$10</td><td>$9</td><td>$11</td></tr>
+          <tr><td>Cup</td><td>15 / 20</td><td>$10</td><td>$9</td><td>$11</td></tr>
+          <tr><td>Lemonade</td><td>3 / 10</td><td>$100</td><td>$90</td><td>$110</td></tr>
+        </table>
+      </div>
+      <div class="card"><h2>Facilities</h2><p>Pantry ×5 · Kitchen ×1</p><button class="primary">End day</button></div>
+    </main>
+    <script>
+      const EVENTS = [
+        ['heat_wave', 'Heat wave'], ['rainy_week', 'Rainy week'], ['lemon_blight', 'Lemon blight'],
+        ['sugar_glut', 'Sugar glut'], ['holiday', 'Holiday'], ['cup_shortage', 'Cup shortage'],
+      ];
+      const COUNTS = { drops: 36, leaves: 12, sugar: 12, confetti: 32, cups: 10, bunting: 12, shimmer: 3 };
+      const range = (n) => Array.from({ length: n }, (_, i) => i);
+      // Same maths as EventBackdropComponent.vars().
+      const vars = (i, n, minDur, spread) => {
+        const j = (i * 0.6180339887) % 1;
+        const dur = minDur + ((i * 0.3819660113) % 1) * spread;
+        return `--x:${(((i + 0.5) / n) * 100)}%;--dur:${dur.toFixed(2)}s;--delay:${(-j * dur).toFixed(2)}s;--j:${j.toFixed(3)}`;
+      };
+      const each = (n, fn) => range(n).map(fn).join('');
+      const scene = {
+        heat_wave: () => `<div class="scene heat"><div class="sun"></div>${each(COUNTS.shimmer, (i) => `<span class="band" style="${vars(i, COUNTS.shimmer, 9, 4)}"></span>`)}</div>`,
+        rainy_week: () => `<div class="scene rain"><span class="cloud c1"></span><span class="cloud c2"></span>${each(COUNTS.drops, (i) => `<span class="drop" style="${vars(i, COUNTS.drops, 1.1, 0.9)}"></span>`)}</div>`,
+        lemon_blight: () => `<div class="scene blight">${each(COUNTS.leaves, (i) => `<span class="leaf" style="${vars(i, COUNTS.leaves, 16, 10)}"></span>`)}</div>`,
+        sugar_glut: () => `<div class="scene sugar">${each(COUNTS.sugar, (i) => `<img class="cube" src="../src/assets/resources/sugar.svg" alt="" style="${vars(i, COUNTS.sugar, 18, 12)}">`)}</div>`,
+        holiday: () => `<div class="scene holiday"><div class="bunting">${each(COUNTS.bunting, (i) => `<span class="flag" style="${vars(i, COUNTS.bunting, 4, 2)}"></span>`)}</div>${each(COUNTS.confetti, (i) => `<span class="piece" style="${vars(i, COUNTS.confetti, 7, 5)}"></span>`)}</div>`,
+        cup_shortage: () => `<div class="scene cups">${each(COUNTS.cups, (i) => `<img class="cup" src="../src/assets/resources/cup.svg" alt="" style="${vars(i, COUNTS.cups, 9, 6)}">`)}</div>`,
+      };
+      // Same rule as the component: at most two scenes; oldest-selected first here.
+      let active = new URLSearchParams(location.search).get('events')?.split(',').filter((k) => scene[k]) ?? ['heat_wave'];
+      let theme = new URLSearchParams(location.search).get('theme') ?? 'auto';
+      let still = false;
+      const render = () => {
+        const shown = active.slice(0, 2);
+        document.getElementById('backdrop-root').innerHTML =
+          `<div class="backdrop" aria-hidden="true">${shown.map((k) => scene[k]()).join('')}</div>`;
+        document.getElementById('banner').textContent = shown.length
+          ? 'Active: ' + shown.map((k) => EVENTS.find((e) => e[0] === k)[1]).join(' + ') + (active.length > 2 ? ' (extra events not drawn)' : '')
+          : 'No active events';
+        document.documentElement.dataset.theme = theme === 'auto' ? '' : theme;
+        document.body.classList.toggle('reduce', still);
+        controls();
+      };
+      const controls = () => {
+        const b = (label, pressed, on) => `<button aria-pressed="${pressed}" onclick="${on}">${label}</button>`;
+        document.getElementById('controls').innerHTML =
+          EVENTS.map(([k, n]) => b(n, active.includes(k), `toggle('${k}')`)).join('') +
+          '<span class="sep"></span>' +
+          ['auto', 'light', 'dark'].map((t) => b(t, theme === t, `setTheme('${t}')`)).join('') +
+          '<span class="sep"></span>' + b('Reduced motion', still, 'toggleStill()') +
+          '<span class="hint">Toggle events (up to two are drawn, longest-running first in the app)</span>';
+      };
+      window.toggle = (k) => { active = active.includes(k) ? active.filter((x) => x !== k) : [...active, k]; render(); };
+      window.setTheme = (t) => { theme = t; render(); };
+      window.toggleStill = () => { still = !still; render(); };
+      render();
+    </script>
+  </body>
+</html>

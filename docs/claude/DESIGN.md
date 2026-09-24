@@ -91,6 +91,7 @@ Events (table-driven): Heat Wave (lemonade ×1.4, ice ×1.3, 2d), Rainy Week (le
 ## 7. Frontend
 - `core/api.service.ts`: typed HTTP client, adds `X-Username`. `core/game.store.ts`: signals holding the latest game view and last day report.
 - Pages: `login`, `game` (dashboard: header stats, `market-panel`, `inventory-panel`, `facilities-panel`, `events-banner`, `day-report-modal`), `game-over`.
+- `app-event-backdrop` (app shell) draws a looping CSS-only background for up to two active events; see EVENT-BACKDROPS.md.
 - Components are presentational, with inputs and outputs. Only `game.store` talks to the API. Sparkline is a small inline-SVG component (no chart library).
 - Facility images: 4 warehouse-tier and 4 production-tier static assets, chosen by level, with a small resource icon for warehouses.
 - **PWA (slice 7):** added with `ng add @angular/pwa` (manifest, icons, `ngsw-config.json`, service worker registered in production builds only). `ngsw-config.json` prefetches the app shell as an asset group and defines **no** data group for `/api/**`, so API calls always hit the network. An `online.service.ts` signal (from `navigator.onLine` and the `online`/`offline` events) drives an offline banner and disables all action buttons. Installability is verified with Lighthouse on the deployed HTTPS URL, since service workers do not run in `ng serve`.
