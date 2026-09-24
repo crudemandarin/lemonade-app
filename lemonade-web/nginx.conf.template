@@ -24,8 +24,18 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # SPA fallback: let the Angular router handle unknown paths.
+    # nginx's default mime types don't include the web app manifest.
+    location = /manifest.webmanifest {
+        default_type application/manifest+json;
+        add_header Cache-Control "no-cache";
+    }
+
+    # SPA fallback: let the Angular router handle unknown paths. no-cache means
+    # "revalidate before reuse" (cheap 304s), so index.html, ngsw.json and the
+    # service worker script are never served stale; that is how PWA updates arrive.
+    # The built JS and CSS are content-hashed, so a revalidation costs almost nothing.
     location / {
+        add_header Cache-Control "no-cache";
         try_files $uri $uri/ /index.html;
     }
 }

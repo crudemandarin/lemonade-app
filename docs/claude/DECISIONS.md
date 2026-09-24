@@ -70,3 +70,9 @@ Deviations from DESIGN.md and real tradeoffs made during the build. Newest last.
 - **Why:** keeps to the table-driven design (DESIGN §6) instead of hard-coding weather logic in `tickEvents`.
 - **Trade-off:** a 2-day heat wave also blocks a rainy week from starting until it ends (and vice versa), so a spawn roll during that time picks from the other events. Events already active in saved games are unaffected.
 - **Tests:** eligibility in both directions, the default config's pair, and a 20-seed × 300-day simulation with an event every day that fails without the rule (verified by removing it).
+
+## 10. Deployed PWA check, nginx headers, and the lemon favicon (slice 7)
+- **Verified on the live HTTPS site** (headless Chrome, fresh profile): service worker controls the page; `Page.getInstallabilityErrors` is empty; Cache Storage holds no `/api` entries; offline, the shell loads with the banner and API calls fail with the worker's 504; with a game loaded, all 19 action buttons disable when the network drops and re-enable when it returns.
+- **Fixed in `nginx.conf.template`:** the manifest was served as `application/octet-stream` (now `application/manifest+json`), and no file had a `Cache-Control`, so browsers could heuristically cache `ngsw.json` and delay PWA updates. Everything outside `/api` is now `no-cache` (revalidate, cheap 304s); built JS/CSS are content-hashed so this costs little.
+- **Favicon:** the whole lemon from `assets/resources/lemon.svg`, cropped to fill the tab, as `favicon.svg` plus a 16/32/48px `favicon.ico`. The previous lemon-slice-on-a-tile icon was unreadable at 16px. PWA install icons are unchanged.
+- **Cloud Run reserves `/healthz`:** on the deployed API, `GET /healthz` returns Google's own 404 page, never reaching the app, so the slice 0 acceptance "healthz returns 200 deployed" cannot be met with that path. Locally it works. Needs a different path (for example `/api/health`) if a deployed health check matters.
