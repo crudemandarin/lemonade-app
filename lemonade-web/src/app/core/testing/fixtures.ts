@@ -80,6 +80,8 @@ export function dayReport(overrides: Partial<DayReport> = {}): DayReport {
     produced: 10,
     iceMelted: 2,
     upkeepPaid: 15,
+    forcedSaleCases: 0,
+    forcedSaleProceeds: 0,
     capitalBefore: 1240,
     capitalAfter: 1225,
     priceChanges: [{ resource: 'lemonade', before: 100, after: 140 }],

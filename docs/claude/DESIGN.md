@@ -61,9 +61,9 @@ Every mutation returns the updated game view so the UI needs no follow-up fetch.
 | Item | Value |
 |---|---|
 | Starting capital | $1,000 |
-| Base price per case | lemon $20, sugar $10, ice $10, cup $10, lemonade $100 |
+| Base price per case | lemon $20, sugar $10, ice $10, cup $10, lemonade $90 (was $100; DECISIONS 12) |
 | Spread | 10%. Ask = ceil(p·1.1); bid = max(1, floor(p·0.9)) |
-| Walk | `p' = p + 0.2(base-p) + p·σ·N(0,1)`, σ = 0.08; clamp [0.25, 4]×base; float state, rounded at quote time |
+| Walk | `p' = p + 0.15(base-p) + p·σ·N(0,1)`, σ = 0.12 (was 0.2 / 0.08); clamp [0.25, 4]×base; float state, rounded at quote time |
 | Max level / max quantity | 4 / 10 |
 | Event chance per day | 25% |
 
@@ -75,16 +75,16 @@ Facility tiers (L1 → L4). Size/rate is per building; costs and upkeep are per 
 | Size (cases) | 10 | 20 | 40 | 80 |
 | Expand (build) cost | $100 | $300 | $800 | $2,000 |
 | Upgrade cost to next | $100 | $250 | $600 | n/a |
-| Upkeep/day | $1 | $3 | $8 | $20 |
+| Upkeep/day | $2 | $6 | $16 | $40 |
 | **Production name** | Kitchen | Food Truck | Bottling Plant | Lemonade Factory |
 | Rate (lemonade/day) | 10 | 20 | 40 | 80 |
 | Expand (build) cost | $500 | $1,500 | $4,000 | $10,000 |
 | Upgrade cost to next | $1,000 | $2,500 | $6,000 | n/a |
-| Upkeep/day | $10 | $25 | $60 | $140 |
+| Upkeep/day | $20 | $50 | $120 | $280 |
 
 Upgrade total = per-building upgrade cost × quantity. Upkeep total = per-building upkeep × quantity, summed over all six facilities.
 
-Sanity check: start = 5 Pantries + 1 Kitchen, upkeep $15/day, 10 cases capacity each. One batch of 10 costs about $550 at ask; it yields 10 lemonade selling at about $92 bid = $920. Profit ≈ $350/day at start. To scale up, production and **all** input and output warehouses must grow together, so the bottleneck shifts between them (the intended strategic tension). Not tuned for fun.
+Sanity check: start = 5 Pantries + 1 Kitchen, upkeep $30/day, 10 cases capacity each. One batch of 10 costs about $550 at ask; it yields 10 lemonade selling at about $81 bid = $810. Profit ≈ $230/day at start after upkeep. To scale up, production and **all** input and output warehouses must grow together, so the bottleneck shifts between them (the intended strategic tension). Balance was tuned by simulation (`balance_test.go`); see the README's "Game physics" section. Upkeep is always owed: short cash sells stock at bid, and if that is not enough the game ends (DECISIONS 12).
 
 Events (table-driven): Heat Wave (lemonade ×1.4, ice ×1.3, 2d), Rainy Week (lemonade ×0.75, 3d), Lemon Blight (lemon ×1.7, 3d), Sugar Glut (sugar ×0.7, 2d), Holiday (lemonade ×1.35, 1d), Cup Shortage (cup ×1.5, 2d). Adding an event is one table row.
 

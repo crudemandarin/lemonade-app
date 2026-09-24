@@ -91,16 +91,19 @@ type priceChangeDTO struct {
 }
 
 type dayReportDTO struct {
-	Day           int              `json:"day"`
-	Produced      int              `json:"produced"`
-	IceMelted     int              `json:"iceMelted"`
-	UpkeepPaid    int              `json:"upkeepPaid"`
-	CapitalBefore int              `json:"capitalBefore"`
-	CapitalAfter  int              `json:"capitalAfter"`
-	PriceChanges  []priceChangeDTO `json:"priceChanges"`
-	NewEvents     []gameEventDTO   `json:"newEvents"`
-	ExpiredEvents []gameEventDTO   `json:"expiredEvents"`
-	Bankrupt      bool             `json:"bankrupt"`
+	Day        int `json:"day"`
+	Produced   int `json:"produced"`
+	IceMelted  int `json:"iceMelted"`
+	UpkeepPaid int `json:"upkeepPaid"`
+	// Stock sold at bid because cash alone could not cover upkeep (0 when none).
+	ForcedSaleCases    int              `json:"forcedSaleCases"`
+	ForcedSaleProceeds int              `json:"forcedSaleProceeds"`
+	CapitalBefore      int              `json:"capitalBefore"`
+	CapitalAfter       int              `json:"capitalAfter"`
+	PriceChanges       []priceChangeDTO `json:"priceChanges"`
+	NewEvents          []gameEventDTO   `json:"newEvents"`
+	ExpiredEvents      []gameEventDTO   `json:"expiredEvents"`
+	Bankrupt           bool             `json:"bankrupt"`
 }
 
 type endDayResponseDTO struct {
@@ -225,15 +228,17 @@ func toDayReport(r domain.DayReport) dayReportDTO {
 		changes = append(changes, priceChangeDTO{Resource: c.Resource, Before: c.Before, After: c.After})
 	}
 	return dayReportDTO{
-		Day:           r.Day,
-		Produced:      r.Produced,
-		IceMelted:     r.IceMelted,
-		UpkeepPaid:    r.UpkeepPaid,
-		CapitalBefore: r.CapitalBefore,
-		CapitalAfter:  r.CapitalAfter,
-		PriceChanges:  changes,
-		NewEvents:     toEventDTOs(r.NewEvents),
-		ExpiredEvents: toEventDTOs(r.ExpiredEvents),
-		Bankrupt:      r.Bankrupt,
+		Day:                r.Day,
+		Produced:           r.Produced,
+		IceMelted:          r.IceMelted,
+		UpkeepPaid:         r.UpkeepPaid,
+		ForcedSaleCases:    r.ForcedSaleCases,
+		ForcedSaleProceeds: r.ForcedSaleProceeds,
+		CapitalBefore:      r.CapitalBefore,
+		CapitalAfter:       r.CapitalAfter,
+		PriceChanges:       changes,
+		NewEvents:          toEventDTOs(r.NewEvents),
+		ExpiredEvents:      toEventDTOs(r.ExpiredEvents),
+		Bankrupt:           r.Bankrupt,
 	}
 }

@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"math"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -38,7 +39,7 @@ func TestNewGame(t *testing.T) {
 	if got := ProductionCapacity(g, cfg); got != 10 {
 		t.Errorf("production capacity = %d, want 10", got)
 	}
-	if got := TotalUpkeep(g, cfg); got != 15 {
+	if got := TotalUpkeep(g, cfg); got != 30 {
 		t.Errorf("upkeep = %d, want 15", got)
 	}
 }
@@ -308,7 +309,7 @@ func TestUpkeepSum(t *testing.T) {
 	g.WarehouseQty[Lemon] = 3 // 7 buildings
 	g.ProductionLevel = 3
 	g.ProductionQty = 2
-	want := 7*3 + 2*60
+	want := 7*cfg.WarehouseTiers[1].Upkeep + 2*cfg.ProductionTiers[2].Upkeep
 	if got := TotalUpkeep(g, cfg); got != want {
 		t.Fatalf("upkeep = %d, want %d", got, want)
 	}
@@ -367,21 +368,59 @@ func TestEndDayMeltsIceAndKeepsOthers(t *testing.T) {
 	}
 }
 
-func TestEndDayUpkeepAndClamp(t *testing.T) {
-	t.Run("pays upkeep", func(t *testing.T) {
+func TestEndDayUpkeepSettlement(t *testing.T) {
+	t.Run("paid from cash, nothing sold", func(t *testing.T) {
 		g, cfg := newTestGame()
+		due := TotalUpkeep(g, cfg)
 		report, _ := EndDay(&g, cfg)
-		if report.UpkeepPaid != 15 || g.Capital != 985 || report.CapitalBefore != 1000 || report.CapitalAfter != 985 {
+		if report.UpkeepPaid != due || g.Capital != 1000-due || report.CapitalBefore != 1000 || report.CapitalAfter != 1000-due {
 			t.Fatalf("report = %+v capital = %d", report, g.Capital)
 		}
+		if report.ForcedSaleCases != 0 || report.ForcedSaleProceeds != 0 {
+			t.Fatalf("sold stock without needing to: %+v", report)
+		}
 	})
-	t.Run("clamps at zero", func(t *testing.T) {
+
+	t.Run("short on cash: stock is sold at bid to cover it", func(t *testing.T) {
 		g, cfg := newTestGame()
+		due := TotalUpkeep(g, cfg)
+		bid := Quotes(g, cfg)[Lemonade].Bid
 		g.Capital = 4
-		g.Inventory[Lemon] = 1
+		g.Inventory[Lemonade] = 3
 		report, _ := EndDay(&g, cfg)
-		if g.Capital != 0 || report.UpkeepPaid != 4 {
-			t.Fatalf("capital=%d paid=%d", g.Capital, report.UpkeepPaid)
+
+		wantCases := (due - 4 + bid - 1) / bid // just enough lemonade to cover the shortfall
+		if report.ForcedSaleCases != wantCases || report.ForcedSaleProceeds != wantCases*bid {
+			t.Fatalf("forced sale = %d cases for $%d, want %d cases for $%d", report.ForcedSaleCases, report.ForcedSaleProceeds, wantCases, wantCases*bid)
+		}
+		if report.UpkeepPaid != due || g.Capital != 4+wantCases*bid-due || g.Inventory[Lemonade] != 3-wantCases {
+			t.Fatalf("paid=%d capital=%d lemonade=%d", report.UpkeepPaid, g.Capital, g.Inventory[Lemonade])
+		}
+		if g.Status != StatusActive {
+			t.Fatal("solvent player was declared bankrupt")
+		}
+	})
+
+	t.Run("sells the finished product before raw inputs", func(t *testing.T) {
+		g, cfg := newTestGame()
+		g.Capital = 0
+		g.Inventory[Lemonade], g.Inventory[Lemon] = 5, 5 // a lone input never produces
+		EndDay(&g, cfg)
+		if g.Inventory[Lemon] != 5 || g.Inventory[Lemonade] == 5 {
+			t.Fatalf("expected lemonade sold first: lemon=%d lemonade=%d", g.Inventory[Lemon], g.Inventory[Lemonade])
+		}
+	})
+
+	t.Run("cannot cover it: everything is sold and the game ends", func(t *testing.T) {
+		g, cfg := newTestGame()
+		g.Capital = 0
+		g.Inventory[Sugar] = 1 // worth far less than a day's upkeep
+		report, _ := EndDay(&g, cfg)
+		if g.Status != StatusBankrupt || !report.Bankrupt {
+			t.Fatal("expected bankrupt")
+		}
+		if g.Capital != 0 || g.Inventory[Sugar] != 0 || report.UpkeepPaid >= TotalUpkeep(g, cfg) {
+			t.Fatalf("capital=%d sugar=%d paid=%d", g.Capital, g.Inventory[Sugar], report.UpkeepPaid)
 		}
 	})
 }
@@ -394,39 +433,50 @@ func TestEndDayAdvancesDay(t *testing.T) {
 	}
 }
 
-func TestBankruptcyTruthTable(t *testing.T) {
+// Whether a player survives the end of day depends on cash plus what their stock
+// sells for at bid, measured against one day's upkeep.
+func TestBankruptcyOutcomes(t *testing.T) {
+	g0, cfg := newTestGame()
+	due := TotalUpkeep(g0, cfg)
+	q := Quotes(g0, cfg)
+	lemonBid, lemonadeBid := q[Lemon].Bid, q[Lemonade].Bid
+
 	tests := []struct {
 		name      string
 		capital   int
 		inventory map[Resource]int
-		want      bool
+		bankrupt  bool
 	}{
-		{"zero capital, empty", 0, nil, true},
-		{"zero capital, lemonade left", 0, map[Resource]int{Lemonade: 1}, false},
-		{"zero capital, raw input left", 0, map[Resource]int{Lemon: 1}, false},
-		{"capital left, empty", 1, nil, false},
-		{"capital and inventory", 500, map[Resource]int{Lemonade: 3}, false},
+		{"no cash, no stock", 0, nil, true},
+		{"one dollar short, no stock", due - 1, nil, true},
+		{"exactly enough cash", due, nil, false},
+		{"no cash but one lemonade covers it", 0, map[Resource]int{Lemonade: 1}, lemonadeBid < due},
+		{"no cash, lemons worth less than upkeep", 0, map[Resource]int{Lemon: (due - 1) / lemonBid}, true},
+		{"no cash, lemons worth more than upkeep", 0, map[Resource]int{Lemon: due/lemonBid + 1}, false},
+		{"cash plus stock together cover it", due - lemonBid, map[Resource]int{Lemon: 1}, false},
+		{"ice does not count: it melts first", 0, map[Resource]int{Ice: 10}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g, _ := newTestGame()
+			g, cfg := newTestGame()
 			g.Capital = tt.capital
 			for r, n := range tt.inventory {
 				g.Inventory[r] = n
 			}
-			if got := IsBankrupt(g); got != tt.want {
-				t.Fatalf("IsBankrupt = %v, want %v", got, tt.want)
+			report, _ := EndDay(&g, cfg)
+			if got := g.Status == StatusBankrupt; got != tt.bankrupt || report.Bankrupt != tt.bankrupt {
+				t.Fatalf("bankrupt = %v (report %v), want %v", got, report.Bankrupt, tt.bankrupt)
 			}
 		})
 	}
 }
 
 func TestEndDayBankruptcy(t *testing.T) {
-	t.Run("capital 0 and no inventory ends the game", func(t *testing.T) {
+	t.Run("bankruptcy blocks every later action", func(t *testing.T) {
 		g, cfg := newTestGame()
 		g.Capital = 0
-		report, _ := EndDay(&g, cfg)
-		if g.Status != StatusBankrupt || !report.Bankrupt {
+		EndDay(&g, cfg)
+		if g.Status != StatusBankrupt {
 			t.Fatal("expected bankrupt")
 		}
 		if err := Buy(&g, cfg, Lemon, 1); !errors.Is(err, ErrGameOver) {
@@ -436,26 +486,7 @@ func TestEndDayBankruptcy(t *testing.T) {
 			t.Fatalf("end day after game over: %v", err)
 		}
 	})
-	t.Run("ice alone does not save you, it melts first", func(t *testing.T) {
-		g, cfg := newTestGame()
-		g.Capital = 0
-		g.Inventory[Ice] = 5
-		g.ProductionQty = 0
-		EndDay(&g, cfg)
-		if g.Status != StatusBankrupt {
-			t.Fatal("expected bankrupt: ice melts before the check")
-		}
-	})
-	t.Run("leftover inventory is a grace", func(t *testing.T) {
-		g, cfg := newTestGame()
-		g.Capital = 0
-		g.Inventory[Lemonade] = 2
-		EndDay(&g, cfg)
-		if g.Status != StatusActive {
-			t.Fatal("expected active: unsold lemonade remains")
-		}
-	})
-	t.Run("spending to zero mid-day is fine", func(t *testing.T) {
+	t.Run("spending to zero mid-day is allowed", func(t *testing.T) {
 		g, cfg := newTestGame()
 		g.Capital = Quotes(g, cfg)[Lemon].Ask * 10
 		if err := Buy(&g, cfg, Lemon, 10); err != nil {
@@ -463,6 +494,18 @@ func TestEndDayBankruptcy(t *testing.T) {
 		}
 		if g.Capital != 0 || g.Status != StatusActive {
 			t.Fatalf("capital=%d status=%s", g.Capital, g.Status)
+		}
+	})
+	t.Run("a full batch bought with the last dollar is not lost overnight", func(t *testing.T) {
+		g, cfg := newTestGame()
+		g.Capital = 0
+		setInputs(&g, 10, 10, 10, 10) // produces 10 lemonade tonight
+		EndDay(&g, cfg)
+		if g.Status != StatusActive {
+			t.Fatal("expected active: tonight's lemonade covers upkeep")
+		}
+		if g.Inventory[Lemonade] == 0 {
+			t.Fatal("expected leftover lemonade after covering upkeep")
 		}
 	})
 }
@@ -565,8 +608,9 @@ func TestEventsStackAndOnlyAffectTargets(t *testing.T) {
 		{Key: "b", Multipliers: map[Resource]float64{Lemonade: 0.5}, DaysLeft: 1},
 	}
 	q := Quotes(g, cfg)
-	if q[Lemonade].Price != 70 { // 100 * 1.4 * 0.5
-		t.Errorf("lemonade price = %d, want 70", q[Lemonade].Price)
+	base := float64(cfg.BasePrice[Lemonade])
+	if want := int(math.Round(base * 1.4 * 0.5)); q[Lemonade].Price != want {
+		t.Errorf("lemonade price = %d, want %d (base x1.4 x0.5)", q[Lemonade].Price, want)
 	}
 	if q[Ice].Price != 13 {
 		t.Errorf("ice price = %d, want 13", q[Ice].Price)
@@ -574,7 +618,7 @@ func TestEventsStackAndOnlyAffectTargets(t *testing.T) {
 	if q[Lemon].Price != 20 || q[Sugar].Price != 10 {
 		t.Error("untargeted resources changed")
 	}
-	if g.Market[Lemonade].Price != 100 {
+	if g.Market[Lemonade].Price != base {
 		t.Error("events must not change the walked price")
 	}
 }

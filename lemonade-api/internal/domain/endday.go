@@ -18,12 +18,9 @@ func EndDay(g *Game, cfg Config) (DayReport, error) {
 	report.IceMelted = g.Inventory[Ice]
 	g.Inventory[Ice] = 0
 
-	upkeep := TotalUpkeep(*g, cfg)
-	if upkeep > g.Capital {
-		upkeep = g.Capital
-	}
-	g.Capital -= upkeep
-	report.UpkeepPaid = upkeep
+	paid, soldCases, soldProceeds, insolvent := settleUpkeep(g, cfg)
+	report.UpkeepPaid = paid
+	report.ForcedSaleCases, report.ForcedSaleProceeds = soldCases, soldProceeds
 
 	before := make(map[Resource]int, len(Resources))
 	for _, r := range Resources {
@@ -56,7 +53,7 @@ func EndDay(g *Game, cfg Config) (DayReport, error) {
 		}
 	}
 
-	if IsBankrupt(*g) {
+	if insolvent {
 		g.Status = StatusBankrupt
 	}
 	report.Bankrupt = g.Status == StatusBankrupt

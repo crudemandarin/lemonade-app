@@ -13,6 +13,15 @@
         <dt>Upkeep paid</dt>
         <dd>{{ -r.upkeepPaid | money }}</dd>
 
+        @if (r.forcedSaleCases > 0) {
+          <dt>Stock sold to cover upkeep</dt>
+          <dd>
+            {{ r.forcedSaleCases }} {{ r.forcedSaleCases === 1 ? 'case' : 'cases' }} (+{{
+              r.forcedSaleProceeds | money
+            }})
+          </dd>
+        }
+
         @if (lemonadePrice(); as p) {
           <dt>Lemonade price</dt>
           <dd>{{ p.before | money }} → {{ p.after | money }}</dd>
@@ -38,8 +47,8 @@
         <p class="warning" role="alert">
           <app-icon name="alert" [size]="18" />
           <span>
-            <strong>You're out of cash.</strong> You still have stock, so sell some to keep going.
-            If capital and stock both hit zero, you go bankrupt.
+            <strong>You're out of cash.</strong> Upkeep comes out of cash first, then your stock is
+            sold at the market bid. If that can't cover it, you go bankrupt.
           </span>
         </p>
       }

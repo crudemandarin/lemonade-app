@@ -62,16 +62,19 @@ type PriceChange struct {
 
 // DayReport summarizes one EndDay transition. Day is the day that just ended.
 type DayReport struct {
-	Day           int
-	Produced      int
-	IceMelted     int
-	UpkeepPaid    int
-	CapitalBefore int
-	CapitalAfter  int
-	PriceChanges  []PriceChange
-	NewEvents     []ActiveEvent
-	ExpiredEvents []ActiveEvent
-	Bankrupt      bool
+	Day        int
+	Produced   int
+	IceMelted  int
+	UpkeepPaid int
+	// ForcedSale* describe stock sold at bid because cash alone could not cover upkeep.
+	ForcedSaleCases    int
+	ForcedSaleProceeds int
+	CapitalBefore      int
+	CapitalAfter       int
+	PriceChanges       []PriceChange
+	NewEvents          []ActiveEvent
+	ExpiredEvents      []ActiveEvent
+	Bankrupt           bool
 }
 
 // Clone returns a deep copy, so stores and tests never alias a live game's maps.

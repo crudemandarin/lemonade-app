@@ -101,6 +101,8 @@ The game view returns, per type: tier name, level, upkeep, upgrade cost, and the
 
 ### 1.4 End of day and bankruptcy
 
+> **Revised by DECISIONS 12.** Upkeep is always owed: short cash sells stock at bid, and if that is not enough the game ends (no forgiveness, no "any inventory is a grace"). Base lemonade price is now $90 and tier upkeep is doubled (Pantry $2, Garage $6, Barn $16, Industrial $40; Kitchen $20, Food Truck $50, Bottling Plant $120, Factory $280). The step list below shows the original rules.
+
 Order, as one atomic transition:
 
 1. **Produce:** `min(production count × rate, stock of each input, free lemonade warehouse space)`.

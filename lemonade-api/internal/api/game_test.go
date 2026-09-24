@@ -152,16 +152,16 @@ func TestGameViewMatchesContract(t *testing.T) {
 	e.login("joe")
 	v := e.game("joe")
 
-	if v.Day != 1 || v.Capital != 1000 || v.Status != domain.StatusActive || v.UpkeepPerDay != 15 {
+	if v.Day != 1 || v.Capital != 1000 || v.Status != domain.StatusActive || v.UpkeepPerDay != 30 {
 		t.Fatalf("view = %+v", v)
 	}
 	if len(v.Resources) != 5 {
 		t.Fatalf("resources = %d", len(v.Resources))
 	}
 	wantOrder := []domain.Resource{"lemon", "sugar", "ice", "cup", "lemonade"}
-	wantPrice := []int{20, 10, 10, 10, 100}
-	wantBid := []int{18, 9, 9, 9, 90}
-	wantAsk := []int{22, 11, 11, 11, 110}
+	wantPrice := []int{20, 10, 10, 10, 90}
+	wantBid := []int{18, 9, 9, 9, 81}
+	wantAsk := []int{22, 11, 11, 11, 99}
 	for i, r := range v.Resources {
 		if r.Resource != wantOrder[i] || r.Price != wantPrice[i] || r.Bid != wantBid[i] || r.Ask != wantAsk[i] {
 			t.Errorf("resource %d = %+v", i, r)
@@ -173,17 +173,17 @@ func TestGameViewMatchesContract(t *testing.T) {
 
 	wh := v.Facilities.Warehouse
 	if wh.TierName != "Pantry" || wh.Level != 1 || wh.MaxLevel != 4 || wh.Buildings != 5 || wh.MaxCount != 10 ||
-		wh.SizePerBuilding != 10 || wh.ExpandCost != 100 || wh.UpkeepPerDay != 5 || len(wh.Resources) != 5 {
+		wh.SizePerBuilding != 10 || wh.ExpandCost != 100 || wh.UpkeepPerDay != 10 || len(wh.Resources) != 5 {
 		t.Errorf("warehouse = %+v", wh)
 	}
-	if up := wh.Upgrade; up == nil || up.TierName != "Garage" || up.CostPerBuilding != 100 || up.TotalCost != 500 || up.UpkeepIncrease != 10 || up.SizePerBuilding != 20 {
+	if up := wh.Upgrade; up == nil || up.TierName != "Garage" || up.CostPerBuilding != 100 || up.TotalCost != 500 || up.UpkeepIncrease != 20 || up.SizePerBuilding != 20 {
 		t.Errorf("warehouse upgrade = %+v", wh.Upgrade)
 	}
 	pr := v.Facilities.Production
-	if pr.TierName != "Kitchen" || pr.Buildings != 1 || pr.ExpandCost != 500 || pr.UpkeepPerDay != 10 || pr.RatePerDay != 10 || pr.SizePerBuilding != 10 {
+	if pr.TierName != "Kitchen" || pr.Buildings != 1 || pr.ExpandCost != 500 || pr.UpkeepPerDay != 20 || pr.RatePerDay != 10 || pr.SizePerBuilding != 10 {
 		t.Errorf("production = %+v", pr)
 	}
-	if up := pr.Upgrade; up == nil || up.TierName != "Food Truck" || up.TotalCost != 1000 || up.UpkeepIncrease != 15 || up.SizePerBuilding != 20 {
+	if up := pr.Upgrade; up == nil || up.TierName != "Food Truck" || up.TotalCost != 1000 || up.UpkeepIncrease != 30 || up.SizePerBuilding != 20 {
 		t.Errorf("production upgrade = %+v", pr.Upgrade)
 	}
 
@@ -235,7 +235,6 @@ func TestTradeErrors(t *testing.T) {
 	}{
 		{"insufficient stock", "/api/game/sell", map[string]any{"resource": "lemonade", "qty": 1}, 409, "insufficient_stock"},
 		{"capacity exceeded", "/api/game/buy", map[string]any{"resource": "lemon", "qty": 11}, 409, "capacity_exceeded"},
-		{"insufficient funds", "/api/game/buy", map[string]any{"resource": "lemonade", "qty": 10}, 409, "insufficient_funds"},
 		{"zero qty", "/api/game/buy", map[string]any{"resource": "lemon", "qty": 0}, 400, "invalid_quantity"},
 		{"negative qty", "/api/game/sell", map[string]any{"resource": "lemon", "qty": -3}, 400, "invalid_quantity"},
 		{"unknown resource", "/api/game/buy", map[string]any{"resource": "gold", "qty": 1}, 400, "invalid_resource"},
@@ -248,6 +247,17 @@ func TestTradeErrors(t *testing.T) {
 	}
 	if v := e.game("joe"); v.Capital != 1000 {
 		t.Fatalf("failed requests changed capital to %d", v.Capital)
+	}
+}
+
+func TestBuyInsufficientFunds(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe")
+	e.setGame("joe", func(g *domain.Game) { g.Capital = 50 })
+
+	e.wantError(e.do("POST", "/api/game/buy", "joe", map[string]any{"resource": "lemonade", "qty": 1}), 409, "insufficient_funds")
+	if v := e.game("joe"); v.Capital != 50 || v.Resources[4].Stock != 0 {
+		t.Fatalf("failed buy changed the game: capital=%d stock=%d", v.Capital, v.Resources[4].Stock)
 	}
 }
 
@@ -324,7 +334,7 @@ func TestEndDayLoop(t *testing.T) {
 		t.Fatalf("end-day: %s", rec.Body)
 	}
 	res := decode[endDayResponseDTO](t, rec)
-	if res.Report.Day != 1 || res.Report.Produced != 10 || res.Report.IceMelted != 0 || res.Report.UpkeepPaid != 15 {
+	if res.Report.Day != 1 || res.Report.Produced != 10 || res.Report.IceMelted != 0 || res.Report.UpkeepPaid != 30 {
 		t.Fatalf("report = %+v", res.Report)
 	}
 	if res.Game.Day != 2 || res.Game.Resources[4].Stock != 10 || res.Game.Resources[2].Stock != 0 {
@@ -343,6 +353,37 @@ func TestEndDayLoop(t *testing.T) {
 	sell := e.do("POST", "/api/game/sell", "joe", map[string]any{"resource": "lemonade", "qty": 10})
 	if sell.Code != 200 {
 		t.Fatalf("sell lemonade: %s", sell.Body)
+	}
+}
+
+func TestEndDayReportsForcedSale(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe")
+	e.setGame("joe", func(g *domain.Game) {
+		g.Capital = 0
+		g.Inventory[domain.Lemonade] = 3
+	})
+
+	rec := e.do("POST", "/api/game/end-day", "joe", nil)
+	if rec.Code != 200 {
+		t.Fatalf("end-day: %s", rec.Body)
+	}
+	res := decode[endDayResponseDTO](t, rec)
+	if res.Report.ForcedSaleCases != 1 || res.Report.ForcedSaleProceeds != 81 || res.Report.Bankrupt {
+		t.Fatalf("report = %+v", res.Report)
+	}
+	if res.Report.UpkeepPaid != 30 || res.Game.Capital != 51 || res.Game.Resources[4].Stock != 2 {
+		t.Fatalf("paid=%d capital=%d lemonade=%d", res.Report.UpkeepPaid, res.Game.Capital, res.Game.Resources[4].Stock)
+	}
+	// The JSON keys are part of the contract with the frontend.
+	var raw map[string]map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"forcedSaleCases", "forcedSaleProceeds"} {
+		if _, ok := raw["report"][key]; !ok {
+			t.Errorf("report is missing %q", key)
+		}
 	}
 }
 

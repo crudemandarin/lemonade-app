@@ -43,9 +43,9 @@ Turn-based lemonade business game. One core loop: the passage of a **day**. Scor
 ### End of day (single atomic transition)
 12. **Production:** the Production facility converts inputs into lemonade. Recipe is fixed: 1 lemon + 1 sugar + 1 ice + 1 cup → 1 lemonade. Amount produced = min(daily production capacity, stock of each input, free lemonade warehouse space). Production is automatic.
 13. **Melt:** all remaining ice is set to 0. Other resources carry forward.
-14. **Upkeep:** for each facility, `quantity × upkeep(level)` is deducted from capital. Capital never goes below 0 (clamped).
+14. **Upkeep:** for each facility, `quantity × upkeep(level)` is deducted from capital. If cash is short, stock is sold at bid to cover it; if that is not enough, the game is over (revised: DECISIONS 12; originally the unpaid amount was forgiven).
 15. **Advance:** the day counter increments, the market ticks (rule 18), and events may start or expire (rule 20).
-16. **Bankruptcy:** the game is over if, after steps 12-15, **capital is 0 AND total inventory is 0** (no cases of any resource left). Any inventory is a grace: every resource can be sold at bid (rule 6), so the player can still raise cash. Ice is always 0 at check time because it melts in step 13. The check runs only at end of day, so spending down to $0 mid-day is allowed.
+16. **Bankruptcy** *(revised by DECISIONS 12: the game is over when upkeep cannot be paid even after selling all stock; the original rule follows)*: the game is over if, after steps 12-15, **capital is 0 AND total inventory is 0** (no cases of any resource left). Any inventory is a grace: every resource can be sold at bid (rule 6), so the player can still raise cash. Ice is always 0 at check time because it melts in step 13. The check runs only at end of day, so spending down to $0 mid-day is allowed.
 17. The player receives a **day report**: production, melted ice, upkeep paid, price changes, new/active events, and capital before/after.
 
 ### Market and events
@@ -68,7 +68,7 @@ Turn-based lemonade business game. One core loop: the passage of a **day**. Scor
 28. The frontend is an installable PWA: web app manifest, icons, and a service worker that caches the app shell (HTML, JS, CSS, icons). Offline, the shell loads and shows an offline notice. API responses are never cached, and buy, sell, expand, upgrade, and end-day are disabled while offline. The service worker is enabled in production builds only.
 
 ## 4. Starting values
-Tunable, all in one config file (see DESIGN §6). Starting capital $1,000; base prices per case: lemon $20, sugar $10, ice $10, cup $10, lemonade $100; spread 10%; sizes, rates, costs, and upkeep per tier in DESIGN.
+Tunable, all in one config file (see DESIGN §6). Starting capital $1,000; base prices per case: lemon $20, sugar $10, ice $10, cup $10, lemonade $90 (tuned, DECISIONS 12); spread 10%; sizes, rates, costs, and upkeep per tier in DESIGN.
 
 ## 5. Assumptions
 - Warehouse tier sizes (10 / 20 / 40 / 80) and Production rates (10 / 20 / 40 / 80 lemonade per day) double per level.

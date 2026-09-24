@@ -63,4 +63,27 @@ describe('DayReportModalComponent', () => {
       expect(render({ capitalAfter: 0, bankrupt: true }).querySelector('.warning')).toBeNull();
     });
   });
+
+  describe('stock sold to cover upkeep', () => {
+    function render(overrides: Parameters<typeof dayReport>[0]): string {
+      fixture.componentRef.setInput('report', dayReport(overrides));
+      fixture.detectChanges();
+      return (fixture.nativeElement as HTMLElement).textContent!.replace(/\s+/g, ' ');
+    }
+
+    it('shows what was sold and for how much', () => {
+      const text = render({ forcedSaleCases: 2, forcedSaleProceeds: 162 });
+      expect(text).toContain('Stock sold to cover upkeep');
+      expect(text).toContain('2 cases');
+      expect(text).toContain('+$162');
+    });
+
+    it('uses the singular for one case', () => {
+      expect(render({ forcedSaleCases: 1, forcedSaleProceeds: 81 })).toContain('1 case ');
+    });
+
+    it('is not shown when cash covered upkeep', () => {
+      expect(render({ forcedSaleCases: 0, forcedSaleProceeds: 0 })).not.toContain('sold to cover');
+    });
+  });
 });

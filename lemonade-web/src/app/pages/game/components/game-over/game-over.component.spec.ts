@@ -33,4 +33,8 @@ describe('GameOverComponent', () => {
     fixture.detectChanges();
     expect(el.querySelector<HTMLButtonElement>('.btn-primary')!.disabled).toBeTrue();
   });
+
+  it('explains why the game ended', () => {
+    expect(el.textContent).toContain("couldn't cover your upkeep");
+  });
 });

@@ -104,6 +104,9 @@ export interface DayReport {
   produced: number;
   iceMelted: number;
   upkeepPaid: number;
+  /** Stock sold at bid because cash alone could not cover upkeep (0 when none). */
+  forcedSaleCases: number;
+  forcedSaleProceeds: number;
   capitalBefore: number;
   capitalAfter: number;
   priceChanges: PriceChange[];
