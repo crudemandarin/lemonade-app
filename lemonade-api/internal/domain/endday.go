@@ -49,13 +49,12 @@ func EndDay(g *Game, cfg Config) (DayReport, error) {
 		m.Price = walk(rng, m.Price, cfg.BasePrice[r], cfg)
 		after := effectivePrice(m.Price, g.Events, r)
 
-		if after != before[r] {
-			report.PriceChanges = append(report.PriceChanges, PriceChange{
-				Resource: r,
-				Before:   before[r],
-				After:    after,
-			})
-		}
+		// Every resource is reported, changed or not, so the report can always show it.
+		report.PriceChanges = append(report.PriceChanges, PriceChange{
+			Resource: r,
+			Before:   before[r],
+			After:    after,
+		})
 
 		prev := before[r]
 		m.PreviousEffective = &prev

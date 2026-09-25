@@ -1,6 +1,7 @@
 import { Component, computed, input, output } from '@angular/core';
 
 import { DayReport } from '../../../../core/api.models';
+import { RESOURCE_LABELS } from '../../../../core/resources';
 import { IconComponent } from '../../../../shared/icon/icon.component';
 import { MoneyPipe } from '../../../../shared/money.pipe';
 
@@ -16,7 +17,14 @@ export class DayReportModalComponent {
   readonly report = input.required<DayReport>();
   readonly dismiss = output<void>();
 
-  protected readonly lemonadePrice = computed(() =>
-    this.report().priceChanges.find((c) => c.resource === 'lemonade'),
-  );
+  protected readonly labels = RESOURCE_LABELS;
+
+  /** Every price, lemonade first, then the rest in the server's order. */
+  protected readonly prices = computed(() => {
+    const all = this.report().priceChanges;
+    return [
+      ...all.filter((c) => c.resource === 'lemonade'),
+      ...all.filter((c) => c.resource !== 'lemonade'),
+    ];
+  });
 }

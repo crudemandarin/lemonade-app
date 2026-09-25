@@ -42,6 +42,16 @@ dd {
   font-variant-numeric: tabular-nums;
 }
 
+h3 {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.unchanged {
+  opacity: 0.6;
+}
+
 .total {
   margin-top: 1rem;
   padding-top: 1rem;
