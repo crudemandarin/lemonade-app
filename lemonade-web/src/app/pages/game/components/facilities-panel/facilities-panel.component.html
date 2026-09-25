@@ -56,13 +56,8 @@
           @for (r of wh.resources; track r.resource) {
             <li [attr.data-resource]="r.resource">
               <span class="name">
-                <img
-                  [src]="'assets/resources/' + r.resource + '.svg'"
-                  alt=""
-                  width="22"
-                  height="22"
-                />
-                {{ labels[r.resource] }}
+                <img [src]="icon(r.resource)" alt="" width="22" height="22" />
+                {{ label(r.resource) }}
               </span>
               <span class="count">x{{ r.count }}</span>
               <span class="muted">Holds {{ r.capacity }} cases</span>
@@ -83,7 +78,7 @@
                   [attr.title]="blockedReason(r) || null"
                   [attr.aria-label]="
                     'Sell a ' +
-                    labels[r.resource].toLowerCase() +
+                    label(r.resource).toLowerCase() +
                     ' warehouse for ' +
                     r.sellValue +
                     ' dollars' +

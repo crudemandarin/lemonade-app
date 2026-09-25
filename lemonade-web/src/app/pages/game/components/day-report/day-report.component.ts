@@ -1,7 +1,7 @@
 import { Component, computed, input } from '@angular/core';
 
 import { DayReport } from '../../../../core/api.models';
-import { RESOURCE_LABELS } from '../../../../core/resources';
+import { resourceLabel } from '../../../../core/resources';
 import { IconComponent } from '../../../../shared/icon/icon.component';
 import { MoneyPipe } from '../../../../shared/money.pipe';
 
@@ -16,7 +16,7 @@ import { MoneyPipe } from '../../../../shared/money.pipe';
 export class DayReportComponent {
   readonly report = input.required<DayReport>();
 
-  protected readonly labels = RESOURCE_LABELS;
+  protected readonly label = resourceLabel;
 
   /** Every price, lemonade first, then the rest in the server's order. */
   protected readonly prices = computed(() => {

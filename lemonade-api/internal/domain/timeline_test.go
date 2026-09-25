@@ -13,10 +13,13 @@ func lastPoint(t *testing.T, g Game) TimelinePoint {
 	return g.Timeline[len(g.Timeline)-1]
 }
 
-func stockOf(g Game) [5]int {
+// stockOf is the game's stock in catalog order, as a comparable array.
+func stockOf(g Game) [5]int { return stockArray(g.Inventory) }
+
+func stockArray(m map[Resource]int) [5]int {
 	var s [5]int
 	for i, r := range Resources {
-		s[i] = g.Inventory[r]
+		s[i] = m[r]
 	}
 	return s
 }
@@ -27,7 +30,7 @@ func TestNewGameStartsTheTimeline(t *testing.T) {
 		t.Fatalf("timeline = %+v, want one start point", g.Timeline)
 	}
 	p := g.Timeline[0]
-	if p.Kind != PointStart || p.Day != 1 || p.Capital != cfg.StartingCapital || p.Stock != [5]int{} {
+	if p.Kind != PointStart || p.Day != 1 || p.Capital != cfg.StartingCapital || stockArray(p.Stock) != [5]int{} {
 		t.Fatalf("start point = %+v", p)
 	}
 	if g.Stats.PeakCapital != cfg.StartingCapital || g.Stats.PeakDay != 1 {
@@ -45,7 +48,7 @@ func TestBuyAndSellRecordPoints(t *testing.T) {
 	if p.Kind != PointBuy || p.Resource != Lemon || p.Qty != 3 || p.Amount != 3*ask || p.Day != 1 {
 		t.Fatalf("buy point = %+v", p)
 	}
-	if p.Capital != g.Capital || p.Stock != stockOf(g) || p.Stock[0] != 3 {
+	if p.Capital != g.Capital || stockArray(p.Stock) != stockOf(g) || stockArray(p.Stock)[0] != 3 {
 		t.Fatalf("buy snapshot = %+v, game capital %d stock %v", p, g.Capital, stockOf(g))
 	}
 
@@ -89,7 +92,7 @@ func TestConsecutiveTradesCoalesce(t *testing.T) {
 		t.Fatalf("timeline = %+v, want start + one merged buy", g.Timeline)
 	}
 	p := lastPoint(t, g)
-	if p.Qty != 4 || p.Amount != 4*ask || p.Capital != g.Capital || p.Stock[0] != 4 {
+	if p.Qty != 4 || p.Amount != 4*ask || p.Capital != g.Capital || stockArray(p.Stock)[0] != 4 {
 		t.Fatalf("merged point = %+v", p)
 	}
 
@@ -159,7 +162,7 @@ func TestEndDayRecordsAPoint(t *testing.T) {
 	if p.Kind != PointEndDay || p.Day != 1 || p.Produced != report.Produced || p.Amount != due {
 		t.Fatalf("end-day point = %+v (report %+v)", p, report)
 	}
-	if p.Capital != g.Capital || p.Stock != stockOf(g) || p.Stock[2] != 0 {
+	if p.Capital != g.Capital || stockArray(p.Stock) != stockOf(g) || stockArray(p.Stock)[2] != 0 {
 		t.Fatalf("end-day snapshot = %+v (ice must have melted)", p)
 	}
 	if g.Stats.Produced != report.Produced || g.Stats.UpkeepPaid != due {

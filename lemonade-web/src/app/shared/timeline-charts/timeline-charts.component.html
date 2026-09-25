@@ -58,8 +58,8 @@
             <th scope="col">Day</th>
             <th scope="col">What happened</th>
             <th scope="col" class="num">Capital</th>
-            @for (r of resources; track r) {
-              <th scope="col" class="num">{{ labels[r] }}</th>
+            @for (r of resources(); track r) {
+              <th scope="col" class="num">{{ label(r) }}</th>
             }
           </tr>
         </thead>
@@ -84,8 +84,8 @@
           <tr>
             <th scope="col">Day</th>
             <th scope="col">Events</th>
-            @for (r of resources; track r) {
-              <th scope="col" class="num">{{ labels[r] }}</th>
+            @for (r of resources(); track r) {
+              <th scope="col" class="num">{{ label(r) }}</th>
             }
           </tr>
         </thead>
@@ -262,11 +262,11 @@
       <figure class="panel stock">
         <figcaption>Stock</figcaption>
         <ul class="legend" aria-label="Show or hide a resource">
-          @for (r of resources; track r) {
+          @for (r of resources(); track r) {
             <li>
               <button type="button" [attr.aria-pressed]="!hidden().has(r)" (click)="toggle(r)">
-                <span class="key" [style.background]="'var(--series-' + r + ')'"></span>
-                {{ labels[r] }}
+                <span class="key" [style.background]="color(r)"></span>
+                {{ label(r) }}
               </button>
             </li>
           }
@@ -370,11 +370,11 @@
                   <span class="event-line">Event: {{ hoverEvents().join(', ') }}</span>
                 }
                 <ul>
-                  @for (r of resources; track r; let i = $index) {
+                  @for (r of resources(); track r; let i = $index) {
                     <li>
-                      <span class="key" [style.background]="'var(--series-' + r + ')'"></span>
+                      <span class="key" [style.background]="color(r)"></span>
                       <strong class="value">{{ h.point.stock[i] }}</strong>
-                      <span class="name">{{ labels[r] }}</span>
+                      <span class="name">{{ label(r) }}</span>
                     </li>
                   }
                 </ul>
@@ -388,15 +388,15 @@
         <figcaption>Prices</figcaption>
         <div class="price-controls">
           <ul class="legend" aria-label="Show or hide a price line">
-            @for (r of resources; track r) {
+            @for (r of resources(); track r) {
               <li>
                 <button
                   type="button"
                   [attr.aria-pressed]="!priceHidden().has(r)"
                   (click)="togglePrice(r)"
                 >
-                  <span class="key" [style.background]="'var(--series-' + r + ')'"></span>
-                  {{ labels[r] }}
+                  <span class="key" [style.background]="color(r)"></span>
+                  {{ label(r) }}
                 </button>
               </li>
             }
@@ -516,12 +516,9 @@
               <ul>
                 @for (row of hp.rows; track row.resource) {
                   <li>
-                    <span
-                      class="key"
-                      [style.background]="'var(--series-' + row.resource + ')'"
-                    ></span>
+                    <span class="key" [style.background]="color(row.resource)"></span>
                     <strong class="value">{{ row.text }}</strong>
-                    <span class="name">{{ labels[row.resource] }}</span>
+                    <span class="name">{{ label(row.resource) }}</span>
                   </li>
                 }
               </ul>

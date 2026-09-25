@@ -3,11 +3,11 @@ package domain
 // NewGame starts a fresh game at Day 1: starting capital, empty inventory, every
 // facility at level 1 quantity 1, and initial market prices (SPEC rules 1-3).
 func NewGame(cfg Config, seed int64) Game {
-	inventory := make(map[Resource]int, len(Resources))
-	warehouseQty := make(map[Resource]int, len(Resources))
-	market := make(map[Resource]*ResourceMarket, len(Resources))
+	inventory := make(map[Resource]int, len(cfg.Commodities))
+	warehouseQty := make(map[Resource]int, len(cfg.Commodities))
+	market := make(map[Resource]*ResourceMarket, len(cfg.Commodities))
 
-	for _, r := range Resources {
+	for _, r := range cfg.Resources() {
 		inventory[r] = 0
 		warehouseQty[r] = 1
 		base := cfg.BasePrice[r]
@@ -24,14 +24,16 @@ func NewGame(cfg Config, seed int64) Game {
 		Capital:         cfg.StartingCapital,
 		Status:          StatusActive,
 		Inventory:       inventory,
-		CostBasis:       make(map[Resource]int, len(Resources)),
-		BuyPressure:     make(map[Resource]float64, len(Resources)),
-		SellPressure:    make(map[Resource]float64, len(Resources)),
+		CostBasis:       make(map[Resource]int, len(cfg.Commodities)),
+		BuyPressure:     make(map[Resource]float64, len(cfg.Commodities)),
+		SellPressure:    make(map[Resource]float64, len(cfg.Commodities)),
 		WarehouseLevel:  1,
 		WarehouseQty:    warehouseQty,
 		ProductionLevel: 1,
 		ProductionQty:   1,
 		Market:          market,
+		Upgrades:        make(map[string]int),
+		Carry:           make(map[string]float64),
 		Events:          nil,
 	}
 	g.record(TimelinePoint{Day: 1, Kind: PointStart})

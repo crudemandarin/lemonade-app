@@ -3,6 +3,8 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import {
+  AchievementsResponse,
+  Board,
   DayReport,
   EndDayResponse,
   FacilityType,
@@ -12,6 +14,7 @@ import {
   RunDetail,
   RunSummary,
   ScoresResponse,
+  UpgradesResponse,
   User,
 } from './api.models';
 
@@ -105,10 +108,18 @@ export class ApiService {
   }
 
   /** The global board: each player's best run. `me` is the caller's own row. */
-  scores(limit?: number): Observable<ScoresResponse> {
+  scores(limit?: number, board: Board = 'all_time'): Observable<ScoresResponse> {
     return this.http.get<ScoresResponse>(`${API_URL}/scores`, {
-      params: limit ? { limit } : {},
+      params: {
+        ...(limit && { limit }),
+        ...(board !== 'all_time' && { board }),
+      },
     });
+  }
+
+  /** Every achievement with the caller's unlocked state and progress. */
+  achievements(): Observable<AchievementsResponse> {
+    return this.http.get<AchievementsResponse>(`${API_URL}/achievements`);
   }
 
   /** The caller's finished runs, newest first. */
@@ -119,6 +130,16 @@ export class ApiService {
   /** One of the caller's finished runs in full. */
   run(runId: string): Observable<RunDetail> {
     return this.http.get<RunDetail>(`${API_URL}/runs/${encodeURIComponent(runId)}`);
+  }
+
+  /** Every upgrade with its state (owned, available, locked and why). */
+  upgrades(): Observable<UpgradesResponse> {
+    return this.http.get<UpgradesResponse>(`${API_URL}/game/upgrades`);
+  }
+
+  /** Buys one upgrade; answers with the new game view. */
+  buyUpgrade(key: string): Observable<GameView> {
+    return this.http.post<GameView>(`${API_URL}/game/upgrades/${encodeURIComponent(key)}/buy`, {});
   }
 
   endDay(): Observable<EndDayResponse> {

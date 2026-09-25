@@ -574,7 +574,7 @@ func TestGameViewCarriesTheProjection(t *testing.T) {
 	if v.Projection.LemonadeToProduce != 4 || v.Projection.IceToMelt != 3 || v.Projection.LimitedBy != "lemon" {
 		t.Fatalf("after buying: %+v", v.Projection)
 	}
-	if !strings.Contains(rec.Body.String(), `"projection":{"lemonadeToProduce":4,"iceToMelt":3,"limitedBy":"lemon"}`) {
+	if !strings.Contains(rec.Body.String(), `"projection":{"lemonadeToProduce":4,"iceToMelt":3,"iceKept":0,"limitedBy":"lemon"}`) {
 		t.Fatalf("unexpected JSON shape: %s", rec.Body)
 	}
 }
@@ -680,6 +680,10 @@ func TestGameViewCarriesThePriceLog(t *testing.T) {
 	}
 	if got := v.BasePrices; len(got) != 5 || got[0] != 20 || got[4] != 90 {
 		t.Fatalf("base prices: %v", got)
+	}
+	// The arrays follow the catalog the view carries.
+	if c := v.Commodities; len(c) != 5 || c[0].Key != domain.Lemon || c[4].Key != domain.Lemonade || !c[4].IsProduct {
+		t.Fatalf("commodities: %+v", c)
 	}
 
 	for i := 0; i < 3; i++ {
@@ -1061,7 +1065,7 @@ func TestRunDetailIsForItsOwnerOnly(t *testing.T) {
 	if d.RunID != run || d.EndedBy != "gave_up" || d.Days != 3 || !d.IsBest || d.Score != d.NetWorth {
 		t.Fatalf("summary: %+v", d.runSummaryDTO)
 	}
-	if len(d.Timeline) == 0 || len(d.PriceLog) != 3 || len(d.BasePrices) != 5 || d.Stats.CasesBought != 4 {
+	if len(d.Timeline) == 0 || len(d.PriceLog) != 3 || len(d.BasePrices) != 5 || len(d.Commodities) != 5 || d.Stats.CasesBought != 4 {
 		t.Fatalf("history missing: timeline %d, prices %d, stats %+v", len(d.Timeline), len(d.PriceLog), d.Stats)
 	}
 	if len(d.Reports) != 2 || d.Reports[0].Day != 1 || d.Reports[1].Day != 2 {

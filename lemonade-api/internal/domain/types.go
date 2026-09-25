@@ -55,6 +55,24 @@ type Game struct {
 	// Timeline and Stats record how the game went; see timeline.go.
 	Timeline []TimelinePoint
 	Stats    Stats
+
+	// Upgrades maps an owned upgrade's key to its level (1: upgrades have one level
+	// today). UpgradeSpend is what they cost in total. See upgrades.go.
+	Upgrades     map[string]int
+	UpgradeSpend int
+	// IceOld is how many cases of the ice in stock are one night old (kept by a
+	// freezer). Production and sales use the oldest ice first; see endday.go.
+	IceOld int
+	// Carry holds fractions of a case left over from yield bonuses and use discounts,
+	// so output stays whole cases; see effects.go.
+	Carry map[string]float64
+
+	// Goals are run-scoped facts only achievements read; see goals.go.
+	Goals GoalStats
+
+	// NetWorthDay100 is the net worth on first reaching BoardDay (nil before, and for
+	// runs that end earlier); it feeds the day-100 board. See milestones.go.
+	NetWorthDay100 *int
 }
 
 // User identifies a player. Login is username-only (SPEC rule 22).
@@ -79,10 +97,18 @@ type PriceChange struct {
 
 // DayReport summarizes one EndDay transition. Day is the day that just ended.
 type DayReport struct {
-	Day        int
-	Produced   int
-	IceMelted  int
+	Day       int
+	Produced  int
+	IceMelted int
+	// IceKept is ice a freezer moved to tomorrow instead of letting it melt.
+	IceKept    int
 	UpkeepPaid int
+	// UpgradeUpkeep is the part of UpkeepPaid that is due for upgrades (owed, not necessarily paid).
+	UpgradeUpkeep int
+	// IceMade is ice made overnight by an ice machine, and its cost.
+	IceMade, IceMadeCost int
+	// Pnl is the bookkeeper's profit and loss for the day; nil without the upgrade.
+	Pnl *PnlLine
 	// ForcedSale* describe stock sold at bid because cash alone could not cover upkeep.
 	ForcedSaleCases    int
 	ForcedSaleProceeds int
@@ -122,6 +148,15 @@ func (g Game) Clone() Game {
 		c.WarehouseQty[k] = v
 	}
 
+	c.Upgrades = make(map[string]int, len(g.Upgrades))
+	for k, v := range g.Upgrades {
+		c.Upgrades[k] = v
+	}
+	c.Carry = make(map[string]float64, len(g.Carry))
+	for k, v := range g.Carry {
+		c.Carry[k] = v
+	}
+
 	c.Market = make(map[Resource]*ResourceMarket, len(g.Market))
 	for k, m := range g.Market {
 		mc := *m
@@ -148,6 +183,11 @@ func (g Game) Clone() Game {
 			ec.Multipliers[k] = v
 		}
 		c.Events = append(c.Events, ec)
+	}
+	c.Goals = g.Goals.clone()
+	if g.NetWorthDay100 != nil {
+		v := *g.NetWorthDay100
+		c.NetWorthDay100 = &v
 	}
 	return c
 }

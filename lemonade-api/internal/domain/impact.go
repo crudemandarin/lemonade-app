@@ -15,7 +15,7 @@ func snapDown(x float64) int { return int(math.Floor(snap(x))) }
 // interim stand-in for "a bigger business reaches more customers"; territories will
 // replace it here and no call site changes.
 func freeDepth(g Game, cfg Config, r Resource) int {
-	return FreeDepthAtLevel(cfg, r, g.WarehouseLevel)
+	return depthWithUpgrades(g, cfg, r, FreeDepthAtLevel(cfg, r, g.WarehouseLevel))
 }
 
 // FreeDepthAtLevel is the free depth of r at a given warehouse level, for previewing what
@@ -141,7 +141,7 @@ func (g *Game) addPressure(buy bool, r Resource, qty int) {
 		m = &g.BuyPressure
 	}
 	if *m == nil {
-		*m = make(map[Resource]float64, len(Resources))
+		*m = make(map[Resource]float64)
 	}
 	(*m)[r] += float64(qty)
 }

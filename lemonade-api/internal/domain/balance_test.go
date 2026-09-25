@@ -170,7 +170,7 @@ func owner(cfg Config, seed int64, days int, p player) simResult {
 				res.maxedDay = d
 			}
 		}
-		if _, err := EndDay(&g, cfg); err != nil {
+		if _, err := simEndDay(&g, cfg); err != nil {
 			break
 		}
 		if g.Status == StatusBankrupt {
@@ -203,7 +203,7 @@ func careless(cfg Config, seed int64, days int) simResult {
 				}
 			}
 		}
-		if _, err := EndDay(&g, cfg); err != nil {
+		if _, err := simEndDay(&g, cfg); err != nil {
 			break
 		}
 		if g.Status == StatusBankrupt {
@@ -220,7 +220,7 @@ func idle(cfg Config, seed int64, days int) simResult {
 	res := simResult{}
 	for d := 1; d <= days; d++ {
 		res.capital = append(res.capital, g.Capital)
-		if _, err := EndDay(&g, cfg); err != nil {
+		if _, err := simEndDay(&g, cfg); err != nil {
 			break
 		}
 		if g.Status == StatusBankrupt {

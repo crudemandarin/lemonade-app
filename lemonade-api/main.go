@@ -41,6 +41,13 @@ func main() {
 		log.Fatalf("migrate game tables: %v", err)
 	}
 
+	// One-off and idempotent: grant what stored runs already prove (decision TBD, Goals).
+	if n, err := api.BackfillAchievements(context.Background(), gameStore); err != nil {
+		log.Fatalf("backfill achievements: %v", err)
+	} else if n > 0 {
+		log.Printf("achievements backfill granted %d", n)
+	}
+
 	router := gin.Default()
 	api.RegisterHealth(router)
 	api.NewGame(gameStore, domain.DefaultConfig(), nil, opts...).Register(router)

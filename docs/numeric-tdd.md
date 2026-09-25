@@ -115,13 +115,20 @@ Costs, sizes and upkeep are per building.
 
 ### End of day
 
-One atomic step:
+One atomic step, run as twelve named functions in a fixed order (`endday.go`; the late game tracks fill in the empty ones):
 
-1. Produce `min(rate, stock of each input, free lemonade space)`.
-2. Ice melts to 0.
-3. Pay upkeep `Σ buildings × upkeep(level)` (start: $30/day). Upkeep is always owed: a cash shortfall is covered by selling stock at bid (lemonade, lemon, sugar, cup, ice). If that still can't cover it, pay what's left and the game is over.
-4. Day + 1, market walks, events expire then may spawn.
-5. Build the day report.
+1. Managers act (empty until late game Upgrades B).
+2. Produce the main recipe: `min(rate, stock of each input ÷ its quantity, free output space)` batches.
+3. Freezer rotation (empty until Upgrades A).
+4. Commodities with shelf life "melts nightly" (ice) go to 0; perishables spoil (Products B).
+5. Pay upkeep `Σ buildings × upkeep(level)` (start: $30/day). Upkeep is always owed: a cash shortfall is covered by selling stock at bid (lemonade, lemon, sugar, cup, ice). If that still can't cover it, pay what's left and the game is over.
+6. Record the day on the timeline, then the bankruptcy check.
+7. Day + 1, the market forgets part of the player's recent trading.
+8. Events expire then may spawn (economic cycles follow, Empire B).
+9. Every commodity's price walks, in catalog order.
+10. Rivals tick (Empire A). 11. Contract deadlines (Products C). 12. Price log.
+
+Events come before the walk because they share one random stream (`SaltMarket` in `salts.go`); each later random system gets its own salt, so adding one never changes an existing seed's prices.
 
 Bankruptcy is only checked here, so spending to $0 mid-day is legal. After game over every action is rejected until "New game" (replaces the row).
 
@@ -169,18 +176,28 @@ Two tables. Scalars a leaderboard would query are real columns; state that is on
 | `warehouse_level` | int | 1–4, shared by all warehouses |
 | `production_level` | int | 1–4 |
 | `production_qty` | int | production buildings, 1–10 |
-| `warehouse_qty` | JSONB | buildings per resource `{lemon, sugar, ice, cup, lemonade}` |
-| `price_log` | JSONB | one point per day: effective prices after the market tick, and the active event keys; NULL on older rows, seeded on load |
+| `warehouse_qty` | JSONB | buildings per commodity, keyed by catalog key |
+| `price_log` | JSONB | one point per day: effective prices per commodity (object; older rows hold a 5-element array) after the market tick, and the active event keys; NULL on older rows, seeded on load |
 | `buy_pressure` / `sell_pressure` | JSONB | cases the player recently bought and sold per resource (market depth); NULL on older rows, treated as zero |
 | `cost_basis` | JSONB | total dollars paid for the stock of each resource; NULL on older rows, seeded on load |
 | `inventory` | JSONB | cases per resource |
 | `market` | JSONB | per resource: walked price (float), previous effective price, history (≤ 14 days) |
 | `events` | JSONB | active events with days remaining |
-| `timeline` | JSONB | capital and stock snapshot after each action, for the history charts (old days compacted) |
+| `timeline` | JSONB | capital and stock snapshot after each action, for the history charts (old days compacted). Stock is an object keyed by commodity with zeros left out; rows saved before the catalog hold a 5-element array (lemon, sugar, ice, cup, lemonade), still read |
 | `stats` | JSONB | running totals for the game-over summary |
+| `goals` | JSONB | run-scoped facts only achievements read (most lemonade made in a night, longest idle streak, events seen, sales per commodity, and so on); NULL on older rows, treated as zero |
+| `net_worth_day100` | int | nullable: net worth on first arriving at day 100, taken once; NULL before that and on older rows |
 | `updated_at` | timestamp | |
 
-Two more tables hold what must outlive a game row. `day_reports(run_id, day, payload JSONB)`, primary key `(run_id, day)`, has one row per ended day and is never loaded with the game. `runs(id, user_id, run_id unique, difficulty default 3, days, score, net_worth, capital, ended_by, timeline, stats, price_log, created_at)` has one row per finished run, indexed on `(difficulty, score desc)` and `(user_id, created_at desc)`. Both are written in the same transaction as the game change that produced them.
+**Content catalog.** The commodities (key, name, category, storage class, base price, shelf life, input or product, display order) and the recipes (output, output quantity, ordered inputs) are data in `internal/domain/content/`, read into `Config.Commodities` and `Config.Recipes`. The game view carries the catalog as `commodities`, and every per-commodity array in the view (timeline stock, price log prices, base prices) follows its order.
+
+Two more tables hold what must outlive a game row. `day_reports(run_id, day, payload JSONB)`, primary key `(run_id, day)`, has one row per ended day and is never loaded with the game. `runs(id, user_id, run_id unique, difficulty default 3, days, score, net_worth, capital, ended_by, timeline, stats, price_log, created_at)` has one row per finished run, indexed on `(difficulty, score desc)` and `(user_id, created_at desc)`. Both are written in the same transaction as the game change that produced them. `runs` also has a nullable `net_worth_day100` (the game's snapshot, copied at the finish), which is what the day-100 board ranks; runs stored before it existed, and runs that ended earlier, have NULL and are not on that board.
+
+`achievements(user_id, key, run_id, unlocked_at)`, primary key `(user_id, key)`, holds what a player has unlocked. It is keyed by user, so it works for guests and Google accounts alike, and an insert that conflicts is ignored, which makes unlocking idempotent. Unlocks are written through `Effects.Unlocked` in the same transaction as the mutation that earned them. `backfills(name, done_at)` marks one-off data jobs (the achievements backfill) as done.
+
+**Achievements** are the table `content.Achievements` (key, name, description, category, tier, hidden, check). A check is a `content.Predicate`, one of a small closed set of typed checks (net worth, day, a named stat, cash with no stock, stock totals, all warehouses full, a facility maxed, `all_of`, runs finished, a new personal best, board rank, buying or selling at a percentage of base or cost, sales during an event, profit during an event, every event seen, sales without price impact, closing cash in a range, a comeback, going bankrupt holding only one commodity, going bankrupt by a day, giving up with a net worth). `domain.Evaluate(defs, before, after, cfg, ctx)` returns the keys that became true, each once; `ValidatePredicate` checks every row. The facts the game did not keep are in `Game.Goals`: `Buy` and `Sell` update the trading ones as they happen, and `RecordDayFacts` (called by the API layer after `EndDay`, never inside it, so bots and the balance report never see it) updates the end-of-day ones. Nothing in the rules reads `Goals`.
+
+**Retroactive grant (backfill).** At startup, once (`backfills` marker), `BackfillAchievements` grants what stored runs prove, dated when the proving run finished (`domain.ProvenByRuns`). A stored run keeps only its final state and totals, so it proves: net worth (the final value, or the cash peak), days reached, the totals in `stats` (made, buildings bought, upgrades, buildings sold), runs finished, a new personal best, the global top 10 (credited to the best run), going bankrupt by day 3, giving up rich, and `speedrun` (net worth $10,000 by day 15, when the run itself ended that early). It cannot prove anything about a single day or moment (a record day, comeback, close call, streaks, stock levels, trading and event goals), so those unlock only in new play.
 
 ## 5. API
 
@@ -201,12 +218,16 @@ JSON, camelCase. The contract is `lemonade-web/src/app/core/api.models.ts`.
 | `POST /api/game/facilities/{warehouse\|production}/upgrade` | upgrade whole type |
 | `GET /api/game/reports[?runId=]` · `GET /api/game/reports/{day}[?runId=]` | ended days of the current run (or of a finished run of the same player): a light list, or one full report; another player's run is a 404 |
 | `GET /api/scores[?limit=]` | global board: one row per player (their best finished run), best first, an earlier finish wins a tie; `limit` 1 to 100 (default 20), 400 `invalid_limit` if not a number. Also returns `me`, the caller's own row and rank even below the rows shown |
+| `GET /api/scores?board=all_time\|day_100` | `board` defaults to `all_time`; `day_100` ranks each player's best net worth on arriving at day 100 (a row's `score` is that value and `days` is 100), same shape and the same tie-break; 400 `invalid_board`. Runs without a snapshot are left off. Every row also carries `achievements`, the player's unlocked count |
+| `GET /api/achievements` | every definition with the caller's unlocked state, date and run, and `progress` for measurable ones in the current game; a locked hidden entry has a null `name` and `description`; `[categories, achievements, unlockedCount, total]` |
 | `GET /api/runs` · `GET /api/runs/{runId}` | the caller's finished runs, newest first with the best flagged; one run in full (score, stats, timeline, price log, report index). Another player's run, an unfinished run and an unknown one are all a 404 |
 | `GET /api/game/quote?resource=&side=buy\|sell&qty=[&clamp=true]` | prices a trade with price impact without making it: total, average price, slippage; 400 for a bad resource, side or quantity |
 | `POST /api/game/new` | start a fresh run; 409 `run_active` unless the last one is over (bankrupt or given up) |
 | `POST /api/game/give-up` | end the run (`status: gave_up`) and record it; the score is the net worth at that moment |
 | `POST /api/game/facilities/warehouse/sell {resource}` · `.../production/sell` | sell one building back at `ResaleRate` of its build cost; 409 `min_facility` or `stock_exceeds_capacity` |
 | `POST /api/game/end-day` | `{report, game}` |
+
+Every mutation response carries `unlocked: [{key, name, tier}]` on the game view (an empty list when nothing unlocked), which the UI shows as toasts, and a run's detail lists the achievements that run unlocked.
 | `GET /api/health` | liveness only (Cloud Run reserves `/healthz`) |
 
 The view is display-ready (tier names, bid/ask, capacities, costs, `upgrade: null` at max level), so the client never recomputes rules.

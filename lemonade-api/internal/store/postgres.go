@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	"gorm.io/gorm"
@@ -41,7 +42,7 @@ type pointRow struct {
 	Amount   int    `json:"a,omitempty"`
 	Produced int    `json:"p,omitempty"`
 	Capital  int    `json:"c"`
-	Stock    [5]int `json:"s"`
+	Stock    counts `json:"s"`
 }
 
 type statsRow struct {
@@ -62,7 +63,7 @@ type statsRow struct {
 
 type priceRow struct {
 	Day    int      `json:"day"`
-	Prices [5]int   `json:"prices"`
+	Prices counts   `json:"prices"`
 	Events []string `json:"events"`
 }
 
@@ -100,6 +101,16 @@ type gameRow struct {
 	Stats        statsRow             `gorm:"type:jsonb;serializer:json"`
 	// PriceLog is NULL on rows saved before it existed; fromRow seeds those.
 	PriceLog []priceRow `gorm:"type:jsonb;serializer:json"`
+	// Upgrades, UpgradeSpend, IceOld and Carry are NULL on rows saved before upgrades
+	// existed: nothing owned, nothing kept, no fractions carried.
+	Upgrades     map[string]int `gorm:"type:jsonb;serializer:json"`
+	UpgradeSpend int
+	IceOld       int
+	Carry        map[string]float64 `gorm:"type:jsonb;serializer:json"`
+	// Goals are the achievement facts; NULL (all zero) on rows saved before they existed.
+	Goals domain.GoalStats `gorm:"type:jsonb;serializer:json"`
+	// NetWorthDay100 is NULL until the run reaches day 100 (and on older rows).
+	NetWorthDay100 *int `gorm:"column:net_worth_day100"`
 
 	UpdatedAt time.Time
 }
@@ -130,10 +141,32 @@ type runRow struct {
 	Timeline   []pointRow `gorm:"type:jsonb;serializer:json"`
 	Stats      statsRow   `gorm:"type:jsonb;serializer:json"`
 	PriceLog   []priceRow `gorm:"type:jsonb;serializer:json"`
-	CreatedAt  time.Time  `gorm:"index:idx_runs_user_created,priority:2,sort:desc"`
+	// NetWorthDay100 is the net worth on arriving at day 100; NULL when the run ended
+	// earlier and for runs stored before the day-100 board existed.
+	NetWorthDay100 *int      `gorm:"column:net_worth_day100"`
+	CreatedAt      time.Time `gorm:"index:idx_runs_user_created,priority:2,sort:desc"`
 }
 
 func (runRow) TableName() string { return "runs" }
+
+// achievementRow is one achievement a player has unlocked, with the run it came from.
+// The key is unique per player, so unlocking twice is a no-op.
+type achievementRow struct {
+	UserID     uint   `gorm:"primaryKey;autoIncrement:false"`
+	Key        string `gorm:"primaryKey"`
+	RunID      string
+	UnlockedAt time.Time `gorm:"not null"`
+}
+
+func (achievementRow) TableName() string { return "achievements" }
+
+// backfillRow marks a one-off data job as done.
+type backfillRow struct {
+	Name   string `gorm:"primaryKey"`
+	DoneAt time.Time
+}
+
+func (backfillRow) TableName() string { return "backfills" }
 
 // Postgres implements Repository on GORM.
 type Postgres struct {
@@ -146,7 +179,7 @@ func NewPostgres(db *gorm.DB) *Postgres {
 
 // Migrate creates or updates the users and games tables.
 func (p *Postgres) Migrate() error {
-	return p.db.AutoMigrate(&userRow{}, &gameRow{}, &dayReportRow{}, &runRow{})
+	return p.db.AutoMigrate(&userRow{}, &gameRow{}, &dayReportRow{}, &runRow{}, &achievementRow{}, &backfillRow{})
 }
 
 func (p *Postgres) FindUser(ctx context.Context, username string) (domain.User, error) {
@@ -392,18 +425,28 @@ func saveEffects(tx *gorm.DB, userID uint, g domain.Game, e domain.Effects) erro
 			UserID: userID, RunID: r.RunID, Difficulty: 3, Days: r.Days, Score: r.Score,
 			NetWorth: r.NetWorth, Capital: r.Capital, EndedBy: r.EndedBy,
 			Timeline: make([]pointRow, 0, len(r.Timeline)), Stats: statsRow(r.Stats),
-			PriceLog: make([]priceRow, 0, len(r.PriceLog)),
+			PriceLog: make([]priceRow, 0, len(r.PriceLog)), NetWorthDay100: r.NetWorthDay100,
 		}
 		for _, p := range r.Timeline {
 			row.Timeline = append(row.Timeline, pointRow{
 				Day: p.Day, Kind: string(p.Kind), Resource: string(p.Resource), Facility: string(p.Facility),
-				Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock,
+				Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: toCounts(p.Stock),
 			})
 		}
 		for _, pp := range r.PriceLog {
-			row.PriceLog = append(row.PriceLog, priceRow{Day: pp.Day, Prices: pp.Prices, Events: pp.Events})
+			row.PriceLog = append(row.PriceLog, priceRow{Day: pp.Day, Prices: toCounts(pp.Prices), Events: pp.Events})
 		}
 		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&row).Error; err != nil {
+			return err
+		}
+	}
+	if len(e.Unlocked) > 0 {
+		now := time.Now()
+		rows := make([]achievementRow, 0, len(e.Unlocked))
+		for _, key := range e.Unlocked {
+			rows = append(rows, achievementRow{UserID: userID, Key: key, RunID: g.RunID, UnlockedAt: now})
+		}
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&rows).Error; err != nil {
 			return err
 		}
 	}
@@ -430,15 +473,27 @@ func toRow(g domain.Game) gameRow {
 		Timeline:        make([]pointRow, 0, len(g.Timeline)),
 		PriceLog:        make([]priceRow, 0, len(g.PriceLog)),
 		Stats:           statsRow(g.Stats),
+		Upgrades:        make(map[string]int, len(g.Upgrades)),
+		UpgradeSpend:    g.UpgradeSpend,
+		IceOld:          g.IceOld,
+		Carry:           make(map[string]float64, len(g.Carry)),
+		Goals:           g.Goals,
+		NetWorthDay100:  g.NetWorthDay100,
+	}
+	for k, v := range g.Upgrades {
+		row.Upgrades[k] = v
+	}
+	for k, v := range g.Carry {
+		row.Carry[k] = v
 	}
 	for _, p := range g.Timeline {
 		row.Timeline = append(row.Timeline, pointRow{
 			Day: p.Day, Kind: string(p.Kind), Resource: string(p.Resource), Facility: string(p.Facility),
-			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock,
+			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: toCounts(p.Stock),
 		})
 	}
 	for _, pp := range g.PriceLog {
-		row.PriceLog = append(row.PriceLog, priceRow{Day: pp.Day, Prices: pp.Prices, Events: pp.Events})
+		row.PriceLog = append(row.PriceLog, priceRow{Day: pp.Day, Prices: toCounts(pp.Prices), Events: pp.Events})
 	}
 	for r, n := range g.Inventory {
 		row.Inventory[string(r)] = n
@@ -492,15 +547,27 @@ func fromRow(row gameRow) domain.Game {
 		WarehouseQty:    make(map[domain.Resource]int, len(row.WarehouseQty)),
 		Market:          make(map[domain.Resource]*domain.ResourceMarket, len(row.Market)),
 		Stats:           domain.Stats(row.Stats),
+		Upgrades:        make(map[string]int, len(row.Upgrades)),
+		UpgradeSpend:    row.UpgradeSpend,
+		IceOld:          row.IceOld,
+		Carry:           make(map[string]float64, len(row.Carry)),
+		Goals:           row.Goals,
+		NetWorthDay100:  row.NetWorthDay100,
+	}
+	for k, v := range row.Upgrades {
+		g.Upgrades[k] = v
+	}
+	for k, v := range row.Carry {
+		g.Carry[k] = v
 	}
 	for _, p := range row.Timeline {
 		g.Timeline = append(g.Timeline, domain.TimelinePoint{
 			Day: p.Day, Kind: domain.PointKind(p.Kind), Resource: domain.Resource(p.Resource), Facility: domain.FacilityType(p.Facility),
-			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock,
+			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: fromCounts(p.Stock),
 		})
 	}
 	for _, pp := range row.PriceLog {
-		g.PriceLog = append(g.PriceLog, domain.PricePoint{Day: pp.Day, Prices: pp.Prices, Events: pp.Events})
+		g.PriceLog = append(g.PriceLog, domain.PricePoint{Day: pp.Day, Prices: fromCounts(pp.Prices), Events: pp.Events})
 	}
 	for r, n := range row.Inventory {
 		g.Inventory[domain.Resource(r)] = n
@@ -551,17 +618,33 @@ func fromRow(row gameRow) domain.Game {
 // scoreSQL ranks each player's best finished run: highest score first, an earlier
 // finish winning a tie (and the row id settling the rest). DISTINCT ON keeps one run
 // per user; ROW_NUMBER gives the rank, so a player far down the board still has one.
-const scoreSQL = `
-WITH best AS (
-  SELECT DISTINCT ON (user_id) id, user_id, run_id, score, days, net_worth, created_at
+func scoreSQL(board Board) string {
+	if board == BoardDay100 {
+		// The day-100 board ranks the net worth on arriving at day 100; runs without one
+		// (ended earlier, or stored before the board existed) are left off.
+		return boardSQL(`SELECT DISTINCT ON (user_id) id, user_id, run_id, net_worth_day100 AS score,
+    ` + strconv.Itoa(domain.BoardDay) + ` AS days, net_worth_day100 AS net_worth, created_at
   FROM runs
-  ORDER BY user_id, score DESC, created_at ASC, id ASC
+  WHERE net_worth_day100 IS NOT NULL
+  ORDER BY user_id, net_worth_day100 DESC, created_at ASC, id ASC`)
+	}
+	return boardSQL(`SELECT DISTINCT ON (user_id) id, user_id, run_id, score, days, net_worth, created_at
+  FROM runs
+  ORDER BY user_id, score DESC, created_at ASC, id ASC`)
+}
+
+func boardSQL(best string) string {
+	return `
+WITH best AS (
+  ` + best + `
 ), ranked AS (
   SELECT ROW_NUMBER() OVER (ORDER BY b.score DESC, b.created_at ASC, b.id ASC) AS rank,
-         b.user_id, u.username, b.run_id, b.score, b.days, b.net_worth, b.created_at
+         b.user_id, u.username, b.run_id, b.score, b.days, b.net_worth, b.created_at,
+         (SELECT COUNT(*) FROM achievements a WHERE a.user_id = b.user_id) AS achievements
   FROM best b JOIN users u ON u.id = b.user_id
 )
-SELECT rank, user_id, username, run_id, score, days, net_worth, created_at FROM ranked`
+SELECT rank, user_id, username, run_id, score, days, net_worth, created_at, achievements FROM ranked`
+}
 
 type scoreScan struct {
 	Rank      int
@@ -572,11 +655,17 @@ type scoreScan struct {
 	Days      int
 	NetWorth  int
 	CreatedAt time.Time
+	// Achievements is how many achievements the player has unlocked.
+	Achievements int
 }
 
 func (p *Postgres) TopScores(ctx context.Context, limit int) ([]ScoreRow, error) {
+	return p.TopBoard(ctx, BoardAllTime, limit)
+}
+
+func (p *Postgres) TopBoard(ctx context.Context, board Board, limit int) ([]ScoreRow, error) {
 	var scans []scoreScan
-	if err := p.db.WithContext(ctx).Raw(scoreSQL+" ORDER BY rank LIMIT ?", limit).Scan(&scans).Error; err != nil {
+	if err := p.db.WithContext(ctx).Raw(scoreSQL(board)+" ORDER BY rank LIMIT ?", limit).Scan(&scans).Error; err != nil {
 		return nil, err
 	}
 	out := make([]ScoreRow, 0, len(scans))
@@ -587,8 +676,12 @@ func (p *Postgres) TopScores(ctx context.Context, limit int) ([]ScoreRow, error)
 }
 
 func (p *Postgres) BestScore(ctx context.Context, userID uint) (*ScoreRow, error) {
+	return p.BestOnBoard(ctx, BoardAllTime, userID)
+}
+
+func (p *Postgres) BestOnBoard(ctx context.Context, board Board, userID uint) (*ScoreRow, error) {
 	var scans []scoreScan
-	if err := p.db.WithContext(ctx).Raw(scoreSQL+" WHERE user_id = ?", userID).Scan(&scans).Error; err != nil {
+	if err := p.db.WithContext(ctx).Raw(scoreSQL(board)+" WHERE user_id = ?", userID).Scan(&scans).Error; err != nil {
 		return nil, err
 	}
 	if len(scans) == 0 {
@@ -631,11 +724,11 @@ func (p *Postgres) GetRun(ctx context.Context, userID uint, runID string) (RunDe
 	for _, p := range row.Timeline {
 		rec.Timeline = append(rec.Timeline, domain.TimelinePoint{
 			Day: p.Day, Kind: domain.PointKind(p.Kind), Resource: domain.Resource(p.Resource), Facility: domain.FacilityType(p.Facility),
-			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock,
+			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: fromCounts(p.Stock),
 		})
 	}
 	for _, pp := range row.PriceLog {
-		rec.PriceLog = append(rec.PriceLog, domain.PricePoint{Day: pp.Day, Prices: pp.Prices, Events: pp.Events})
+		rec.PriceLog = append(rec.PriceLog, domain.PricePoint{Day: pp.Day, Prices: fromCounts(pp.Prices), Events: pp.Events})
 	}
 	return RunDetail{RunRecord: rec, CreatedAt: row.CreatedAt}, nil
 }

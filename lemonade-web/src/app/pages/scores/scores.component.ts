@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-import { RunSummary, ScoreRow } from '../../core/api.models';
+import { Board, RunSummary, ScoreRow } from '../../core/api.models';
 import { ScoresService } from '../../core/scores.service';
 import { CardComponent } from '../../shared/card/card.component';
 import { MoneyPipe } from '../../shared/money.pipe';
@@ -26,6 +26,8 @@ export class ScoresComponent implements OnInit {
   private readonly scores = inject(ScoresService);
 
   protected readonly tab = signal<Tab>('global');
+  /** Which global board is shown: the all-time best run, or net worth on reaching day 100. */
+  protected readonly board = signal<Board>('all_time');
 
   protected readonly globalState = signal<Load>('loading');
   protected readonly rows = signal<ScoreRow[]>([]);
@@ -48,10 +50,19 @@ export class ScoresComponent implements OnInit {
     }
   }
 
+  protected selectBoard(board: Board): void {
+    this.board.set(board);
+    this.loadGlobal();
+  }
+
   protected async loadGlobal(): Promise<void> {
     this.globalState.set('loading');
+    const requested = this.board();
     try {
-      const board = await this.scores.scores();
+      const board = await this.scores.scores(undefined, requested);
+      if (requested !== this.board()) {
+        return; // the player switched boards while this one was loading
+      }
       this.rows.set(board.rows);
       const inRows = board.me !== null && board.rows.some((r) => r.isMe);
       this.meBelow.set(board.me && !inRows ? board.me : null);

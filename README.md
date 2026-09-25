@@ -222,6 +222,10 @@ Setup for a real GCP project is a one-time runbook in [deploy/README.md](deploy/
 
 Google Cloud (Cloud Run + Cloud SQL), see [deploy/](deploy/README.md). Pushes to `main` redeploy automatically. Google sign-in needs the one-time Firebase setup (see Sign in); username play works without it.
 
+## Achievements and leaderboards
+
+Cosmetic achievements (42 goals across wealth, survival, production, facilities, trading and oddities, some hidden) unlock as you play and stay with your account. A toast announces each unlock, the Awards page lists them with progress, a run's page lists what it unlocked, and the global board shows each player's count. The board has two views: all-time best run, and best net worth on arriving at day 100. The achievement table is data in [lemonade-api/internal/domain/content/achievements.go](lemonade-api/internal/domain/content/achievements.go), with typed checks evaluated in `internal/domain/achievements.go`. On first start the API grants what already-finished runs prove (see the design doc, section 4).
+
 ## Tuning the game
 
 All balance numbers (prices, volatility, events, facility costs and upkeep) are one struct: `DefaultConfig()` in [lemonade-api/internal/domain/config.go](lemonade-api/internal/domain/config.go). Change a value and restart the API (`docker compose up -d --build api`); the frontend needs no changes. The values, what each knob does and the balance analysis are in the [technical design doc, section 9](docs/numeric-tdd.md#9-balance-and-tuning).
@@ -231,6 +235,8 @@ cd lemonade-api
 go test ./internal/domain                                            # balance guard-rail tests
 BALANCE_REPORT=1 go test ./internal/domain -run TestBalanceReport -v # full report
 ```
+
+The commodities and recipes are data tables in [lemonade-api/internal/domain/content/](lemonade-api/internal/domain/content/) (`commodities.go`, `recipes.go`), each with a validation test. A commodity's base price there seeds `Config.BasePrice`, which stays the tuning knob. Keep the first five commodities in their order: timelines saved before the catalog store stock as arrays in that order.
 
 Changing a price, cost or upkeep also changes a few exact numbers asserted in the API and domain tests (for example the $775 first warehouse upgrade); update those alongside.
 

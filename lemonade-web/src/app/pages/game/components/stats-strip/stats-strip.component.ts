@@ -1,7 +1,7 @@
 import { Component, computed, input, output } from '@angular/core';
 
 import { Projection } from '../../../../core/api.models';
-import { RESOURCE_LABELS } from '../../../../core/resources';
+import { resourceLabel } from '../../../../core/resources';
 import { HelpLinkComponent } from '../../../../shared/help/help-link.component';
 import { IconComponent } from '../../../../shared/icon/icon.component';
 import { MoneyPipe } from '../../../../shared/money.pipe';
@@ -29,7 +29,7 @@ export class StatsStripComponent {
     if (limit === '') return '';
     if (limit === 'production') return 'Limited by production capacity';
     if (limit === 'space') return 'Limited by lemonade storage space';
-    return `Limited by ${RESOURCE_LABELS[limit].toLowerCase()}`;
+    return `Limited by ${resourceLabel(limit).toLowerCase()}`;
   });
 
   protected readonly reading = computed(() => {

@@ -38,6 +38,11 @@ func repoContract(t *testing.T, repo Repository, username string) {
 	if len(game.Timeline) != 4 || game.Stats.CasesBought != 2 {
 		t.Fatalf("test setup: timeline=%d stats=%+v", len(game.Timeline), game.Stats)
 	}
+	game.Capital = 50_000
+	if err := domain.BuyUpgrade(&game, cfg, "freezer_1"); err != nil {
+		t.Fatal(err)
+	}
+	game.IceOld, game.Carry["yield:lemonade"] = 7, 0.25
 	game.Events = []domain.ActiveEvent{{
 		Key: "heat_wave", Name: "Heat Wave", DaysLeft: 2,
 		Multipliers: map[domain.Resource]float64{domain.Lemonade: 1.4},
@@ -191,7 +196,7 @@ func TestPostgresLoadsAnOldShapeRow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Exec("UPDATE games SET cost_basis = NULL, price_log = NULL, buy_pressure = NULL, sell_pressure = NULL WHERE user_id = ?", user.ID).Error; err != nil {
+	if err := db.Exec("UPDATE games SET cost_basis = NULL, price_log = NULL, buy_pressure = NULL, sell_pressure = NULL, upgrades = NULL, upgrade_spend = NULL, ice_old = NULL, carry = NULL WHERE user_id = ?", user.ID).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -204,6 +209,9 @@ func TestPostgresLoadsAnOldShapeRow(t *testing.T) {
 	}
 	if len(got.BuyPressure) != 0 || len(got.SellPressure) != 0 {
 		t.Fatalf("an old row should load with no pressure: %v %v", got.BuyPressure, got.SellPressure)
+	}
+	if got.Upgrades == nil || len(got.Upgrades) != 0 || got.IceOld != 0 || got.UpgradeSpend != 0 || len(got.Carry) != 0 {
+		t.Fatalf("an old row should load with no upgrades: %+v %d", got.Upgrades, got.IceOld)
 	}
 	if len(got.PriceLog) != 1 || got.PriceLog[0].Day != 1 {
 		t.Fatalf("seeded price log = %+v", got.PriceLog)
@@ -368,7 +376,7 @@ func scoresContract(t *testing.T, repo Repository, prefix string) {
 			RunID: prefix + "-" + runID, Days: days, Score: base + score, NetWorth: base + score,
 			Capital: 100, EndedBy: endedBy,
 			Timeline: []domain.TimelinePoint{{Day: 1, Kind: domain.PointStart, Capital: 1000}},
-			PriceLog: []domain.PricePoint{{Day: 1, Prices: [5]int{20, 10, 10, 10, 90}}},
+			PriceLog: []domain.PricePoint{{Day: 1, Prices: map[domain.Resource]int{domain.Lemon: 20, domain.Sugar: 10, domain.Ice: 10, domain.Cup: 10, domain.Lemonade: 90}}},
 		}
 		if _, err := repo.Mutate(ctx, users[name].ID, func(g *domain.Game) (domain.Effects, error) {
 			return domain.Effects{Finished: &rec}, nil

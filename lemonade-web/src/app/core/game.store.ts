@@ -2,9 +2,17 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, firstValueFrom, from } from 'rxjs';
 
 import { apiErrorMessage } from './api-error';
-import { DayReport, FacilityType, GameView, ReportSummary, Resource } from './api.models';
+import {
+  DayReport,
+  FacilityType,
+  GameView,
+  ReportSummary,
+  Resource,
+  UpgradesResponse,
+} from './api.models';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
+import { ToastService } from './toast.service';
 
 /**
  * The single source of game state in the UI. Every mutation returns the updated
@@ -14,6 +22,7 @@ import { AuthService } from './auth.service';
 export class GameStore {
   private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
+  private readonly toasts = inject(ToastService);
 
   private readonly _game = signal<GameView | null>(null);
   private readonly _report = signal<DayReport | null>(null);
@@ -79,6 +88,16 @@ export class GameStore {
     return this.update(this.api.upgrade(type));
   }
 
+  /** The upgrade list is read on demand and kept out of the game state. Rejects on failure. */
+  upgradeList(): Promise<UpgradesResponse> {
+    return firstValueFrom(this.api.upgrades());
+  }
+
+  /** Buys an upgrade; the game view (cash, features, upkeep) comes back with it. */
+  buyUpgrade(key: string): Promise<void> {
+    return this.update(this.api.buyUpgrade(key));
+  }
+
   /** Past days are read on demand and kept out of the game state. Rejects on failure. */
   reportSummaries(): Promise<ReportSummary[]> {
     return firstValueFrom(this.api.listReports());
@@ -97,6 +116,7 @@ export class GameStore {
     if (res) {
       this._game.set(res.game);
       this._report.set(res.report);
+      this.toasts.unlocked(res.game.unlocked);
     }
   }
 
@@ -112,6 +132,7 @@ export class GameStore {
     const game = await this.run(request);
     if (game) {
       this._game.set(game);
+      this.toasts.unlocked(game.unlocked);
     }
   }
 

@@ -1,7 +1,18 @@
 // API contract between lemonade-web and lemonade-api. The backend must return exactly
 // these shapes. All money is whole dollars (integers); quantities are cases.
 
-export type Resource = 'lemon' | 'sugar' | 'ice' | 'cup' | 'lemonade';
+/** A commodity key from the server's catalog (see `Commodity`). */
+export type Resource = string;
+
+/** One catalog entry. Per-commodity arrays (timeline stock, price log prices, base prices) follow the catalog order. */
+export interface Commodity {
+  key: Resource;
+  name: string;
+  category: string;
+  storageClass: string;
+  isProduct: boolean;
+  order: number;
+}
 export type FacilityType = 'warehouse' | 'production';
 export type GameStatus = 'active' | 'bankrupt' | 'gave_up';
 
@@ -35,6 +46,8 @@ export interface ResourceView {
   avgCost: number;
   /** Stock value at the bid minus what it cost; negative is a loss. 0 when none is held. */
   unrealizedGain: number;
+  /** The 7-day average price in whole dollars; null without a market analyst. */
+  movingAverage: number | null;
 }
 
 /** What a trade of some size costs (buy) or raises (sell), as the server prices it. */
@@ -204,11 +217,66 @@ export interface GameView {
   priceLog: PricePoint[];
   /** Long-run prices in the same order as `PricePoint.prices`, for the "% of base" view. */
   basePrices: number[];
+  /** The commodity catalog, in display order. */
+  commodities: Commodity[];
   netWorth: NetWorth;
   /** Names this playthrough. */
   runId: string;
   /** The player's top finished run, or null before they have finished one. */
   best: Best | null;
+  /** Convenience features turned on by upgrades, for example `pnl`, `repeat_trades`, `price_alerts`. */
+  features: string[];
+  /** Cases of ice the freezers keep overnight (0 without one). */
+  iceKeepCases: number;
+  /** Events the player's upgrades let them see coming, soonest first. */
+  forecast: ForecastEntry[];
+  /** Achievements this response's mutation just earned; `[]` on a plain read. */
+  unlocked: UnlockedAchievement[];
+}
+
+/** An event that will start `daysAhead` days from now (1 is tomorrow). */
+export interface ForecastEntry {
+  daysAhead: number;
+  key: string;
+  name: string;
+  duration: number;
+}
+
+export type AchievementTier = 'bronze' | 'silver' | 'gold';
+
+/** One achievement a mutation just unlocked, for the toast. */
+export interface UnlockedAchievement {
+  key: string;
+  name: string;
+  tier: AchievementTier;
+}
+
+export interface AchievementCategory {
+  key: string;
+  name: string;
+}
+
+/** One row of the achievements page. A locked hidden row has a null name and description. */
+export interface Achievement {
+  key: string;
+  name: string | null;
+  description: string | null;
+  category: string;
+  tier: AchievementTier;
+  hidden: boolean;
+  unlocked: boolean;
+  unlockedAt: string | null;
+  /** The run that unlocked it. */
+  runId: string | null;
+  /** How far the current game is, for measurable goals; null otherwise or once unlocked. */
+  progress: { current: number; target: number } | null;
+}
+
+export interface AchievementsResponse {
+  categories: AchievementCategory[];
+  achievements: Achievement[];
+  unlockedCount: number;
+  total: number;
 }
 
 export type EndedBy = 'bankrupt' | 'gave_up';
@@ -223,9 +291,16 @@ export interface ScoreRow {
   createdAt: string;
   /** The caller's own row. */
   isMe: boolean;
+  /** How many achievements the player has unlocked. */
+  achievements: number;
 }
 
+/** all_time ranks each player's best finished run; day_100 their net worth on reaching day 100. */
+export type Board = 'all_time' | 'day_100';
+
 export interface ScoresResponse {
+  /** The board these rows belong to. */
+  board: Board;
   rows: ScoreRow[];
   /** The caller's own best row and rank, even below the rows shown; null with no finished run. */
   me: ScoreRow | null;
@@ -250,14 +325,19 @@ export interface RunDetail extends RunSummary {
   timeline: TimelinePoint[];
   priceLog: PricePoint[];
   basePrices: number[];
+  commodities: Commodity[];
   /** The run's ended days, as the past-days list returns them. */
   reports: ReportSummary[];
+  /** The achievements this run unlocked. */
+  achievements: UnlockedAchievement[];
 }
 
 /** `limitedBy` is a resource, `production`, `space`, or empty when production capacity is 0. */
 export interface Projection {
   lemonadeToProduce: number;
   iceToMelt: number;
+  /** Ice a freezer will keep for tomorrow (part of what would otherwise melt). */
+  iceKept: number;
   limitedBy: Resource | 'production' | 'space' | '';
 }
 
@@ -293,7 +373,16 @@ export interface DayReport {
   day: number;
   produced: number;
   iceMelted: number;
+  /** Ice the freezer kept for the next day. */
+  iceKept: number;
   upkeepPaid: number;
+  /** The part of upkeep owed for upgrades. */
+  upgradeUpkeep: number;
+  /** Ice made overnight by an ice machine, and what it cost. */
+  iceMade: number;
+  iceMadeCost: number;
+  /** The bookkeeper's profit and loss for the day; null without a bookkeeper. */
+  pnl: Pnl | null;
   /** Stock sold at bid because cash alone could not cover upkeep (0 when none). */
   forcedSaleCases: number;
   forcedSaleProceeds: number;
@@ -303,6 +392,47 @@ export interface DayReport {
   newEvents: GameEvent[];
   expiredEvents: GameEvent[];
   bankrupt: boolean;
+}
+
+export interface Pnl {
+  sales: number;
+  purchases: number;
+  facilities: number;
+  upkeep: number;
+  iceMade: number;
+  net: number;
+}
+
+export type UpgradeState = 'owned' | 'available' | 'locked';
+export type UpgradeLockCode = 'era' | 'warehouse_level' | 'production_level' | 'requires_upgrade';
+
+/** One upgrade on the Upgrades page. `lockedReason` is plain words, set only when locked. */
+export interface UpgradeItem {
+  key: string;
+  name: string;
+  category: string;
+  era: number;
+  cost: number;
+  upkeep: number;
+  text: string;
+  state: UpgradeState;
+  lockCode: UpgradeLockCode | '';
+  lockedReason: string;
+}
+
+export interface UpgradeCategory {
+  key: string;
+  name: string;
+}
+
+/** GET /api/game/upgrades. */
+export interface UpgradesResponse {
+  era: number;
+  categories: UpgradeCategory[];
+  upgrades: UpgradeItem[];
+  ownedCount: number;
+  spent: number;
+  upkeepPerDay: number;
 }
 
 export interface EndDayResponse {

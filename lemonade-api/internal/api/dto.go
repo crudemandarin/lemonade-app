@@ -36,6 +36,8 @@ type resourceViewDTO struct {
 	AvgCost int `json:"avgCost"`
 	// UnrealizedGain is stock value at the bid minus what it cost; negative is a loss.
 	UnrealizedGain int `json:"unrealizedGain"`
+	// MovingAverage is the 7-day average price, whole dollars; null without a market analyst.
+	MovingAverage *int `json:"movingAverage"`
 }
 
 // tradeQuoteDTO is what a trade of some size would cost or raise.
@@ -155,8 +157,40 @@ type gameEventDTO struct {
 	DaysLeft    int                         `json:"daysLeft"`
 }
 
-// timelinePointDTO is the state right after one action; stock is in the order
-// lemon, sugar, ice, cup, lemonade.
+// commodityDTO is one catalog entry. The view lists them in display order, and every
+// per-commodity array in the view (timeline stock, price log prices, base prices)
+// follows that order.
+type commodityDTO struct {
+	Key          domain.Resource `json:"key"`
+	Name         string          `json:"name"`
+	Category     string          `json:"category"`
+	StorageClass string          `json:"storageClass"`
+	IsProduct    bool            `json:"isProduct"`
+	Order        int             `json:"order"`
+}
+
+func toCommodityDTOs(cfg domain.Config) []commodityDTO {
+	out := make([]commodityDTO, 0, len(cfg.Commodities))
+	for _, c := range cfg.Commodities {
+		out = append(out, commodityDTO{
+			Key: c.Key, Name: c.Name, Category: c.Category, StorageClass: c.StorageClass,
+			IsProduct: c.Product, Order: c.Order,
+		})
+	}
+	return out
+}
+
+// inCatalogOrder lists a per-commodity map as an array in catalog order.
+func inCatalogOrder(m map[domain.Resource]int, cfg domain.Config) []int {
+	out := make([]int, 0, len(cfg.Commodities))
+	for _, r := range cfg.Resources() {
+		out = append(out, m[r])
+	}
+	return out
+}
+
+// timelinePointDTO is the state right after one action; stock is in catalog order
+// (see commodities).
 type timelinePointDTO struct {
 	Day      int    `json:"day"`
 	Kind     string `json:"kind"`
@@ -185,8 +219,8 @@ type statsDTO struct {
 	PeakDay          int `json:"peakDay"`
 }
 
-// pricePointDTO is one day of the price chart: prices in the order lemon, sugar,
-// ice, cup, lemonade, and the names of the events active that day.
+// pricePointDTO is one day of the price chart: prices in catalog order, and the
+// names of the events active that day.
 type pricePointDTO struct {
 	Day    int      `json:"day"`
 	Prices []int    `json:"prices"`
@@ -218,8 +252,34 @@ type gameViewDTO struct {
 	// RunID names this playthrough; Best is the player's top finished run so far (null if none).
 	RunID string   `json:"runId"`
 	Best  *bestDTO `json:"best"`
-	// BasePrices are the long-run prices (lemon, sugar, ice, cup, lemonade), for the "% of base" view.
+	// BasePrices are the long-run prices in catalog order, for the "% of base" view.
 	BasePrices []int `json:"basePrices"`
+	// Commodities is the catalog, in display order.
+	Commodities []commodityDTO `json:"commodities"`
+	// Features are the convenience features turned on by upgrades (for example pnl,
+	// repeat_trades); IceKeepCases is what the freezers keep overnight; Forecast is
+	// the events the player's upgrades let them see coming.
+	Features     []string      `json:"features"`
+	IceKeepCases int           `json:"iceKeepCases"`
+	Forecast     []forecastDTO `json:"forecast"`
+	// Unlocked are the achievements this response's mutation just earned ([] otherwise).
+	Unlocked []unlockedDTO `json:"unlocked"`
+}
+
+type forecastDTO struct {
+	DaysAhead int    `json:"daysAhead"`
+	Key       string `json:"key"`
+	Name      string `json:"name"`
+	Duration  int    `json:"duration"`
+}
+
+type pnlDTO struct {
+	Sales      int `json:"sales"`
+	Purchases  int `json:"purchases"`
+	Facilities int `json:"facilities"`
+	Upkeep     int `json:"upkeep"`
+	IceMade    int `json:"iceMade"`
+	Net        int `json:"net"`
 }
 
 type priceChangeDTO struct {
@@ -232,7 +292,14 @@ type dayReportDTO struct {
 	Day        int `json:"day"`
 	Produced   int `json:"produced"`
 	IceMelted  int `json:"iceMelted"`
+	IceKept    int `json:"iceKept"`
 	UpkeepPaid int `json:"upkeepPaid"`
+	// UpgradeUpkeep is the part of upkeep owed for upgrades; IceMade and IceMadeCost
+	// are the ice machine's night; Pnl is the bookkeeper's line (null without one).
+	UpgradeUpkeep int     `json:"upgradeUpkeep"`
+	IceMade       int     `json:"iceMade"`
+	IceMadeCost   int     `json:"iceMadeCost"`
+	Pnl           *pnlDTO `json:"pnl"`
 	// Stock sold at bid because cash alone could not cover upkeep (0 when none).
 	ForcedSaleCases    int              `json:"forcedSaleCases"`
 	ForcedSaleProceeds int              `json:"forcedSaleProceeds"`
@@ -284,14 +351,15 @@ type errorDTO struct {
 type projectionDTO struct {
 	LemonadeToProduce int    `json:"lemonadeToProduce"`
 	IceToMelt         int    `json:"iceToMelt"`
+	IceKept           int    `json:"iceKept"`
 	LimitedBy         string `json:"limitedBy"`
 }
 
 func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 	quotes := domain.Quotes(g, cfg)
 
-	resources := make([]resourceViewDTO, 0, len(domain.Resources))
-	for _, r := range domain.Resources {
+	resources := make([]resourceViewDTO, 0, len(cfg.Commodities))
+	for _, r := range cfg.Resources() {
 		q := quotes[r]
 		m := g.Market[r]
 		resources = append(resources, resourceViewDTO{
@@ -310,6 +378,7 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 			History:           append([]int{}, m.History...),
 			AvgCost:           domain.AvgCost(g, r),
 			UnrealizedGain:    domain.UnrealizedGain(g, cfg, r),
+			MovingAverage:     movingAverage(g, cfg, m.History),
 		})
 	}
 
@@ -324,47 +393,69 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 			Production: toProductionView(g, cfg),
 		},
 		Events:     toEventDTOs(g.Events),
-		Timeline:   toTimelineDTOs(g),
+		Timeline:   toTimelineDTOs(g, cfg),
 		Stats:      statsDTO(g.Stats),
 		Projection: projectionDTO(domain.PreviewEndDay(g, cfg)),
 		PriceLog:   toPriceLogDTOs(g, cfg),
 		NetWorth:   netWorthDTO(domain.NetWorthBreakdown(g, cfg)),
 		RunID:      g.RunID,
 		BasePrices: basePrices(cfg),
+
+		Commodities:  toCommodityDTOs(cfg),
+		Features:     append([]string{}, domain.Features(g, cfg)...),
+		IceKeepCases: domain.IceKeep(g, cfg),
+		Forecast:     toForecastDTOs(domain.Forecast(g, cfg)),
+		Unlocked:     []unlockedDTO{},
 	}
+}
+
+func toForecastDTOs(f []domain.ForecastEntry) []forecastDTO {
+	out := make([]forecastDTO, 0, len(f))
+	for _, e := range f {
+		out = append(out, forecastDTO{DaysAhead: e.DaysAhead, Key: e.Key, Name: e.Name, Duration: e.Duration})
+	}
+	return out
+}
+
+// movingAverage is the mean of the last 7 daily prices, for a player with a market
+// analyst; nil for everyone else.
+func movingAverage(g domain.Game, cfg domain.Config, history []int) *int {
+	if !domain.HasFeature(g, cfg, "moving_average") || len(history) == 0 {
+		return nil
+	}
+	recent := history[max(0, len(history)-7):]
+	sum := 0
+	for _, p := range recent {
+		sum += p
+	}
+	avg := int(math.Round(float64(sum) / float64(len(recent))))
+	return &avg
 }
 
 // toTimelineDTOs maps the timeline. A game saved before the timeline existed has none,
 // so it gets a start point from its current state and the charts always have something.
-func toTimelineDTOs(g domain.Game) []timelinePointDTO {
+func toTimelineDTOs(g domain.Game, cfg domain.Config) []timelinePointDTO {
 	if len(g.Timeline) == 0 {
-		stock := make([]int, 0, len(domain.Resources))
-		for _, r := range domain.Resources {
-			stock = append(stock, g.Inventory[r])
-		}
+		stock := inCatalogOrder(g.Inventory, cfg)
 		return []timelinePointDTO{{Day: g.Day, Kind: string(domain.PointStart), Capital: g.Capital, Stock: stock}}
 	}
-	return timelinePointDTOs(g.Timeline)
+	return timelinePointDTOs(g.Timeline, cfg)
 }
 
 // timelinePointDTOs maps timeline points, for a live game or a finished run.
-func timelinePointDTOs(points []domain.TimelinePoint) []timelinePointDTO {
+func timelinePointDTOs(points []domain.TimelinePoint, cfg domain.Config) []timelinePointDTO {
 	out := make([]timelinePointDTO, 0, len(points))
 	for _, p := range points {
 		out = append(out, timelinePointDTO{
 			Day: p.Day, Kind: string(p.Kind), Resource: string(p.Resource), Facility: string(p.Facility),
-			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock[:],
+			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: inCatalogOrder(p.Stock, cfg),
 		})
 	}
 	return out
 }
 
 func basePrices(cfg domain.Config) []int {
-	out := make([]int, 0, len(domain.Resources))
-	for _, r := range domain.Resources {
-		out = append(out, cfg.BasePrice[r])
-	}
-	return out
+	return inCatalogOrder(cfg.BasePrice, cfg)
 }
 
 // toPriceLogDTOs maps the price log, turning event keys into display names.
@@ -387,7 +478,7 @@ func priceLogDTOs(log []domain.PricePoint, cfg domain.Config) []pricePointDTO {
 				events = append(events, key)
 			}
 		}
-		out = append(out, pricePointDTO{Day: p.Day, Prices: append([]int{}, p.Prices[:]...), Events: events})
+		out = append(out, pricePointDTO{Day: p.Day, Prices: inCatalogOrder(p.Prices, cfg), Events: events})
 	}
 	return out
 }
@@ -413,8 +504,8 @@ func toWarehouseView(g domain.Game, cfg domain.Config) warehouseViewDTO {
 	tier := cfg.WarehouseTiers[g.WarehouseLevel-1]
 
 	buildings := 0
-	resources := make([]warehouseResourceDTO, 0, len(domain.Resources))
-	for _, r := range domain.Resources {
+	resources := make([]warehouseResourceDTO, 0, len(cfg.Commodities))
+	for _, r := range cfg.Resources() {
 		buildings += g.WarehouseQty[r]
 		resources = append(resources, warehouseResourceDTO{
 			Resource: r,
@@ -502,7 +593,12 @@ func toDayReport(r domain.DayReport) dayReportDTO {
 		Day:                r.Day,
 		Produced:           r.Produced,
 		IceMelted:          r.IceMelted,
+		IceKept:            r.IceKept,
 		UpkeepPaid:         r.UpkeepPaid,
+		UpgradeUpkeep:      r.UpgradeUpkeep,
+		IceMade:            r.IceMade,
+		IceMadeCost:        r.IceMadeCost,
+		Pnl:                toPnl(r.Pnl),
 		ForcedSaleCases:    r.ForcedSaleCases,
 		ForcedSaleProceeds: r.ForcedSaleProceeds,
 		CapitalBefore:      r.CapitalBefore,
@@ -512,4 +608,12 @@ func toDayReport(r domain.DayReport) dayReportDTO {
 		ExpiredEvents:      toEventDTOs(r.ExpiredEvents),
 		Bankrupt:           r.Bankrupt,
 	}
+}
+
+func toPnl(p *domain.PnlLine) *pnlDTO {
+	if p == nil {
+		return nil
+	}
+	d := pnlDTO(*p)
+	return &d
 }
