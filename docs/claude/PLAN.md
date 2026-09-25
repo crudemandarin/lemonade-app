@@ -63,7 +63,7 @@ Time estimates are rough and cumulative.
 
 - [ ] **Slice 11: Runs (see `HANDOFF-A-economy-and-runs.md`)**
   - [x] 11a: foundation: run ID, atomic effects, `runs` and `day_reports` tables, net worth in the header
-  - [ ] 11b: give up
+  - [x] 11b: give up
   - [ ] 11c: past day reports
 
 ## Hold points

@@ -160,7 +160,7 @@ Two tables. Scalars a leaderboard would query are real columns; state that is on
 | `seed` | int64 | RNG seed for the price walk and events |
 | `day` | int | current day |
 | `capital` | int | whole dollars |
-| `status` | text | `active` or `bankrupt` (`gave_up` arrives with give up) |
+| `status` | text | `active`, `bankrupt` or `gave_up` |
 | `run_id` | text | UUID of this playthrough; empty on older rows, assigned on their first mutation |
 | `warehouse_level` | int | 1–4, shared by all warehouses |
 | `production_level` | int | 1–4 |
@@ -191,6 +191,7 @@ JSON, camelCase. The contract is `lemonade-web/src/app/core/api.models.ts`.
 | `POST /api/game/buy \| sell {resource, qty, clamp?}` | trade at ask · bid; with `clamp`, trades as many as cash, space or stock allow (up to `qty`) instead of failing |
 | `POST /api/game/facilities/warehouse/expand {resource}` · `.../production/expand` | add one building |
 | `POST /api/game/facilities/{warehouse\|production}/upgrade` | upgrade whole type |
+| `POST /api/game/give-up` | end the run (`status: gave_up`) and record it; the score is the net worth at that moment |
 | `POST /api/game/facilities/warehouse/sell {resource}` · `.../production/sell` | sell one building back at `ResaleRate` of its build cost; 409 `min_facility` or `stock_exceeds_capacity` |
 | `POST /api/game/end-day` | `{report, game}` |
 | `GET /api/health` | liveness only (Cloud Run reserves `/healthz`) |

@@ -3,7 +3,7 @@
 
 export type Resource = 'lemon' | 'sugar' | 'ice' | 'cup' | 'lemonade';
 export type FacilityType = 'warehouse' | 'production';
-export type GameStatus = 'active' | 'bankrupt';
+export type GameStatus = 'active' | 'bankrupt' | 'gave_up';
 
 export interface User {
   id: number;

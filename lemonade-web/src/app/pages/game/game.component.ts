@@ -1,10 +1,12 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 
 import { GameStore } from '../../core/game.store';
 import { OnlineService } from '../../core/online.service';
 import { CardComponent } from '../../shared/card/card.component';
+import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { HelpPanelComponent } from '../../shared/help/help-panel.component';
 import { IconComponent } from '../../shared/icon/icon.component';
+import { MoneyPipe } from '../../shared/money.pipe';
 import { TimelineChartsComponent } from '../../shared/timeline-charts/timeline-charts.component';
 import { DayReportModalComponent } from './components/day-report-modal/day-report-modal.component';
 import { EventsBannerComponent } from './components/events-banner/events-banner.component';
@@ -19,7 +21,9 @@ import { StatsStripComponent } from './components/stats-strip/stats-strip.compon
   standalone: true,
   imports: [
     CardComponent,
+    ConfirmDialogComponent,
     IconComponent,
+    MoneyPipe,
     HelpPanelComponent,
     TimelineChartsComponent,
     StatsStripComponent,
@@ -36,7 +40,14 @@ export class GameComponent implements OnInit {
   protected readonly store = inject(GameStore);
   protected readonly online = inject(OnlineService).online;
 
+  protected readonly confirmingGiveUp = signal(false);
+
   ngOnInit(): void {
     this.store.load();
+  }
+
+  protected giveUp(): void {
+    this.confirmingGiveUp.set(false);
+    this.store.giveUp();
   }
 }

@@ -78,6 +78,10 @@ export class GameStore {
     return this.update(this.api.upgrade(type));
   }
 
+  giveUp(): Promise<void> {
+    return this.update(this.api.giveUp());
+  }
+
   async endDay(): Promise<void> {
     const res = await this.run(this.api.endDay());
     if (res) {

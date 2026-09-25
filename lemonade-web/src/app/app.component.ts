@@ -19,7 +19,7 @@ export class AppComponent {
   private readonly store = inject(GameStore);
   protected readonly username = inject(SessionService).username;
   protected readonly events = computed(() =>
-    this.store.game()?.status === 'bankrupt' ? [] : (this.store.game()?.events ?? []),
+    this.store.game()?.status !== 'active' ? [] : (this.store.game()?.events ?? []),
   );
 
   protected logOut(): void {

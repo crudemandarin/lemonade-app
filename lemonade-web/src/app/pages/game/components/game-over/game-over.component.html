@@ -1,10 +1,36 @@
 <section class="hero">
   <app-icon name="sad-face" [size]="56" />
-  <h1>Bankrupt on day {{ day() }}</h1>
-  <p>
-    You couldn't cover your upkeep, even after selling all your stock. Final capital:
-    {{ capital() | money }}.
-  </p>
+  @if (status() === 'gave_up') {
+    <h1>You called it on day {{ day() }}</h1>
+    <p>You gave up with {{ capital() | money }} in cash.</p>
+  } @else {
+    <h1>Bankrupt on day {{ day() }}</h1>
+    <p>
+      You couldn't cover your upkeep, even after selling all your stock. Final capital:
+      {{ capital() | money }}.
+    </p>
+  }
+  @if (netWorth(); as nw) {
+    <div class="score" aria-label="Final score">
+      <span class="label">Final score</span>
+      <strong class="value">{{ nw.total | money }}</strong>
+      <span class="day">on day {{ day() }}</span>
+    </div>
+    <dl class="worth">
+      <div>
+        <dt>Cash</dt>
+        <dd>{{ nw.cash | money }}</dd>
+      </div>
+      <div>
+        <dt>Stock at the bid</dt>
+        <dd>{{ nw.stock | money }}</dd>
+      </div>
+      <div>
+        <dt>Buildings resold</dt>
+        <dd>{{ nw.facilities | money }}</dd>
+      </div>
+    </dl>
+  }
   <button type="button" class="btn btn-primary" [disabled]="disabled()" (click)="newGame.emit()">
     New game
   </button>

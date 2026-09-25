@@ -8,6 +8,17 @@
   gap: 1rem;
 }
 
+// Quiet and at the very end: giving up is never the obvious next click.
+.give-up {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 1rem;
+
+  .btn {
+    color: var(--red);
+  }
+}
+
 .alert {
   display: flex;
   align-items: center;

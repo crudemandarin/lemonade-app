@@ -60,6 +60,11 @@ export class ApiService {
     return this.http.post<GameView>(`${API_URL}/game/facilities/${type}/upgrade`, {});
   }
 
+  /** Ends the run; the server records its score. */
+  giveUp(): Observable<GameView> {
+    return this.http.post<GameView>(`${API_URL}/game/give-up`, {});
+  }
+
   endDay(): Observable<EndDayResponse> {
     return this.http.post<EndDayResponse>(`${API_URL}/game/end-day`, {});
   }

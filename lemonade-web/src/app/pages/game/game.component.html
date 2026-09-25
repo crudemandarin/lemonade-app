@@ -11,8 +11,10 @@
 <app-help-panel />
 
 @if (store.game(); as game) {
-  @if (game.status === 'bankrupt') {
+  @if (game.status !== 'active') {
     <app-game-over
+      [status]="game.status"
+      [netWorth]="game.netWorth"
       [day]="game.day"
       [capital]="game.capital"
       [stats]="game.stats"
@@ -63,10 +65,35 @@
         (upgrade)="store.upgrade($event)"
         (sellFacility)="store.sellFacility($event.type, $event.resource)"
       />
+
+      <div class="give-up">
+        <button
+          type="button"
+          class="btn btn-ghost"
+          [disabled]="store.loading() || !online()"
+          (click)="confirmingGiveUp.set(true)"
+        >
+          Give up
+        </button>
+      </div>
     </div>
   }
 } @else if (store.loading()) {
   <p class="status">Loading your game…</p>
+}
+
+@if (confirmingGiveUp() && store.game(); as game) {
+  <app-confirm-dialog
+    [title]="'Give up on day ' + game.day + '?'"
+    [message]="
+      'Your run ends now. Your score is your net worth today, ' +
+      (game.netWorth.total | money) +
+      ', and you can start a new game afterwards.'
+    "
+    confirmLabel="Give up"
+    (confirmed)="giveUp()"
+    (cancelled)="confirmingGiveUp.set(false)"
+  />
 }
 
 @if (store.report(); as report) {

@@ -59,6 +59,35 @@ describe('GameOverComponent', () => {
     expect(el.textContent).toContain("couldn't cover your upkeep");
   });
 
+  describe('final score', () => {
+    beforeEach(() => {
+      fixture.componentRef.setInput('netWorth', {
+        cash: 300,
+        stock: 120,
+        facilities: 500,
+        total: 920,
+      });
+      fixture.detectChanges();
+    });
+
+    it('shows the score with the day beside it, and the breakdown', () => {
+      expect(el.querySelector('.score .value')!.textContent).toContain('$920');
+      expect(el.querySelector('.score .day')!.textContent).toContain('on day 12');
+      const parts = Array.from(el.querySelectorAll('.worth > div')).map((row) =>
+        [row.querySelector('dt')!.textContent, row.querySelector('dd')!.textContent].join(' '),
+      );
+      expect(parts).toEqual(['Cash $300', 'Stock at the bid $120', 'Buildings resold $500']);
+    });
+
+    it('has its own title and wording when the player gave up', () => {
+      fixture.componentRef.setInput('status', 'gave_up');
+      fixture.detectChanges();
+      expect(el.querySelector('h1')!.textContent).toContain('You called it on day 12');
+      expect(el.textContent).not.toContain('Bankrupt');
+      expect(el.textContent).not.toContain("couldn't cover your upkeep");
+    });
+  });
+
   describe('game report', () => {
     // Each stat is a <dt>/<dd> pair; read them as "label value" so the assertion matches what a person sees.
     const text = () =>
