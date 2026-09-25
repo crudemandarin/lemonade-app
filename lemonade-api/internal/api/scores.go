@@ -162,10 +162,11 @@ func (h *Game) myRun(c *gin.Context) {
 			RunID: run.RunID, Score: run.Score, Days: run.Days, NetWorth: run.NetWorth,
 			Capital: run.Capital, EndedBy: run.EndedBy, CreatedAt: run.CreatedAt,
 		}, best),
-		Stats:      statsDTO(run.Stats),
-		Timeline:   timelinePointDTOs(run.Timeline, h.cfg),
-		PriceLog:   priceLogDTOs(run.PriceLog, h.cfg),
-		BasePrices: basePrices(h.cfg),
-		Reports:    summaries,
+		Stats:       statsDTO(run.Stats),
+		Timeline:    timelinePointDTOs(run.Timeline, h.cfg),
+		PriceLog:    priceLogDTOs(run.PriceLog, h.cfg),
+		BasePrices:  basePrices(h.cfg),
+		Commodities: toCommodityDTOs(h.cfg),
+		Reports:     summaries,
 	})
 }

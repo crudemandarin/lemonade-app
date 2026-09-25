@@ -9,8 +9,8 @@ import {
   signal,
 } from '@angular/core';
 
-import { PricePoint, Resource, TimelinePoint } from '../../core/api.models';
-import { RESOURCE_LABELS, RESOURCE_ORDER } from '../../core/resources';
+import { Commodity, PricePoint, Resource, TimelinePoint } from '../../core/api.models';
+import { catalogOrder, resourceLabel, seriesColor } from '../../core/resources';
 import { formatMoney } from '../money.pipe';
 import {
   describePoint,
@@ -63,6 +63,8 @@ export class TimelineChartsComponent {
   readonly priceLog = input<PricePoint[]>([]);
   /** Long-run prices, for the percent view. */
   readonly basePrices = input<number[]>([]);
+  /** The catalog the stock and price arrays follow; the original five when not given. */
+  readonly commodities = input<Commodity[]>([]);
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
@@ -75,8 +77,9 @@ export class TimelineChartsComponent {
   protected readonly priceMode = signal<PriceMode>('dollars');
   protected readonly priceHidden = signal<ReadonlySet<Resource>>(new Set());
 
-  protected readonly resources = RESOURCE_ORDER;
-  protected readonly labels = RESOURCE_LABELS;
+  protected readonly resources = computed(() => catalogOrder(this.commodities()));
+  protected readonly label = resourceLabel;
+  protected readonly color = seriesColor;
   protected readonly formatMoney = formatMoney;
   protected readonly describe = describePoint;
 
@@ -227,10 +230,10 @@ export class TimelineChartsComponent {
 
   // ---- stock chart ----------------------------------------------------------------
 
-  private readonly visible = computed(() => this.resources.filter((r) => !this.hidden().has(r)));
+  private readonly visible = computed(() => this.resources().filter((r) => !this.hidden().has(r)));
 
   private readonly stockTicks = computed(() => {
-    const idx = this.visible().map((r) => RESOURCE_ORDER.indexOf(r));
+    const idx = this.visible().map((r) => this.resources().indexOf(r));
     // At least 4, so the ticks are whole cases even when almost nothing is in stock.
     const shown = this.points().slice(this.windowStart());
     const max = Math.max(4, ...shown.flatMap((p) => idx.map((i) => p.stock[i] ?? 0)));
@@ -255,10 +258,10 @@ export class TimelineChartsComponent {
 
   protected readonly stockLines = computed(() =>
     this.visible().map((resource) => {
-      const i = RESOURCE_ORDER.indexOf(resource);
+      const i = this.resources().indexOf(resource);
       return {
         resource,
-        color: `var(--series-${resource})`,
+        color: seriesColor(resource),
         d: stepPath(
           this.xs(),
           this.points().map((p) => this.stockY(p.stock[i] ?? 0)),
@@ -272,12 +275,12 @@ export class TimelineChartsComponent {
   // ---- price chart ----------------------------------------------------------------
 
   private readonly priceVisible = computed(() =>
-    this.resources.filter((r) => !this.priceHidden().has(r)),
+    this.resources().filter((r) => !this.priceHidden().has(r)),
   );
 
   private readonly priceValues = computed(() =>
     this.priceVisible().map((resource) => {
-      const i = RESOURCE_ORDER.indexOf(resource);
+      const i = this.resources().indexOf(resource);
       return {
         resource,
         values: priceSeries(this.priceLog(), i, this.priceMode(), this.basePrices()),
@@ -330,7 +333,7 @@ export class TimelineChartsComponent {
     const xs = [...log.map((p) => this.xPx(p.day)), this.xPx(this.xMax())];
     return this.priceValues().map(({ resource, values }) => ({
       resource,
-      color: `var(--series-${resource})`,
+      color: seriesColor(resource),
       d: stepPath(
         xs,
         [...values, values[values.length - 1]].map((v) => this.priceY(v)),
@@ -359,7 +362,7 @@ export class TimelineChartsComponent {
     const percent = this.priceMode() === 'percent';
     return {
       heading: `Day ${day.day}${day.events.length ? `: ${day.events.join(', ')}` : ''}`,
-      rows: this.resources.map((resource, i) => ({
+      rows: this.resources().map((resource, i) => ({
         resource,
         text: percent
           ? `${priceSeries([day], i, 'percent', this.basePrices())[0]}%`

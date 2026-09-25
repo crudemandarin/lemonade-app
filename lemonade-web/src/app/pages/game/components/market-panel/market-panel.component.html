@@ -28,14 +28,8 @@
     @for (row of resources(); track row.resource) {
       <div class="row" role="row" [attr.data-resource]="row.resource">
         <span class="name" role="cell">
-          <img
-            class="resource-img"
-            [src]="'assets/resources/' + row.resource + '.svg'"
-            alt=""
-            width="28"
-            height="28"
-          />
-          {{ labels[row.resource] }}
+          <img class="resource-img" [src]="icon(row.resource)" alt="" width="28" height="28" />
+          {{ label(row.resource) }}
         </span>
 
         <span class="stock" role="cell">
@@ -45,7 +39,7 @@
             [attr.aria-valuenow]="row.stock"
             aria-valuemin="0"
             [attr.aria-valuemax]="row.capacity"
-            [attr.aria-label]="labels[row.resource] + ' stock'"
+            [attr.aria-label]="label(row.resource) + ' stock'"
           >
             <span class="bar-fill" [style.width.%]="fill(row)"></span>
           </span>
@@ -88,7 +82,7 @@
         </span>
 
         <span class="spark" role="cell">
-          <app-price-sparkline [values]="row.history" [label]="labels[row.resource]" />
+          <app-price-sparkline [values]="row.history" [label]="label(row.resource)" />
         </span>
 
         <span class="trade buy" role="cell">

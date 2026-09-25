@@ -38,11 +38,13 @@ Why these groupings: each track owns one set of domain files and one set of scre
 5. settle upkeep: facilities, hubs [Empire A], upgrades and managers [Upgrades]
 6. record timeline and report, then the bankruptcy check (unchanged)
 7. advance the day, forget pressure (unchanged)
-8. market tick for every commodity [Products A]
-9. events, then economic cycles [Empire B]
+8. events, then economic cycles [Empire B]
+9. market tick for every commodity [Products A]
 10. rivals tick [Empire A]
 11. contract deadlines [Products C]
 12. price log (unchanged)
+
+(Products A swapped 8 and 9 from the first draft: the event roll and the walk share one random stream, events first, and existing seeds must replay exactly. The step functions are in `endday.go`.)
 
 Achievements are evaluated **after** the whole mutation, in the API layer [Goals A], not inside `EndDay`. Add the skeleton of this order (empty named functions with comments) in whichever track merges first.
 

@@ -1,5 +1,5 @@
 import { PricePoint, Resource, TimelinePoint } from '../../core/api.models';
-import { RESOURCE_LABELS } from '../../core/resources';
+import { resourceLabel } from '../../core/resources';
 import { formatMoney } from '../money.pipe';
 
 // Pure layout and wording helpers for the two history charts. Nothing here touches
@@ -126,7 +126,7 @@ const article = (word: string) => (/^[aeiou]/.test(word) ? 'an' : 'a');
 
 /** One plain-language line per point, used by the tooltip and the table view. */
 export function describePoint(p: TimelinePoint): string {
-  const resource = p.resource ? RESOURCE_LABELS[p.resource].toLowerCase() : '';
+  const resource = p.resource ? resourceLabel(p.resource).toLowerCase() : '';
   switch (p.kind) {
     case 'start':
       return 'Game started';

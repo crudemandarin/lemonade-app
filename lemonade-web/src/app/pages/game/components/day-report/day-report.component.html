@@ -33,7 +33,7 @@
     <h3>Prices</h3>
     <dl class="prices">
       @for (p of prices(); track p.resource) {
-        <dt [class.unchanged]="p.before === p.after">{{ labels[p.resource] }}</dt>
+        <dt [class.unchanged]="p.before === p.after">{{ label(p.resource) }}</dt>
         <dd [class.unchanged]="p.before === p.after">
           @if (p.before === p.after) {
             {{ p.after | money }} · no change
