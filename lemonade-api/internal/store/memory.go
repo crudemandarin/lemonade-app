@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"sort"
 	"sync"
 
 	"lemonade-api/internal/domain"
@@ -15,8 +16,9 @@ type Memory struct {
 	users  map[string]domain.User
 	games  map[uint]domain.Game
 
-	reports map[string]map[int]domain.DayReport // by run ID, then day
-	runs    []domain.RunRecord                  // finished runs, oldest first
+	reports  map[string]map[int]domain.DayReport // by run ID, then day
+	runOwner map[string]uint                     // finished run ID -> user ID
+	runs     []domain.RunRecord                  // finished runs, oldest first
 }
 
 func NewMemory() *Memory {
@@ -25,7 +27,8 @@ func NewMemory() *Memory {
 		users:  map[string]domain.User{},
 		games:  map[uint]domain.Game{},
 
-		reports: map[string]map[int]domain.DayReport{},
+		reports:  map[string]map[int]domain.DayReport{},
+		runOwner: map[string]uint{},
 	}
 }
 
@@ -90,6 +93,7 @@ func (m *Memory) Mutate(_ context.Context, userID uint, fn func(g *domain.Game) 
 	}
 	if r := effects.Finished; r != nil && !m.hasRun(r.RunID) {
 		m.runs = append(m.runs, *r)
+		m.runOwner[r.RunID] = userID
 	}
 	return g, nil
 }
@@ -119,4 +123,32 @@ func (m *Memory) Reports(runID string) map[int]domain.DayReport {
 		out[d] = r
 	}
 	return out
+}
+
+func (m *Memory) RunBelongsTo(_ context.Context, userID uint, runID string) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	owner, ok := m.runOwner[runID]
+	return ok && owner == userID, nil
+}
+
+func (m *Memory) ListReports(_ context.Context, runID string) ([]domain.DayReport, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]domain.DayReport, 0, len(m.reports[runID]))
+	for _, r := range m.reports[runID] {
+		out = append(out, r)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Day < out[j].Day })
+	return out, nil
+}
+
+func (m *Memory) GetReport(_ context.Context, runID string, day int) (domain.DayReport, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	r, ok := m.reports[runID][day]
+	if !ok {
+		return domain.DayReport{}, ErrNotFound
+	}
+	return r, nil
 }

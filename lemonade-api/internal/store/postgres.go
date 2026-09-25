@@ -213,6 +213,33 @@ func (p *Postgres) ReplaceGame(ctx context.Context, userID uint, game domain.Gam
 	return game.Clone(), nil
 }
 
+func (p *Postgres) RunBelongsTo(ctx context.Context, userID uint, runID string) (bool, error) {
+	var n int64
+	err := p.db.WithContext(ctx).Model(&runRow{}).Where("user_id = ? AND run_id = ?", userID, runID).Count(&n).Error
+	return n > 0, err
+}
+
+func (p *Postgres) ListReports(ctx context.Context, runID string) ([]domain.DayReport, error) {
+	var rows []dayReportRow
+	if err := p.db.WithContext(ctx).Where("run_id = ?", runID).Order("day").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make([]domain.DayReport, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, r.Payload)
+	}
+	return out, nil
+}
+
+func (p *Postgres) GetReport(ctx context.Context, runID string, day int) (domain.DayReport, error) {
+	var row dayReportRow
+	err := p.db.WithContext(ctx).Where("run_id = ? AND day = ?", runID, day).First(&row).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.DayReport{}, ErrNotFound
+	}
+	return row.Payload, err
+}
+
 func (p *Postgres) Mutate(ctx context.Context, userID uint, fn func(g *domain.Game) (domain.Effects, error)) (domain.Game, error) {
 	var out domain.Game
 	err := p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

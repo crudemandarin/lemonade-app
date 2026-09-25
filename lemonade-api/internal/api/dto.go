@@ -180,6 +180,32 @@ type dayReportDTO struct {
 	Bankrupt           bool             `json:"bankrupt"`
 }
 
+// reportSummaryDTO is one row of the past-days list: enough to scan, without
+// the full report.
+type reportSummaryDTO struct {
+	Day           int      `json:"day"`
+	Produced      int      `json:"produced"`
+	CapitalBefore int      `json:"capitalBefore"`
+	CapitalAfter  int      `json:"capitalAfter"`
+	NewEvents     []string `json:"newEvents"`
+	ExpiredEvents []string `json:"expiredEvents"`
+	Bankrupt      bool     `json:"bankrupt"`
+}
+
+func toReportSummary(r domain.DayReport) reportSummaryDTO {
+	names := func(events []domain.ActiveEvent) []string {
+		out := make([]string, 0, len(events))
+		for _, e := range events {
+			out = append(out, e.Name)
+		}
+		return out
+	}
+	return reportSummaryDTO{
+		Day: r.Day, Produced: r.Produced, CapitalBefore: r.CapitalBefore, CapitalAfter: r.CapitalAfter,
+		NewEvents: names(r.NewEvents), ExpiredEvents: names(r.ExpiredEvents), Bankrupt: r.Bankrupt,
+	}
+}
+
 type endDayResponseDTO struct {
 	Report dayReportDTO `json:"report"`
 	Game   gameViewDTO  `json:"game"`

@@ -829,3 +829,74 @@ func TestGiveUp(t *testing.T) {
 		t.Fatal("new game is not active")
 	}
 }
+
+func TestPastDayReports(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+
+	// A fresh game has no history yet: an empty list, not an error.
+	rec := e.do("GET", "/api/game/reports", "joe12", nil)
+	if list := decode[[]reportSummaryDTO](t, rec); rec.Code != 200 || len(list) != 0 || strings.TrimSpace(rec.Body.String()) != "[]" {
+		t.Fatalf("empty list: %d %s", rec.Code, rec.Body)
+	}
+
+	for i := 0; i < 3; i++ {
+		e.do("POST", "/api/game/end-day", "joe12", nil)
+	}
+	list := decode[[]reportSummaryDTO](t, e.do("GET", "/api/game/reports", "joe12", nil))
+	if len(list) != 3 || list[0].Day != 1 || list[1].Day != 2 || list[2].Day != 3 {
+		t.Fatalf("list: %+v", list)
+	}
+	if list[0].NewEvents == nil || list[0].CapitalBefore != 1000 || list[0].CapitalAfter != 970 {
+		t.Fatalf("summary: %+v", list[0])
+	}
+
+	rec = e.do("GET", "/api/game/reports/2", "joe12", nil)
+	full := decode[dayReportDTO](t, rec)
+	if rec.Code != 200 || full.Day != 2 || len(full.PriceChanges) != 5 || full.CapitalBefore != list[1].CapitalBefore {
+		t.Fatalf("full report: %d %+v", rec.Code, full)
+	}
+
+	e.wantError(e.do("GET", "/api/game/reports/9", "joe12", nil), http.StatusNotFound, "not_found")
+	e.wantError(e.do("GET", "/api/game/reports/abc", "joe12", nil), http.StatusBadRequest, "invalid_day")
+	e.wantError(e.do("GET", "/api/game/reports/0", "joe12", nil), http.StatusBadRequest, "invalid_day")
+}
+
+func TestPastDayReportsOfFinishedRunsBelongToTheirPlayer(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+	e.login("amy34")
+	run := e.storedGame("joe12").RunID
+	e.do("POST", "/api/game/end-day", "joe12", nil)
+	e.do("POST", "/api/game/end-day", "joe12", nil)
+	e.do("POST", "/api/game/give-up", "joe12", nil)
+	e.do("POST", "/api/game/new", "joe12", nil) // joe's current run is now a different one
+
+	if now := decode[[]reportSummaryDTO](t, e.do("GET", "/api/game/reports", "joe12", nil)); len(now) != 0 {
+		t.Fatalf("the new run should have no reports yet: %+v", now)
+	}
+	old := decode[[]reportSummaryDTO](t, e.do("GET", "/api/game/reports?runId="+run, "joe12", nil))
+	if len(old) != 2 {
+		t.Fatalf("finished run: %+v", old)
+	}
+	if rec := e.do("GET", "/api/game/reports/1?runId="+run, "joe12", nil); rec.Code != 200 {
+		t.Fatalf("one day of a finished run: %d", rec.Code)
+	}
+
+	// Another player cannot read it, and a made-up run looks the same.
+	e.wantError(e.do("GET", "/api/game/reports?runId="+run, "amy34", nil), http.StatusNotFound, "not_found")
+	e.wantError(e.do("GET", "/api/game/reports/1?runId="+run, "amy34", nil), http.StatusNotFound, "not_found")
+	e.wantError(e.do("GET", "/api/game/reports?runId=nope", "joe12", nil), http.StatusNotFound, "not_found")
+}
+
+func TestOldSavesHaveNoPastReportsUntilTheyPlay(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+	u, _ := e.repo.FindUser(context.Background(), "joe12")
+	e.repo.ReplaceGame(context.Background(), u.ID, domain.NewGame(e.cfg, 1)) // no run id
+	rec := e.do("GET", "/api/game/reports", "joe12", nil)
+	if rec.Code != 200 || strings.TrimSpace(rec.Body.String()) != "[]" {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	e.wantError(e.do("GET", "/api/game/reports/1", "joe12", nil), http.StatusNotFound, "not_found")
+}

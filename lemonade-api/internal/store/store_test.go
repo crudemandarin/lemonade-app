@@ -292,6 +292,26 @@ func TestPostgresSavesEffectsWithTheGame(t *testing.T) {
 		t.Fatalf("run row: %+v", run)
 	}
 
+	// Reports and finished runs read back, and only for their owner.
+	if list, err := repo.ListReports(ctx, "pgfx-run-1"); err != nil || len(list) != 1 || list[0].Day != 1 || len(list[0].PriceChanges) != 5 {
+		t.Fatalf("ListReports: %v %+v", err, list)
+	}
+	if r, err := repo.GetReport(ctx, "pgfx-run-1", 1); err != nil || r.Day != 1 {
+		t.Fatalf("GetReport: %v %+v", err, r)
+	}
+	if _, err := repo.GetReport(ctx, "pgfx-run-1", 2); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing day: %v", err)
+	}
+	if own, _ := repo.RunBelongsTo(ctx, user.ID, "pgfx-run-1"); !own {
+		t.Fatal("run should belong to its player")
+	}
+	if own, _ := repo.RunBelongsTo(ctx, user.ID+1000, "pgfx-run-1"); own {
+		t.Fatal("run should not belong to someone else")
+	}
+	if list, err := repo.ListReports(ctx, "pgfx-nothing"); err != nil || list == nil || len(list) != 0 {
+		t.Fatalf("empty list: %v %v", err, list)
+	}
+
 	// A game row written before runs existed has no run id and still loads.
 	if err := db.Exec("UPDATE games SET run_id = NULL WHERE user_id = ?", user.ID).Error; err != nil {
 		t.Fatal(err)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -85,6 +86,8 @@ func (h *Game) Register(router gin.IRouter) {
 	g.POST("/facilities/:kind/upgrade", h.upgrade)
 	g.POST("/facilities/:kind/sell", h.sellFacility)
 	g.POST("/give-up", h.giveUp)
+	g.GET("/reports", h.listReports)
+	g.GET("/reports/:day", h.getReport)
 	g.POST("/end-day", h.endDay)
 }
 
@@ -273,6 +276,69 @@ func (h *Game) upgrade(c *gin.Context) {
 		return
 	}
 	h.mutate(c, func(g *domain.Game) error { return domain.Upgrade(g, h.cfg, kind) })
+}
+
+// reportRun picks the run whose reports are wanted: the current one, or a finished
+// run of the same user given as ?runId=. Anyone else's run is a 404, the same as
+// a run that does not exist. On failure it has already answered.
+func (h *Game) reportRun(c *gin.Context) (string, bool) {
+	ctx := c.Request.Context()
+	current, err := h.repo.GetGame(ctx, currentUser(c).ID)
+	if err != nil {
+		abortErr(c, err)
+		return "", false
+	}
+	runID := c.Query("runId")
+	if runID == "" || runID == current.RunID {
+		return current.RunID, true
+	}
+	owned, err := h.repo.RunBelongsTo(ctx, currentUser(c).ID, runID)
+	if err != nil {
+		abortErr(c, err)
+		return "", false
+	}
+	if !owned {
+		abortErr(c, store.ErrNotFound)
+		return "", false
+	}
+	return runID, true
+}
+
+// listReports returns a light summary of every ended day of a run, oldest first.
+func (h *Game) listReports(c *gin.Context) {
+	runID, ok := h.reportRun(c)
+	if !ok {
+		return
+	}
+	reports, err := h.repo.ListReports(c.Request.Context(), runID)
+	if err != nil {
+		abortErr(c, err)
+		return
+	}
+	out := make([]reportSummaryDTO, 0, len(reports))
+	for _, r := range reports {
+		out = append(out, toReportSummary(r))
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+// getReport returns one day's full report.
+func (h *Game) getReport(c *gin.Context) {
+	day, err := strconv.Atoi(c.Param("day"))
+	if err != nil || day < 1 {
+		abort(c, http.StatusBadRequest, "invalid_day", "Day must be a positive whole number.")
+		return
+	}
+	runID, ok := h.reportRun(c)
+	if !ok {
+		return
+	}
+	report, err := h.repo.GetReport(c.Request.Context(), runID, day)
+	if err != nil {
+		abortErr(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toDayReport(report))
 }
 
 // giveUp ends the run and records it, in one transaction.

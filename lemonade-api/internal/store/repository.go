@@ -25,6 +25,16 @@ type Repository interface {
 	// ReplaceGame overwrites the user's game with a fresh one.
 	ReplaceGame(ctx context.Context, userID uint, game domain.Game) (domain.Game, error)
 
+	// RunBelongsTo reports whether a finished run was played by this user.
+	RunBelongsTo(ctx context.Context, userID uint, runID string) (bool, error)
+
+	// ListReports returns every stored day report of a run, oldest day first
+	// (empty, not an error, when there are none).
+	ListReports(ctx context.Context, runID string) ([]domain.DayReport, error)
+
+	// GetReport returns one day's report of a run, or ErrNotFound.
+	GetReport(ctx context.Context, runID string, day int) (domain.DayReport, error)
+
 	// Mutate loads the user's game under a row lock, calls fn, and saves the result
 	// and fn's effects (a day report, a finished run) in one transaction. If fn
 	// returns an error nothing is saved.
