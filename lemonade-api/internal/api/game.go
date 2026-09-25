@@ -90,6 +90,7 @@ func (h *Game) Register(router gin.IRouter) {
 	g.POST("/facilities/:kind/upgrade", h.upgrade)
 	g.POST("/facilities/:kind/sell", h.sellFacility)
 	g.POST("/give-up", h.giveUp)
+	g.GET("/quote", h.quote)
 	g.GET("/reports", h.listReports)
 	g.GET("/reports/:day", h.getReport)
 	g.POST("/end-day", h.endDay)
@@ -378,6 +379,50 @@ func (h *Game) getReport(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, toDayReport(report))
+}
+
+// maxQuoteQty bounds a quote request: it is a price check, not a trade.
+const maxQuoteQty = 100_000
+
+// quoteDTO answers GET /api/game/quote.
+type quoteDTO struct {
+	Resource domain.Resource `json:"resource"`
+	Side     string          `json:"side"`
+	tradeQuoteDTO
+}
+
+// quote prices a trade of some size, including price impact, without making it. With
+// clamp=true it is cut down to what cash, space (buy) or stock (sell) allow, like a bulk trade.
+func (h *Game) quote(c *gin.Context) {
+	r := domain.Resource(c.Query("resource"))
+	if !r.Valid() {
+		abort(c, http.StatusBadRequest, "invalid_resource", "Unknown resource.")
+		return
+	}
+	side := c.Query("side")
+	if side != "buy" && side != "sell" {
+		abort(c, http.StatusBadRequest, "invalid_side", "Side must be buy or sell.")
+		return
+	}
+	qty, err := strconv.Atoi(c.Query("qty"))
+	if err != nil || qty < 1 || qty > maxQuoteQty {
+		abort(c, http.StatusBadRequest, "invalid_quantity", "Quantity must be a whole number from 1 to 100000.")
+		return
+	}
+	clamp := c.Query("clamp") == "true"
+
+	g, err := h.repo.GetGame(c.Request.Context(), currentUser(c).ID)
+	if err != nil {
+		abortErr(c, err)
+		return
+	}
+	var q domain.TradeQuote
+	if side == "buy" {
+		q = domain.QuoteBuy(g, h.cfg, r, qty, clamp)
+	} else {
+		q = domain.QuoteSell(g, h.cfg, r, qty, clamp)
+	}
+	c.JSON(http.StatusOK, quoteDTO{Resource: r, Side: side, tradeQuoteDTO: toTradeQuote(q)})
 }
 
 // giveUp ends the run and records it, in one transaction.

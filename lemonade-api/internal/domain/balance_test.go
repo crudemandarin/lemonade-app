@@ -72,6 +72,11 @@ func owner(cfg Config, seed int64, days int, p player) simResult {
 		if uc := unitCost(g, cfg); uc > 0 && g.Capital/uc < n {
 			n = g.Capital / uc
 		}
+		// A careful player stops where the market stops paying: no batch case that loses money.
+		capacityBinds := true
+		if best := profitableBatch(g, cfg, n, 0); best < n {
+			n, capacityBinds = best, false
+		}
 		forgetIce := mrng.Float64() < p.forgetIce
 		for _, in := range Inputs {
 			if in == Ice && forgetIce {
@@ -102,7 +107,7 @@ func owner(cfg Config, seed int64, days int, p player) simResult {
 			_ = Upgrade(x, cfg, Production)
 			_ = Upgrade(x, cfg, Warehouse)
 		}
-		for {
+		for capacityBinds { // only add capacity when capacity is what limits profit
 			pl, wl := g.ProductionLevel, g.WarehouseLevel
 			canExpand := g.ProductionQty < cfg.MaxQuantity
 			for _, r := range Resources {

@@ -37,6 +37,16 @@ type Config struct {
 	ClampMin   float64
 	ClampMax   float64
 
+	// Market depth: the player's own trades move prices against them. The first
+	// FreeDepth[r] cases bought (or sold) recently trade at the plain quote; beyond that each
+	// case moves the price by ImpactSlope, up to ImpactCap. Bought and sold cases are tracked
+	// separately, so buying only raises the ask and selling only lowers the bid. Each night
+	// the remembered volume falls by Recovery.
+	FreeDepth   map[Resource]int
+	ImpactSlope float64
+	Recovery    float64
+	ImpactCap   float64
+
 	// ResaleRate is the share of a building's build cost returned when it is sold.
 	ResaleRate float64
 
@@ -64,11 +74,17 @@ func DefaultConfig() Config {
 			Cup:      10,
 			Lemonade: 90,
 		},
-		Spread:        0.10,
-		RevertRate:    0.15,
-		Sigma:         0.12,
-		ClampMin:      0.25,
-		ClampMax:      4.0,
+		Spread:     0.10,
+		RevertRate: 0.15,
+		Sigma:      0.12,
+		ClampMin:   0.25,
+		ClampMax:   4.0,
+		FreeDepth: map[Resource]int{
+			Lemon: 80, Sugar: 80, Ice: 80, Cup: 80, Lemonade: 80,
+		},
+		ImpactSlope:   0.003,
+		Recovery:      0.5,
+		ImpactCap:     0.6,
 		ResaleRate:    0.5,
 		MaxLevel:      4,
 		MaxQuantity:   10,

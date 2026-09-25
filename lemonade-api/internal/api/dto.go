@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"math"
 
 	"lemonade-api/internal/domain"
 )
@@ -22,10 +23,66 @@ type resourceViewDTO struct {
 	Bid           int             `json:"bid"`
 	Ask           int             `json:"ask"`
 	History       []int           `json:"history"`
+	// Bid and Ask above are the price of the next single case, including the market's
+	// reaction to the player's own recent trading. These say how much room is left.
+	BuyDepthLeft  int `json:"buyDepthLeft"`
+	SellDepthLeft int `json:"sellDepthLeft"`
+	// BuyImpactPercent and SellImpactPercent are how far the next case is from the plain quote.
+	BuyImpactPercent  int `json:"buyImpactPercent"`
+	SellImpactPercent int `json:"sellImpactPercent"`
+	// Trade prices the bulk-bar amounts (1, 10, 50, 100, all) with impact, clamped to cash, space and stock.
+	Trade tradeLadderDTO `json:"trade"`
 	// AvgCost is the average paid per case held (for lemonade, the cost to make one); 0 when none.
 	AvgCost int `json:"avgCost"`
 	// UnrealizedGain is stock value at the bid minus what it cost; negative is a loss.
 	UnrealizedGain int `json:"unrealizedGain"`
+}
+
+// tradeQuoteDTO is what a trade of some size would cost or raise.
+type tradeQuoteDTO struct {
+	// Qty is how many cases the quote covers (fewer than asked when cash, space or stock run out).
+	Qty   int `json:"qty"`
+	Total int `json:"total"`
+	// AveragePrice is per case, with impact, to one decimal.
+	AveragePrice float64 `json:"averagePrice"`
+	// SlippagePercent is how much worse than the plain quote the trade is.
+	SlippagePercent float64 `json:"slippagePercent"`
+}
+
+// tradeLadderDTO holds a quote per bulk amount, keyed "1", "10", "50", "100" and "all".
+type tradeLadderDTO struct {
+	Buy  map[string]tradeQuoteDTO `json:"buy"`
+	Sell map[string]tradeQuoteDTO `json:"sell"`
+}
+
+func toTradeQuote(q domain.TradeQuote) tradeQuoteDTO {
+	return tradeQuoteDTO{
+		Qty: q.Qty, Total: q.Total,
+		AveragePrice:    math.Round(q.Average()*10) / 10,
+		SlippagePercent: math.Round(q.Slippage()*1000) / 10,
+	}
+}
+
+// bulkAmounts are the amounts the trade bar offers; "all" means as many as possible.
+var bulkAmounts = []struct {
+	key string
+	qty int
+}{{"1", 1}, {"10", 10}, {"50", 50}, {"100", 100}, {"all", 1_000_000}}
+
+func toTradeLadder(g domain.Game, cfg domain.Config, r domain.Resource) tradeLadderDTO {
+	l := tradeLadderDTO{Buy: map[string]tradeQuoteDTO{}, Sell: map[string]tradeQuoteDTO{}}
+	for _, a := range bulkAmounts {
+		l.Buy[a.key] = toTradeQuote(domain.QuoteBuy(g, cfg, r, a.qty, true))
+		l.Sell[a.key] = toTradeQuote(domain.QuoteSell(g, cfg, r, a.qty, true))
+	}
+	return l
+}
+
+func impactPercent(marginal, plain int) int {
+	if plain == 0 {
+		return 0
+	}
+	return int(math.Round(100 * (float64(marginal)/float64(plain) - 1)))
 }
 
 type upgradeOptionDTO struct {
@@ -234,16 +291,21 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 		q := quotes[r]
 		m := g.Market[r]
 		resources = append(resources, resourceViewDTO{
-			Resource:       r,
-			Stock:          g.Inventory[r],
-			Capacity:       domain.Capacity(g, cfg, r),
-			Price:          q.Price,
-			PreviousPrice:  m.PreviousEffective,
-			Bid:            q.Bid,
-			Ask:            q.Ask,
-			History:        append([]int{}, m.History...),
-			AvgCost:        domain.AvgCost(g, r),
-			UnrealizedGain: domain.UnrealizedGain(g, cfg, r),
+			Resource:          r,
+			Stock:             g.Inventory[r],
+			Capacity:          domain.Capacity(g, cfg, r),
+			Price:             q.Price,
+			PreviousPrice:     m.PreviousEffective,
+			Bid:               domain.MarginalBid(g, cfg, r),
+			Ask:               domain.MarginalAsk(g, cfg, r),
+			BuyDepthLeft:      domain.FreeDepthLeft(cfg, r, g.BuyPressure[r]),
+			SellDepthLeft:     domain.FreeDepthLeft(cfg, r, g.SellPressure[r]),
+			BuyImpactPercent:  impactPercent(domain.MarginalAsk(g, cfg, r), q.Ask),
+			SellImpactPercent: -impactPercent(domain.MarginalBid(g, cfg, r), q.Bid),
+			Trade:             toTradeLadder(g, cfg, r),
+			History:           append([]int{}, m.History...),
+			AvgCost:           domain.AvgCost(g, r),
+			UnrealizedGain:    domain.UnrealizedGain(g, cfg, r),
 		})
 	}
 

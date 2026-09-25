@@ -40,6 +40,7 @@ func EndDay(g *Game, cfg Config) (DayReport, error) {
 	}
 
 	g.Day++
+	g.forgetPressure(cfg) // the market forgets part of yesterday's trading overnight
 	rng := rand.New(rand.NewSource(g.Seed ^ int64(g.Day)))
 
 	report.ExpiredEvents, report.NewEvents = tickEvents(g, rng, cfg)
