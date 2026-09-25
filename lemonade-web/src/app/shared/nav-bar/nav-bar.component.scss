@@ -18,6 +18,13 @@
   text-decoration: none;
 }
 
+.right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
 .user {
   display: inline-flex;
   align-items: center;

@@ -1,18 +1,18 @@
-<section class="help" id="how-to-play">
-  <button
-    type="button"
-    class="toggle"
-    [attr.aria-expanded]="help.open()"
-    aria-controls="help-body"
-    (click)="help.toggle()"
-  >
-    <span class="badge"><app-icon name="help" [size]="18" /></span>
-    <span class="grow">How to play</span>
-    <span class="state" aria-hidden="true">{{ help.open() ? 'Hide' : 'Show' }}</span>
-  </button>
+<button
+  type="button"
+  class="btn btn-ghost toggle"
+  [attr.aria-expanded]="help.open()"
+  aria-label="How to play"
+  aria-controls="help-body"
+  (click)="help.toggle()"
+>
+  <app-icon name="help" [size]="16" />
+  <span class="label">How to play</span>
+</button>
 
-  @if (help.open()) {
-    <div id="help-body" class="body fade-in">
+@if (help.open()) {
+  <section id="help-body" class="popover fade-in" role="dialog" aria-label="How to play">
+    <div class="body">
       <div class="tabs" role="tablist" aria-label="Help sections">
         @for (s of sections; track s.id) {
           <button
@@ -99,5 +99,5 @@
         }
       </div>
     </div>
-  }
-</section>
+  </section>
+}
