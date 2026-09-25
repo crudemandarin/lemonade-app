@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	"gorm.io/gorm"
@@ -102,6 +103,8 @@ type gameRow struct {
 	PriceLog []priceRow `gorm:"type:jsonb;serializer:json"`
 	// Goals are the achievement facts; NULL (all zero) on rows saved before they existed.
 	Goals domain.GoalStats `gorm:"type:jsonb;serializer:json"`
+	// NetWorthDay100 is NULL until the run reaches day 100 (and on older rows).
+	NetWorthDay100 *int `gorm:"column:net_worth_day100"`
 
 	UpdatedAt time.Time
 }
@@ -132,7 +135,10 @@ type runRow struct {
 	Timeline   []pointRow `gorm:"type:jsonb;serializer:json"`
 	Stats      statsRow   `gorm:"type:jsonb;serializer:json"`
 	PriceLog   []priceRow `gorm:"type:jsonb;serializer:json"`
-	CreatedAt  time.Time  `gorm:"index:idx_runs_user_created,priority:2,sort:desc"`
+	// NetWorthDay100 is the net worth on arriving at day 100; NULL when the run ended
+	// earlier and for runs stored before the day-100 board existed.
+	NetWorthDay100 *int      `gorm:"column:net_worth_day100"`
+	CreatedAt      time.Time `gorm:"index:idx_runs_user_created,priority:2,sort:desc"`
 }
 
 func (runRow) TableName() string { return "runs" }
@@ -413,7 +419,7 @@ func saveEffects(tx *gorm.DB, userID uint, g domain.Game, e domain.Effects) erro
 			UserID: userID, RunID: r.RunID, Difficulty: 3, Days: r.Days, Score: r.Score,
 			NetWorth: r.NetWorth, Capital: r.Capital, EndedBy: r.EndedBy,
 			Timeline: make([]pointRow, 0, len(r.Timeline)), Stats: statsRow(r.Stats),
-			PriceLog: make([]priceRow, 0, len(r.PriceLog)),
+			PriceLog: make([]priceRow, 0, len(r.PriceLog)), NetWorthDay100: r.NetWorthDay100,
 		}
 		for _, p := range r.Timeline {
 			row.Timeline = append(row.Timeline, pointRow{
@@ -462,6 +468,7 @@ func toRow(g domain.Game) gameRow {
 		PriceLog:        make([]priceRow, 0, len(g.PriceLog)),
 		Stats:           statsRow(g.Stats),
 		Goals:           g.Goals,
+		NetWorthDay100:  g.NetWorthDay100,
 	}
 	for _, p := range g.Timeline {
 		row.Timeline = append(row.Timeline, pointRow{
@@ -525,6 +532,7 @@ func fromRow(row gameRow) domain.Game {
 		Market:          make(map[domain.Resource]*domain.ResourceMarket, len(row.Market)),
 		Stats:           domain.Stats(row.Stats),
 		Goals:           row.Goals,
+		NetWorthDay100:  row.NetWorthDay100,
 	}
 	for _, p := range row.Timeline {
 		g.Timeline = append(g.Timeline, domain.TimelinePoint{
@@ -584,11 +592,25 @@ func fromRow(row gameRow) domain.Game {
 // scoreSQL ranks each player's best finished run: highest score first, an earlier
 // finish winning a tie (and the row id settling the rest). DISTINCT ON keeps one run
 // per user; ROW_NUMBER gives the rank, so a player far down the board still has one.
-const scoreSQL = `
-WITH best AS (
-  SELECT DISTINCT ON (user_id) id, user_id, run_id, score, days, net_worth, created_at
+func scoreSQL(board Board) string {
+	if board == BoardDay100 {
+		// The day-100 board ranks the net worth on arriving at day 100; runs without one
+		// (ended earlier, or stored before the board existed) are left off.
+		return boardSQL(`SELECT DISTINCT ON (user_id) id, user_id, run_id, net_worth_day100 AS score,
+    ` + strconv.Itoa(domain.BoardDay) + ` AS days, net_worth_day100 AS net_worth, created_at
   FROM runs
-  ORDER BY user_id, score DESC, created_at ASC, id ASC
+  WHERE net_worth_day100 IS NOT NULL
+  ORDER BY user_id, net_worth_day100 DESC, created_at ASC, id ASC`)
+	}
+	return boardSQL(`SELECT DISTINCT ON (user_id) id, user_id, run_id, score, days, net_worth, created_at
+  FROM runs
+  ORDER BY user_id, score DESC, created_at ASC, id ASC`)
+}
+
+func boardSQL(best string) string {
+	return `
+WITH best AS (
+  ` + best + `
 ), ranked AS (
   SELECT ROW_NUMBER() OVER (ORDER BY b.score DESC, b.created_at ASC, b.id ASC) AS rank,
          b.user_id, u.username, b.run_id, b.score, b.days, b.net_worth, b.created_at,
@@ -596,6 +618,7 @@ WITH best AS (
   FROM best b JOIN users u ON u.id = b.user_id
 )
 SELECT rank, user_id, username, run_id, score, days, net_worth, created_at, achievements FROM ranked`
+}
 
 type scoreScan struct {
 	Rank      int
@@ -611,8 +634,12 @@ type scoreScan struct {
 }
 
 func (p *Postgres) TopScores(ctx context.Context, limit int) ([]ScoreRow, error) {
+	return p.TopBoard(ctx, BoardAllTime, limit)
+}
+
+func (p *Postgres) TopBoard(ctx context.Context, board Board, limit int) ([]ScoreRow, error) {
 	var scans []scoreScan
-	if err := p.db.WithContext(ctx).Raw(scoreSQL+" ORDER BY rank LIMIT ?", limit).Scan(&scans).Error; err != nil {
+	if err := p.db.WithContext(ctx).Raw(scoreSQL(board)+" ORDER BY rank LIMIT ?", limit).Scan(&scans).Error; err != nil {
 		return nil, err
 	}
 	out := make([]ScoreRow, 0, len(scans))
@@ -623,8 +650,12 @@ func (p *Postgres) TopScores(ctx context.Context, limit int) ([]ScoreRow, error)
 }
 
 func (p *Postgres) BestScore(ctx context.Context, userID uint) (*ScoreRow, error) {
+	return p.BestOnBoard(ctx, BoardAllTime, userID)
+}
+
+func (p *Postgres) BestOnBoard(ctx context.Context, board Board, userID uint) (*ScoreRow, error) {
 	var scans []scoreScan
-	if err := p.db.WithContext(ctx).Raw(scoreSQL+" WHERE user_id = ?", userID).Scan(&scans).Error; err != nil {
+	if err := p.db.WithContext(ctx).Raw(scoreSQL(board)+" WHERE user_id = ?", userID).Scan(&scans).Error; err != nil {
 		return nil, err
 	}
 	if len(scans) == 0 {

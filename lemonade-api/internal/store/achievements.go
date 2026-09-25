@@ -46,7 +46,7 @@ func (p *Postgres) RunCount(ctx context.Context, userID uint) (int, error) {
 
 func (p *Postgres) FinishedRuns(ctx context.Context) ([]FinishedRun, error) {
 	var rows []runRow
-	err := p.db.WithContext(ctx).Select("user_id, run_id, days, score, net_worth, capital, ended_by, stats, created_at").
+	err := p.db.WithContext(ctx).Select("user_id, run_id, days, score, net_worth, capital, ended_by, stats, net_worth_day100, created_at").
 		Order("user_id, created_at, id").Find(&rows).Error
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func (p *Postgres) FinishedRuns(ctx context.Context) ([]FinishedRun, error) {
 	for _, r := range rows {
 		out = append(out, FinishedRun{UserID: r.UserID, CreatedAt: r.CreatedAt, RunRecord: domain.RunRecord{
 			RunID: r.RunID, Days: r.Days, Score: r.Score, NetWorth: r.NetWorth, Capital: r.Capital,
-			EndedBy: r.EndedBy, Stats: domain.Stats(r.Stats),
+			EndedBy: r.EndedBy, Stats: domain.Stats(r.Stats), NetWorthDay100: r.NetWorthDay100,
 		}})
 	}
 	return out, nil

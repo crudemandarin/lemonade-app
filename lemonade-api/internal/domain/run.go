@@ -19,6 +19,8 @@ type RunRecord struct {
 	Timeline []TimelinePoint
 	Stats    Stats
 	PriceLog []PricePoint
+	// NetWorthDay100 is the run's net worth on arriving at BoardDay, nil if it ended earlier.
+	NetWorthDay100 *int
 }
 
 // Effects are what a mutation produced beyond changing the game. The store saves
@@ -49,5 +51,7 @@ func FinishRun(g Game, cfg Config, endedBy string) RunRecord {
 		Timeline: c.Timeline,
 		Stats:    c.Stats,
 		PriceLog: c.PriceLog,
+
+		NetWorthDay100: c.NetWorthDay100,
 	}
 }

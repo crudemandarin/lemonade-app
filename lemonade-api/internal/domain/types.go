@@ -58,6 +58,10 @@ type Game struct {
 
 	// Goals are run-scoped facts only achievements read; see goals.go.
 	Goals GoalStats
+
+	// NetWorthDay100 is the net worth on first reaching BoardDay (nil before, and for
+	// runs that end earlier); it feeds the day-100 board. See milestones.go.
+	NetWorthDay100 *int
 }
 
 // User identifies a player. Login is username-only (SPEC rule 22).
@@ -153,5 +157,9 @@ func (g Game) Clone() Game {
 		c.Events = append(c.Events, ec)
 	}
 	c.Goals = g.Goals.clone()
+	if g.NetWorthDay100 != nil {
+		v := *g.NetWorthDay100
+		c.NetWorthDay100 = &v
+	}
 	return c
 }

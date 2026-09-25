@@ -262,23 +262,43 @@ func (m *Memory) usernameOf(userID uint) string {
 }
 
 // board builds the ranked best-run-per-user list; callers hold the lock.
-func (m *Memory) board() []ScoreRow {
+func (m *Memory) board(kind Board) []ScoreRow {
+	// value is what a run ranks by; ok is false for a run that is off the board.
+	value := func(r domain.RunRecord) (int, bool) {
+		if kind == BoardDay100 {
+			if r.NetWorthDay100 == nil {
+				return 0, false
+			}
+			return *r.NetWorthDay100, true
+		}
+		return r.Score, true
+	}
 	best := map[uint]domain.RunRecord{}
 	for _, r := range m.runs {
+		v, ok := value(r)
+		if !ok {
+			continue
+		}
 		uid := m.runOwner[r.RunID]
-		cur, ok := best[uid]
-		if !ok || r.Score > cur.Score ||
-			(r.Score == cur.Score && m.runMeta[r.RunID].earlier(m.runMeta[cur.RunID])) {
+		cur, has := best[uid]
+		cv, _ := value(cur)
+		if !has || v > cv ||
+			(v == cv && m.runMeta[r.RunID].earlier(m.runMeta[cur.RunID])) {
 			best[uid] = r
 		}
 	}
 	rows := make([]ScoreRow, 0, len(best))
 	for uid, r := range best {
-		rows = append(rows, ScoreRow{
-			UserID: uid, Username: m.usernameOf(uid), RunID: r.RunID, Score: r.Score,
+		v, _ := value(r)
+		row := ScoreRow{
+			UserID: uid, Username: m.usernameOf(uid), RunID: r.RunID, Score: v,
 			Days: r.Days, NetWorth: r.NetWorth, CreatedAt: m.runMeta[r.RunID].createdAt,
 			Achievements: len(m.achievements[uid]),
-		})
+		}
+		if kind == BoardDay100 {
+			row.Days, row.NetWorth = domain.BoardDay, v
+		}
+		rows = append(rows, row)
 	}
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].Score != rows[j].Score {
@@ -292,20 +312,28 @@ func (m *Memory) board() []ScoreRow {
 	return rows
 }
 
-func (m *Memory) TopScores(_ context.Context, limit int) ([]ScoreRow, error) {
+func (m *Memory) TopScores(ctx context.Context, limit int) ([]ScoreRow, error) {
+	return m.TopBoard(ctx, BoardAllTime, limit)
+}
+
+func (m *Memory) TopBoard(_ context.Context, kind Board, limit int) ([]ScoreRow, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	rows := m.board()
+	rows := m.board(kind)
 	if limit < len(rows) {
 		rows = rows[:limit]
 	}
 	return rows, nil
 }
 
-func (m *Memory) BestScore(_ context.Context, userID uint) (*ScoreRow, error) {
+func (m *Memory) BestScore(ctx context.Context, userID uint) (*ScoreRow, error) {
+	return m.BestOnBoard(ctx, BoardAllTime, userID)
+}
+
+func (m *Memory) BestOnBoard(_ context.Context, kind Board, userID uint) (*ScoreRow, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	for _, r := range m.board() {
+	for _, r := range m.board(kind) {
 		if r.UserID == userID {
 			r := r
 			return &r, nil

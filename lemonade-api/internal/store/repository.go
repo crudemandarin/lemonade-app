@@ -35,6 +35,17 @@ type ScoreRow struct {
 	Achievements int
 }
 
+// Board names a leaderboard: all-time best run, or best net worth on arriving at day 100.
+type Board string
+
+const (
+	BoardAllTime Board = "all_time"
+	BoardDay100  Board = "day_100"
+)
+
+// Valid reports whether b is a known board.
+func (b Board) Valid() bool { return b == BoardAllTime || b == BoardDay100 }
+
 // Achievement is one achievement a player has unlocked.
 type Achievement struct {
 	Key        string
@@ -114,6 +125,13 @@ type Repository interface {
 	// TopScores is the global board: each player's best finished run, best first,
 	// at most limit rows. Runs still in progress never appear.
 	TopScores(ctx context.Context, limit int) ([]ScoreRow, error)
+
+	// TopBoard is TopScores for a named board. On the day-100 board Score is the net
+	// worth on arriving at day 100 and Days is 100; runs that never reached it are absent.
+	TopBoard(ctx context.Context, board Board, limit int) ([]ScoreRow, error)
+
+	// BestOnBoard is BestScore for a named board.
+	BestOnBoard(ctx context.Context, board Board, userID uint) (*ScoreRow, error)
 
 	// BestScore is the player's own row on the board, with its rank however far down
 	// it is, or nil when they have no finished run.
