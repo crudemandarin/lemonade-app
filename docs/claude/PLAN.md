@@ -72,7 +72,7 @@ Time estimates are rough and cumulative.
 
 - [ ] **Slice 14: Balance pass (see `HANDOFF-BALANCE.md`)**
   - [x] Phase 0: exploit bots and baseline (no game change)
-  - [ ] Phase 1: market depth and price impact (waiting on the user after the baseline)
+  - [x] Phase 1: market depth and price impact (knobs swept; open questions listed in DECISIONS 33)
   - [ ] Phase 3: retune; Phase 4: UX, docs, verification
   - Phase 2 (perishable lemonade) is out of scope by decision.
 

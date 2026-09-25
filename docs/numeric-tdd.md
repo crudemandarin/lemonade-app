@@ -167,6 +167,7 @@ Two tables. Scalars a leaderboard would query are real columns; state that is on
 | `production_qty` | int | production buildings, 1–10 |
 | `warehouse_qty` | JSONB | buildings per resource `{lemon, sugar, ice, cup, lemonade}` |
 | `price_log` | JSONB | one point per day: effective prices after the market tick, and the active event keys; NULL on older rows, seeded on load |
+| `buy_pressure` / `sell_pressure` | JSONB | cases the player recently bought and sold per resource (market depth); NULL on older rows, treated as zero |
 | `cost_basis` | JSONB | total dollars paid for the stock of each resource; NULL on older rows, seeded on load |
 | `inventory` | JSONB | cases per resource |
 | `market` | JSONB | per resource: walked price (float), previous effective price, history (≤ 14 days) |
@@ -194,6 +195,7 @@ JSON, camelCase. The contract is `lemonade-web/src/app/core/api.models.ts`.
 | `GET /api/game/reports[?runId=]` · `GET /api/game/reports/{day}[?runId=]` | ended days of the current run (or of a finished run of the same player): a light list, or one full report; another player's run is a 404 |
 | `GET /api/scores[?limit=]` | global board: one row per player (their best finished run), best first, an earlier finish wins a tie; `limit` 1 to 100 (default 20), 400 `invalid_limit` if not a number. Also returns `me`, the caller's own row and rank even below the rows shown |
 | `GET /api/runs` · `GET /api/runs/{runId}` | the caller's finished runs, newest first with the best flagged; one run in full (score, stats, timeline, price log, report index). Another player's run, an unfinished run and an unknown one are all a 404 |
+| `GET /api/game/quote?resource=&side=buy\|sell&qty=[&clamp=true]` | prices a trade with price impact without making it: total, average price, slippage; 400 for a bad resource, side or quantity |
 | `POST /api/game/new` | start a fresh run; 409 `run_active` unless the last one is over (bankrupt or given up) |
 | `POST /api/game/give-up` | end the run (`status: gave_up`) and record it; the score is the net worth at that moment |
 | `POST /api/game/facilities/warehouse/sell {resource}` · `.../production/sell` | sell one building back at `ResaleRate` of its build cost; 409 `min_facility` or `stock_exceeds_capacity` |
@@ -248,6 +250,10 @@ Every balance number lives in one struct, `DefaultConfig()` in `lemonade-api/int
 | `RevertRate` | 0.15 | How strongly prices are pulled back toward their base (15% of the gap per day) |
 | `ClampMin` / `ClampMax` | 0.25× / 4× | Hard floor and ceiling on the walked price |
 | `EventChance` | 25% | Chance per day that a new market event starts |
+| `FreeDepth` | 80 cases per resource | How many cases you can buy (or sell) at the plain price before the market reacts to your own trading |
+| `ImpactSlope` | 0.3% | Each case beyond the free depth moves the price a further 0.3%: the ask up when you buy, the bid down when you sell |
+| `Recovery` | 50% | Share of your remembered trading volume the market forgets each night |
+| `ImpactCap` | 60% | Most a price can move because of your own trades |
 | `ResaleRate` | 50% | Share of a building's build cost returned when it is sold (quantity only; levels are never sold) |
 | `MaxLevel` / `MaxQuantity` | 4 / 10 | Highest facility level, and most buildings per warehouse resource (and for production) |
 | `HistoryLength` | 14 | Days of price history kept per resource |
@@ -280,6 +286,10 @@ Two earlier problems drove the last tuning pass: the market was almost riskless 
 | Thresholder, literal rule (ask at most 0.9 x base only) | never buys at any other time | 100% | dead | dead | never |
 
 Findings: (1) The exploit is real and needs no skill: the price-blind spammer out-earns the careful grower ($34.6k against $29.9k at day 60, $388k against $308k at day 90) and 80% of spammers survive 120 days. Only 23% of spammers are bankrupt or under $1,000 at day 90. (2) Waiting for good prices does not pay: upkeep is due every day whether or not anything is produced, so skipping days makes the thresholders die more (64% against 20%). The "free option" in the diagnosis is much weaker than volume. (3) Lemonade cannot be hoarded: a warehouse holds exactly one day of production at every level (10/20/40/80 each), so the hoarder sells daily and matches the opportunist. (4) The handoff's literal buy rule (ask at most 0.9 x base) needs the price about 18% under base in lemon, sugar and cups at the same time and starves the bot.
+
+**Market depth (balance handoff, phase 1).** The market now reacts to the player's own trading, which is what stops the price-blind volume strategy. Each resource remembers how many cases the player recently bought and sold, separately (so buying only raises the ask and selling only lowers the bid, and no buy-then-sell round trip can profit). The k-th case traded costs the plain ask (or pays the plain bid) until the free depth is used up, then moves 0.3% per further case up to a 60% cap; half of the remembered volume is forgotten each night. Costs are summed per case in whole dollars. The game view's `bid` and `ask` are the price of the next single case, each row says how much free depth is left and how far the price has moved, and a per-amount ladder (1, 10, 50, 100, all) gives the server's total for the trade bar, so the UI does no price arithmetic. Net worth and the score still value stock at the plain bid and ignore price impact.
+
+Knobs were chosen by sweeping free depth (40 to 200), slope (0.2% to 1.5%) and recovery (30% or 50%) against the bots. The handoff's first guess (40 free cases, 1.5% per case) made every bot go bankrupt, including the careful one. After: a careful player and the skilled traders run at about $9-10k at day 60 and $15k at day 90 (before: $30k and $308k), 20% bankrupt over 120 days, and the price-blind spammer is bankrupt in 100% of games (before: 20%, and it was the richest bot). Careful and skilled bots now size each batch to the last case that still earns money and only add capacity when capacity is what limits profit, as a real careful player would. Early game is untouched: a level 1 or 2 business stays inside 80 free cases. Still unmet: nobody now reaches "everything maxed" (before: median day 66), and the best play flattens out around $15k.
 
 **Tuning it yourself.**
 
