@@ -2,7 +2,14 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, firstValueFrom, from } from 'rxjs';
 
 import { apiErrorMessage } from './api-error';
-import { DayReport, FacilityType, GameView, ReportSummary, Resource } from './api.models';
+import {
+  DayReport,
+  FacilityType,
+  GameView,
+  ReportSummary,
+  Resource,
+  UpgradesResponse,
+} from './api.models';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
 
@@ -77,6 +84,16 @@ export class GameStore {
 
   upgrade(type: FacilityType): Promise<void> {
     return this.update(this.api.upgrade(type));
+  }
+
+  /** The upgrade list is read on demand and kept out of the game state. Rejects on failure. */
+  upgradeList(): Promise<UpgradesResponse> {
+    return firstValueFrom(this.api.upgrades());
+  }
+
+  /** Buys an upgrade; the game view (cash, features, upkeep) comes back with it. */
+  buyUpgrade(key: string): Promise<void> {
+    return this.update(this.api.buyUpgrade(key));
   }
 
   /** Past days are read on demand and kept out of the game state. Rejects on failure. */

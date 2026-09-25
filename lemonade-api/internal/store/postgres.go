@@ -100,6 +100,12 @@ type gameRow struct {
 	Stats        statsRow             `gorm:"type:jsonb;serializer:json"`
 	// PriceLog is NULL on rows saved before it existed; fromRow seeds those.
 	PriceLog []priceRow `gorm:"type:jsonb;serializer:json"`
+	// Upgrades, UpgradeSpend, IceOld and Carry are NULL on rows saved before upgrades
+	// existed: nothing owned, nothing kept, no fractions carried.
+	Upgrades     map[string]int `gorm:"type:jsonb;serializer:json"`
+	UpgradeSpend int
+	IceOld       int
+	Carry        map[string]float64 `gorm:"type:jsonb;serializer:json"`
 
 	UpdatedAt time.Time
 }
@@ -430,6 +436,16 @@ func toRow(g domain.Game) gameRow {
 		Timeline:        make([]pointRow, 0, len(g.Timeline)),
 		PriceLog:        make([]priceRow, 0, len(g.PriceLog)),
 		Stats:           statsRow(g.Stats),
+		Upgrades:        make(map[string]int, len(g.Upgrades)),
+		UpgradeSpend:    g.UpgradeSpend,
+		IceOld:          g.IceOld,
+		Carry:           make(map[string]float64, len(g.Carry)),
+	}
+	for k, v := range g.Upgrades {
+		row.Upgrades[k] = v
+	}
+	for k, v := range g.Carry {
+		row.Carry[k] = v
 	}
 	for _, p := range g.Timeline {
 		row.Timeline = append(row.Timeline, pointRow{
@@ -492,6 +508,16 @@ func fromRow(row gameRow) domain.Game {
 		WarehouseQty:    make(map[domain.Resource]int, len(row.WarehouseQty)),
 		Market:          make(map[domain.Resource]*domain.ResourceMarket, len(row.Market)),
 		Stats:           domain.Stats(row.Stats),
+		Upgrades:        make(map[string]int, len(row.Upgrades)),
+		UpgradeSpend:    row.UpgradeSpend,
+		IceOld:          row.IceOld,
+		Carry:           make(map[string]float64, len(row.Carry)),
+	}
+	for k, v := range row.Upgrades {
+		g.Upgrades[k] = v
+	}
+	for k, v := range row.Carry {
+		g.Carry[k] = v
 	}
 	for _, p := range row.Timeline {
 		g.Timeline = append(g.Timeline, domain.TimelinePoint{

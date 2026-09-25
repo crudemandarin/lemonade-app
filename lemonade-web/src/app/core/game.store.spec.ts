@@ -5,7 +5,7 @@ import { TestBed } from '@angular/core/testing';
 import { GameStore } from './game.store';
 import { FakeAuthPort, provideFakeAuth } from './testing/fake-auth';
 import { SessionService } from './session.service';
-import { dayReport, newGameView } from './testing/fixtures';
+import { dayReport, newGameView, upgradesResponse } from './testing/fixtures';
 
 describe('GameStore', () => {
   let store: GameStore;
@@ -49,6 +49,24 @@ describe('GameStore', () => {
     expect(await done).toBeFalse();
     expect(store.error()).toBe('This username is protected.');
     expect(session.username()).toBeNull();
+  });
+
+  it('upgradeList reads the upgrades without touching the game state', async () => {
+    const done = store.upgradeList();
+    http.expectOne('/api/game/upgrades').flush(upgradesResponse());
+
+    expect((await done).upgrades.length).toBe(3);
+    expect(store.game()).toBeNull();
+  });
+
+  it('buyUpgrade posts the key and stores the new view', async () => {
+    const done = store.buyUpgrade('order_book');
+    const req = http.expectOne('/api/game/upgrades/order_book/buy');
+    expect(req.request.method).toBe('POST');
+    req.flush(newGameView({ capital: 500, features: ['repeat_trades'] }));
+    await done;
+
+    expect(store.game()?.features).toEqual(['repeat_trades']);
   });
 
   it('load stores the game view', async () => {

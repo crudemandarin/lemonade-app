@@ -32,6 +32,8 @@ func NewGame(cfg Config, seed int64) Game {
 		ProductionLevel: 1,
 		ProductionQty:   1,
 		Market:          market,
+		Upgrades:        make(map[string]int),
+		Carry:           make(map[string]float64),
 		Events:          nil,
 	}
 	g.record(TimelinePoint{Day: 1, Kind: PointStart})

@@ -9,6 +9,8 @@ import {
   TradeAmountKey,
   TradeLadder,
   TradeQuote,
+  UpgradeItem,
+  UpgradesResponse,
   Resource,
   ResourceView,
   SaleInfo,
@@ -65,6 +67,7 @@ function row(resource: Resource, price: number, stock = 0): ResourceView {
     history: [price],
     avgCost: 0,
     unrealizedGain: 0,
+    movingAverage: null,
   };
 }
 
@@ -131,13 +134,16 @@ export function newGameView(overrides: Partial<GameView> = {}): GameView {
     events: [],
     timeline: [timelinePoint()],
     stats: gameStats(),
-    projection: { lemonadeToProduce: 0, iceToMelt: 0, limitedBy: 'lemon' },
+    projection: { lemonadeToProduce: 0, iceToMelt: 0, iceKept: 0, limitedBy: 'lemon' },
     priceLog: [{ day: 1, prices: [20, 10, 10, 10, 90], events: [] }],
     basePrices: [20, 10, 10, 10, 90],
     commodities: commodities(),
     netWorth: { cash: 1000, stock: 0, facilities: 500, total: 1500 },
     runId: 'run-current',
     best: null,
+    features: [],
+    iceKeepCases: 0,
+    forecast: [],
     ...overrides,
   };
 }
@@ -147,7 +153,12 @@ export function dayReport(overrides: Partial<DayReport> = {}): DayReport {
     day: 4,
     produced: 10,
     iceMelted: 2,
+    iceKept: 0,
     upkeepPaid: 15,
+    upgradeUpkeep: 0,
+    iceMade: 0,
+    iceMadeCost: 0,
+    pnl: null,
     forcedSaleCases: 0,
     forcedSaleProceeds: 0,
     capitalBefore: 1240,
@@ -291,4 +302,57 @@ export function commodities(): Commodity[] {
       order: 50,
     },
   ];
+}
+
+export function upgradeItem(overrides: Partial<UpgradeItem> = {}): UpgradeItem {
+  return {
+    key: 'order_book',
+    name: 'Order book',
+    category: 'convenience',
+    era: 1,
+    cost: 500,
+    upkeep: 0,
+    text: "A button to repeat yesterday's trades.",
+    state: 'available',
+    lockCode: '',
+    lockedReason: '',
+    ...overrides,
+  };
+}
+
+export function upgradesResponse(overrides: Partial<UpgradesResponse> = {}): UpgradesResponse {
+  return {
+    era: 1,
+    categories: [
+      { key: 'freshness', name: 'Freshness and storage' },
+      { key: 'convenience', name: 'Convenience' },
+    ],
+    upgrades: [
+      upgradeItem({
+        key: 'freezer_1',
+        name: 'Chest freezer',
+        category: 'freshness',
+        cost: 1200,
+        upkeep: 5,
+        text: 'Keep up to 20 cases of ice one extra night.',
+      }),
+      upgradeItem({
+        key: 'freezer_2',
+        name: 'Walk-in freezer',
+        category: 'freshness',
+        era: 2,
+        cost: 8000,
+        upkeep: 20,
+        text: 'Keep up to 150 cases of ice one extra night.',
+        state: 'locked',
+        lockCode: 'era',
+        lockedReason: 'Reach era 2 first.',
+      }),
+      upgradeItem(),
+    ],
+    ownedCount: 0,
+    spent: 0,
+    upkeepPerDay: 0,
+    ...overrides,
+  };
 }

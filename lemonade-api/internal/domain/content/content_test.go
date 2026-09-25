@@ -65,3 +65,102 @@ func TestRecipesAreValid(t *testing.T) {
 		}
 	}
 }
+
+func TestUpgradesAreValid(t *testing.T) {
+	classes := map[string]bool{StorageDry: true, StorageCold: true, StorageFrozen: true, StorageFinished: true}
+	commodities := map[string]bool{}
+	for _, c := range Commodities {
+		commodities[c.Key] = true
+	}
+	recipes := map[string]bool{}
+	for _, r := range Recipes {
+		recipes[r.Key] = true
+	}
+	cats := map[string]bool{}
+	for _, c := range UpgradeCategories {
+		cats[c] = true
+	}
+	earlier := map[string]bool{}
+	for _, u := range Upgrades {
+		if u.Key == "" || u.Name == "" || u.Text == "" {
+			t.Errorf("upgrade %+v needs a key, a name and a description", u)
+		}
+		if earlier[u.Key] {
+			t.Errorf("duplicate upgrade key %q", u.Key)
+		}
+		if !cats[u.Category] {
+			t.Errorf("%s: unknown category %q", u.Key, u.Category)
+		}
+		if u.Cost < 1 || u.Cost > 10_000_000 || u.Upkeep < 0 || u.Upkeep > 10_000 {
+			t.Errorf("%s: cost %d or upkeep %d out of range", u.Key, u.Cost, u.Upkeep)
+		}
+		if u.Requires.Era < 1 || u.Requires.Era > 5 {
+			t.Errorf("%s: era %d out of range", u.Key, u.Requires.Era)
+		}
+		for _, need := range u.Requires.Upgrades {
+			if !earlier[need] {
+				t.Errorf("%s: requires %q, which must be listed before it", u.Key, need)
+			}
+		}
+		if len(u.Effects) == 0 {
+			t.Errorf("%s: has no effect", u.Key)
+		}
+		for _, e := range u.Effects {
+			checkEffect(t, u.Key, e, commodities, recipes, classes)
+		}
+		earlier[u.Key] = true
+	}
+}
+
+func checkEffect(t *testing.T, key string, e EffectDef, commodities, recipes, classes map[string]bool) {
+	t.Helper()
+	bad := func(msg string) { t.Errorf("%s: effect %s: %s", key, e.Kind, msg) }
+	switch e.Kind {
+	case EffIceKeep, EffInputDepthPct, EffInputDiscountPct:
+		if e.Value <= 0 {
+			bad("needs a positive value")
+		}
+	case EffEventFloor:
+		if e.Value <= 0 || e.Value >= 1 {
+			bad("floor must be between 0 and 1")
+		}
+	case EffEventDamp:
+		if e.Target == "" || e.Value < 0 {
+			bad("needs an event and a non-negative factor")
+		}
+	case EffForecast:
+		if (e.Target != "weather" && e.Target != "all") || e.Value < 1 {
+			bad("target must be weather or all, with at least 1 day")
+		}
+	case EffDepthBonus, EffDepthBonusPct:
+		if !commodities[e.Target] || e.Value <= 0 {
+			bad("needs a catalog commodity and a positive value")
+		}
+	case EffUpkeepDiscountPct:
+		if (e.Target != "all" && e.Target != "production" && e.Target != "warehouse") || e.Value <= 0 || e.Value >= 100 {
+			bad("target must be all, production or warehouse, value under 100")
+		}
+	case EffYield:
+		if !recipes[e.Target] || e.Value <= 0 {
+			bad("needs a recipe and a positive value")
+		}
+	case EffUseDiscount:
+		if !commodities[e.Target] || e.Value <= 0 || e.Value >= 100 {
+			bad("needs a catalog commodity and a value under 100")
+		}
+	case EffStoragePct, EffShelfLife:
+		if !classes[e.Target] || e.Value <= 0 {
+			bad("needs a storage class and a positive value")
+		}
+	case EffMake:
+		if !commodities[e.Target] || e.Value <= 0 || e.Aux < 1 {
+			bad("needs a commodity, cases and a unit cost")
+		}
+	case EffUnlock, EffQoL:
+		if e.Target == "" {
+			bad("needs a target")
+		}
+	default:
+		bad("unknown kind")
+	}
+}

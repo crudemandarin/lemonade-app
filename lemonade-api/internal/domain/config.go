@@ -1,5 +1,7 @@
 package domain
 
+import "lemonade-api/internal/domain/content"
+
 // Tier holds the per-building numbers for one facility level.
 type Tier struct {
 	Name string
@@ -23,7 +25,16 @@ type EventDef struct {
 	// Excludes lists event keys that cannot be active at the same time as this
 	// one. It only needs to be declared on one side of a pair.
 	Excludes []string
+	// Kind groups events for forecasts: EventWeather, EventMarket or EventSupply.
+	Kind string
 }
+
+// Event kinds. A weather radio forecasts only EventWeather events.
+const (
+	EventWeather = "weather"
+	EventMarket  = "market"
+	EventSupply  = "supply"
+)
 
 // Config holds every tunable "physics" knob. See DESIGN.md §6.
 type Config struct {
@@ -66,6 +77,9 @@ type Config struct {
 	EventChance float64
 	Events      []EventDef
 
+	// Upgrades is the upgrade table (content/upgrades.go), in display order.
+	Upgrades []UpgradeDef
+
 	// WarehouseTiers and ProductionTiers are indexed by level-1 (level 1..MaxLevel).
 	WarehouseTiers  []Tier
 	ProductionTiers []Tier
@@ -96,9 +110,11 @@ func DefaultConfig() Config {
 		MaxQuantity:   10,
 		HistoryLength: 14,
 		EventChance:   0.25,
+		Upgrades:      append([]UpgradeDef(nil), content.Upgrades...),
 		Events: []EventDef{
 			{
 				Key:         "heat_wave",
+				Kind:        EventWeather,
 				Name:        "Heat Wave",
 				Description: "Scorching days drive lemonade demand and ice consumption.",
 				Duration:    2,
@@ -107,6 +123,7 @@ func DefaultConfig() Config {
 			},
 			{
 				Key:         "rainy_week",
+				Kind:        EventWeather,
 				Name:        "Rainy Week",
 				Description: "Nobody wants lemonade in the rain.",
 				Duration:    3,
@@ -114,6 +131,7 @@ func DefaultConfig() Config {
 			},
 			{
 				Key:         "lemon_blight",
+				Kind:        EventSupply,
 				Name:        "Lemon Blight",
 				Description: "A crop blight drives up lemon prices.",
 				Duration:    3,
@@ -121,6 +139,7 @@ func DefaultConfig() Config {
 			},
 			{
 				Key:         "sugar_glut",
+				Kind:        EventSupply,
 				Name:        "Sugar Glut",
 				Description: "A bumper harvest floods the sugar market.",
 				Duration:    2,
@@ -128,6 +147,7 @@ func DefaultConfig() Config {
 			},
 			{
 				Key:         "holiday",
+				Kind:        EventMarket,
 				Name:        "Holiday",
 				Description: "A local holiday brings out thirsty crowds.",
 				Duration:    1,
@@ -135,6 +155,7 @@ func DefaultConfig() Config {
 			},
 			{
 				Key:         "cup_shortage",
+				Kind:        EventSupply,
 				Name:        "Cup Shortage",
 				Description: "A supplier shortage drives up cup prices.",
 				Duration:    2,

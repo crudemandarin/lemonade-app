@@ -40,6 +40,12 @@ func abortErr(c *gin.Context, err error) {
 		var excess *domain.StockExceedsCapacityError
 		errors.As(err, &excess)
 		abort(c, http.StatusConflict, "stock_exceeds_capacity", fmt.Sprintf("Sell %d %s first: the remaining warehouses cannot hold your stock.", excess.Excess, plural(excess.Excess, "case", "cases")))
+	case errors.Is(err, domain.ErrUnknownUpgrade):
+		abort(c, http.StatusNotFound, "unknown_upgrade", "No such upgrade.")
+	case errors.Is(err, domain.ErrUpgradeOwned):
+		abort(c, http.StatusConflict, "upgrade_owned", "You already own this upgrade.")
+	case errors.Is(err, domain.ErrUpgradeLocked):
+		abort(c, http.StatusConflict, "upgrade_locked", lockMessage(err))
 	case errors.Is(err, domain.ErrMaxLevel):
 		abort(c, http.StatusConflict, "max_level", "Already at the maximum level.")
 	case errors.Is(err, store.ErrNotFound):
