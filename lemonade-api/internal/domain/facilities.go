@@ -23,8 +23,8 @@ func ProductionCapacity(g Game, cfg Config) int {
 // warehouseBuildings is the total building count across all five warehouses.
 func warehouseBuildings(g Game) int {
 	total := 0
-	for _, r := range Resources {
-		total += g.WarehouseQty[r]
+	for _, n := range g.WarehouseQty {
+		total += n
 	}
 	return total
 }
@@ -61,7 +61,7 @@ func FacilityResaleValue(g Game, cfg Config) int {
 func CanSellFacility(g Game, cfg Config, kind FacilityType, resource Resource) error {
 	switch kind {
 	case Warehouse:
-		if !resource.Valid() {
+		if !cfg.Valid(resource) {
 			return ErrInvalidFacility
 		}
 		if g.WarehouseQty[resource] <= 1 {

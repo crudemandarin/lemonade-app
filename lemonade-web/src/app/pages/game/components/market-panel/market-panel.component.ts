@@ -1,7 +1,7 @@
 import { Component, input, output, signal } from '@angular/core';
 
 import { Resource, ResourceView, TradeQuote } from '../../../../core/api.models';
-import { RESOURCE_LABELS } from '../../../../core/resources';
+import { resourceIcon, resourceLabel } from '../../../../core/resources';
 import { CardComponent } from '../../../../shared/card/card.component';
 import { HelpLinkComponent } from '../../../../shared/help/help-link.component';
 import { IconComponent } from '../../../../shared/icon/icon.component';
@@ -47,7 +47,8 @@ export class MarketPanelComponent {
   readonly buy = output<TradeRequest>();
   readonly sell = output<TradeRequest>();
 
-  protected readonly labels = RESOURCE_LABELS;
+  protected readonly label = resourceLabel;
+  protected readonly icon = resourceIcon;
   protected readonly amounts = TRADE_AMOUNTS;
   protected readonly amount = signal<TradeAmount>(loadAmount());
 

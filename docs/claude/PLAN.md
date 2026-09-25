@@ -87,6 +87,13 @@ Time estimates are rough and cumulative.
   - [x] 15d: Google made optional: username-only play stays, linking Google secures an account (DECISIONS 35)
   - [ ] Real-Google smoke test on the deployed domain and in the installed PWA (needs the Firebase console runbook in `deploy/README.md`)
 
+- [ ] **Slice 16: Late game (see `HANDOFF-LATE-GAME-ROADMAP.md`)**
+  - [x] Products A: commodities and the lemonade recipe are catalog data (`domain/content`), timeline and price log are maps, EndDay runs the roadmap's named steps, salts in `salts.go`; golden bot runs byte-identical
+  - [ ] Goals A: achievements; Goals B: day-100 board
+  - [ ] Upgrades A: upgrade framework and first upgrades; Empire A: territories and rivals
+  - [ ] Products B: recipes, storage classes, perishables; Empire B: victory and economic cycles
+  - [ ] Upgrades B: managers and fast-forward; Products C: contracts
+
 ## Hold points
 - **≈2:30 elapsed:** first Reviewer pass (see kickoff prompt 3). Fix only SPEC gaps and bugs.
 - **≈3:30 elapsed:** second Reviewer pass plus fresh-clone check; then walkthrough prep.

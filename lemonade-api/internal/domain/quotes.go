@@ -36,8 +36,8 @@ func snap(x float64) float64 {
 
 // Quotes returns each resource's effective price, bid, and ask.
 func Quotes(g Game, cfg Config) map[Resource]Quote {
-	out := make(map[Resource]Quote, len(Resources))
-	for _, r := range Resources {
+	out := make(map[Resource]Quote, len(cfg.Commodities))
+	for _, r := range cfg.Resources() {
 		price := effectivePrice(g.Market[r].Price, g.Events, r)
 		out[r] = quote(price, cfg.Spread)
 	}

@@ -13,7 +13,7 @@ type NetWorthParts struct {
 func NetWorthBreakdown(g Game, cfg Config) NetWorthParts {
 	quotes := Quotes(g, cfg)
 	stock := 0
-	for _, r := range Resources {
+	for _, r := range cfg.Resources() {
 		stock += g.Inventory[r] * quotes[r].Bid
 	}
 	nw := NetWorthParts{Cash: g.Capital, Stock: stock, Facilities: FacilityResaleValue(g, cfg)}

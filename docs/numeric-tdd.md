@@ -115,13 +115,20 @@ Costs, sizes and upkeep are per building.
 
 ### End of day
 
-One atomic step:
+One atomic step, run as twelve named functions in a fixed order (`endday.go`; the late game tracks fill in the empty ones):
 
-1. Produce `min(rate, stock of each input, free lemonade space)`.
-2. Ice melts to 0.
-3. Pay upkeep `Σ buildings × upkeep(level)` (start: $30/day). Upkeep is always owed: a cash shortfall is covered by selling stock at bid (lemonade, lemon, sugar, cup, ice). If that still can't cover it, pay what's left and the game is over.
-4. Day + 1, market walks, events expire then may spawn.
-5. Build the day report.
+1. Managers act (empty until late game Upgrades B).
+2. Produce the main recipe: `min(rate, stock of each input ÷ its quantity, free output space)` batches.
+3. Freezer rotation (empty until Upgrades A).
+4. Commodities with shelf life "melts nightly" (ice) go to 0; perishables spoil (Products B).
+5. Pay upkeep `Σ buildings × upkeep(level)` (start: $30/day). Upkeep is always owed: a cash shortfall is covered by selling stock at bid (lemonade, lemon, sugar, cup, ice). If that still can't cover it, pay what's left and the game is over.
+6. Record the day on the timeline, then the bankruptcy check.
+7. Day + 1, the market forgets part of the player's recent trading.
+8. Events expire then may spawn (economic cycles follow, Empire B).
+9. Every commodity's price walks, in catalog order.
+10. Rivals tick (Empire A). 11. Contract deadlines (Products C). 12. Price log.
+
+Events come before the walk because they share one random stream (`SaltMarket` in `salts.go`); each later random system gets its own salt, so adding one never changes an existing seed's prices.
 
 Bankruptcy is only checked here, so spending to $0 mid-day is legal. After game over every action is rejected until "New game" (replaces the row).
 
@@ -169,16 +176,18 @@ Two tables. Scalars a leaderboard would query are real columns; state that is on
 | `warehouse_level` | int | 1–4, shared by all warehouses |
 | `production_level` | int | 1–4 |
 | `production_qty` | int | production buildings, 1–10 |
-| `warehouse_qty` | JSONB | buildings per resource `{lemon, sugar, ice, cup, lemonade}` |
-| `price_log` | JSONB | one point per day: effective prices after the market tick, and the active event keys; NULL on older rows, seeded on load |
+| `warehouse_qty` | JSONB | buildings per commodity, keyed by catalog key |
+| `price_log` | JSONB | one point per day: effective prices per commodity (object; older rows hold a 5-element array) after the market tick, and the active event keys; NULL on older rows, seeded on load |
 | `buy_pressure` / `sell_pressure` | JSONB | cases the player recently bought and sold per resource (market depth); NULL on older rows, treated as zero |
 | `cost_basis` | JSONB | total dollars paid for the stock of each resource; NULL on older rows, seeded on load |
 | `inventory` | JSONB | cases per resource |
 | `market` | JSONB | per resource: walked price (float), previous effective price, history (≤ 14 days) |
 | `events` | JSONB | active events with days remaining |
-| `timeline` | JSONB | capital and stock snapshot after each action, for the history charts (old days compacted) |
+| `timeline` | JSONB | capital and stock snapshot after each action, for the history charts (old days compacted). Stock is an object keyed by commodity with zeros left out; rows saved before the catalog hold a 5-element array (lemon, sugar, ice, cup, lemonade), still read |
 | `stats` | JSONB | running totals for the game-over summary |
 | `updated_at` | timestamp | |
+
+**Content catalog.** The commodities (key, name, category, storage class, base price, shelf life, input or product, display order) and the recipes (output, output quantity, ordered inputs) are data in `internal/domain/content/`, read into `Config.Commodities` and `Config.Recipes`. The game view carries the catalog as `commodities`, and every per-commodity array in the view (timeline stock, price log prices, base prices) follows its order.
 
 Two more tables hold what must outlive a game row. `day_reports(run_id, day, payload JSONB)`, primary key `(run_id, day)`, has one row per ended day and is never loaded with the game. `runs(id, user_id, run_id unique, difficulty default 3, days, score, net_worth, capital, ended_by, timeline, stats, price_log, created_at)` has one row per finished run, indexed on `(difficulty, score desc)` and `(user_id, created_at desc)`. Both are written in the same transaction as the game change that produced them.
 

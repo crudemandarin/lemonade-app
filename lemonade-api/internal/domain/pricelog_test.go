@@ -11,9 +11,9 @@ func TestNewGameStartsThePriceLog(t *testing.T) {
 	if p.Day != 1 || len(p.Events) != 0 {
 		t.Fatalf("%+v", p)
 	}
-	for i, r := range Resources {
-		if p.Prices[i] != cfg.BasePrice[r] {
-			t.Errorf("%s: %d, want base %d", r, p.Prices[i], cfg.BasePrice[r])
+	for _, r := range Resources {
+		if p.Prices[r] != cfg.BasePrice[r] {
+			t.Errorf("%s: %d, want base %d", r, p.Prices[r], cfg.BasePrice[r])
 		}
 	}
 }
@@ -33,9 +33,9 @@ func TestEndDayAppendsThePricesThePlayerSees(t *testing.T) {
 			t.Fatalf("point is for day %d, game is on day %d", last.Day, g.Day)
 		}
 		quotes := Quotes(g, cfg)
-		for i, r := range Resources {
-			if last.Prices[i] != quotes[r].Price {
-				t.Fatalf("day %d %s: logged %d, shown %d", g.Day, r, last.Prices[i], quotes[r].Price)
+		for _, r := range Resources {
+			if last.Prices[r] != quotes[r].Price {
+				t.Fatalf("day %d %s: logged %d, shown %d", g.Day, r, last.Prices[r], quotes[r].Price)
 			}
 		}
 		if len(last.Events) != len(g.Events) {
@@ -71,9 +71,9 @@ func TestSeedPriceLogForOldSaves(t *testing.T) {
 		t.Fatalf("%+v", g.PriceLog)
 	}
 	quotes := Quotes(g, cfg)
-	for i, r := range Resources {
-		if g.PriceLog[0].Prices[i] != quotes[r].Price {
-			t.Errorf("%s: %d vs %d", r, g.PriceLog[0].Prices[i], quotes[r].Price)
+	for _, r := range Resources {
+		if g.PriceLog[0].Prices[r] != quotes[r].Price {
+			t.Errorf("%s: %d vs %d", r, g.PriceLog[0].Prices[r], quotes[r].Price)
 		}
 	}
 	SeedPriceLog(&g)

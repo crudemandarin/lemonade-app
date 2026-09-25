@@ -41,7 +41,7 @@ type pointRow struct {
 	Amount   int    `json:"a,omitempty"`
 	Produced int    `json:"p,omitempty"`
 	Capital  int    `json:"c"`
-	Stock    [5]int `json:"s"`
+	Stock    counts `json:"s"`
 }
 
 type statsRow struct {
@@ -62,7 +62,7 @@ type statsRow struct {
 
 type priceRow struct {
 	Day    int      `json:"day"`
-	Prices [5]int   `json:"prices"`
+	Prices counts   `json:"prices"`
 	Events []string `json:"events"`
 }
 
@@ -397,11 +397,11 @@ func saveEffects(tx *gorm.DB, userID uint, g domain.Game, e domain.Effects) erro
 		for _, p := range r.Timeline {
 			row.Timeline = append(row.Timeline, pointRow{
 				Day: p.Day, Kind: string(p.Kind), Resource: string(p.Resource), Facility: string(p.Facility),
-				Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock,
+				Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: toCounts(p.Stock),
 			})
 		}
 		for _, pp := range r.PriceLog {
-			row.PriceLog = append(row.PriceLog, priceRow{Day: pp.Day, Prices: pp.Prices, Events: pp.Events})
+			row.PriceLog = append(row.PriceLog, priceRow{Day: pp.Day, Prices: toCounts(pp.Prices), Events: pp.Events})
 		}
 		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&row).Error; err != nil {
 			return err
@@ -434,11 +434,11 @@ func toRow(g domain.Game) gameRow {
 	for _, p := range g.Timeline {
 		row.Timeline = append(row.Timeline, pointRow{
 			Day: p.Day, Kind: string(p.Kind), Resource: string(p.Resource), Facility: string(p.Facility),
-			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock,
+			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: toCounts(p.Stock),
 		})
 	}
 	for _, pp := range g.PriceLog {
-		row.PriceLog = append(row.PriceLog, priceRow{Day: pp.Day, Prices: pp.Prices, Events: pp.Events})
+		row.PriceLog = append(row.PriceLog, priceRow{Day: pp.Day, Prices: toCounts(pp.Prices), Events: pp.Events})
 	}
 	for r, n := range g.Inventory {
 		row.Inventory[string(r)] = n
@@ -496,11 +496,11 @@ func fromRow(row gameRow) domain.Game {
 	for _, p := range row.Timeline {
 		g.Timeline = append(g.Timeline, domain.TimelinePoint{
 			Day: p.Day, Kind: domain.PointKind(p.Kind), Resource: domain.Resource(p.Resource), Facility: domain.FacilityType(p.Facility),
-			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock,
+			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: fromCounts(p.Stock),
 		})
 	}
 	for _, pp := range row.PriceLog {
-		g.PriceLog = append(g.PriceLog, domain.PricePoint{Day: pp.Day, Prices: pp.Prices, Events: pp.Events})
+		g.PriceLog = append(g.PriceLog, domain.PricePoint{Day: pp.Day, Prices: fromCounts(pp.Prices), Events: pp.Events})
 	}
 	for r, n := range row.Inventory {
 		g.Inventory[domain.Resource(r)] = n
@@ -631,11 +631,11 @@ func (p *Postgres) GetRun(ctx context.Context, userID uint, runID string) (RunDe
 	for _, p := range row.Timeline {
 		rec.Timeline = append(rec.Timeline, domain.TimelinePoint{
 			Day: p.Day, Kind: domain.PointKind(p.Kind), Resource: domain.Resource(p.Resource), Facility: domain.FacilityType(p.Facility),
-			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock,
+			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: fromCounts(p.Stock),
 		})
 	}
 	for _, pp := range row.PriceLog {
-		rec.PriceLog = append(rec.PriceLog, domain.PricePoint{Day: pp.Day, Prices: pp.Prices, Events: pp.Events})
+		rec.PriceLog = append(rec.PriceLog, domain.PricePoint{Day: pp.Day, Prices: fromCounts(pp.Prices), Events: pp.Events})
 	}
 	return RunDetail{RunRecord: rec, CreatedAt: row.CreatedAt}, nil
 }

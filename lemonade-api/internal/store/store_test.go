@@ -368,7 +368,7 @@ func scoresContract(t *testing.T, repo Repository, prefix string) {
 			RunID: prefix + "-" + runID, Days: days, Score: base + score, NetWorth: base + score,
 			Capital: 100, EndedBy: endedBy,
 			Timeline: []domain.TimelinePoint{{Day: 1, Kind: domain.PointStart, Capital: 1000}},
-			PriceLog: []domain.PricePoint{{Day: 1, Prices: [5]int{20, 10, 10, 10, 90}}},
+			PriceLog: []domain.PricePoint{{Day: 1, Prices: map[domain.Resource]int{domain.Lemon: 20, domain.Sugar: 10, domain.Ice: 10, domain.Cup: 10, domain.Lemonade: 90}}},
 		}
 		if _, err := repo.Mutate(ctx, users[name].ID, func(g *domain.Game) (domain.Effects, error) {
 			return domain.Effects{Finished: &rec}, nil

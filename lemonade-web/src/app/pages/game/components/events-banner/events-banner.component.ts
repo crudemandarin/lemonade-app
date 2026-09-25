@@ -1,7 +1,7 @@
 import { Component, input } from '@angular/core';
 
 import { GameEvent, Resource } from '../../../../core/api.models';
-import { RESOURCE_LABELS } from '../../../../core/resources';
+import { resourceLabel } from '../../../../core/resources';
 import { HelpLinkComponent } from '../../../../shared/help/help-link.component';
 import { IconComponent } from '../../../../shared/icon/icon.component';
 
@@ -18,7 +18,7 @@ export class EventsBannerComponent {
 
   protected summary(event: GameEvent): string {
     const effects = (Object.entries(event.multipliers) as [Resource, number][])
-      .map(([resource, m]) => `${RESOURCE_LABELS[resource].toLowerCase()} x${m}`)
+      .map(([resource, m]) => `${resourceLabel(resource).toLowerCase()} x${m}`)
       .join(' and ');
     if (event.daysLeft === 1) {
       return `${event.name}: ${effects}, today is the last day`;

@@ -28,8 +28,14 @@ type EventDef struct {
 // Config holds every tunable "physics" knob. See DESIGN.md §6.
 type Config struct {
 	StartingCapital int
-	BasePrice       map[Resource]int
-	Spread          float64
+
+	// Commodities and Recipes are the content catalog (internal/domain/content), in
+	// display order. BasePrice starts as the catalog's base prices and stays a knob
+	// here so tuning and tests can change it.
+	Commodities []Commodity
+	Recipes     []Recipe
+	BasePrice   map[Resource]int
+	Spread      float64
 
 	// Walk: p' = p + RevertRate*(base-p) + p*Sigma*N(0,1), clamped to [ClampMin, ClampMax]*base.
 	RevertRate float64
@@ -67,20 +73,17 @@ type Config struct {
 
 // DefaultConfig returns the balance numbers from DESIGN.md §6.
 func DefaultConfig() Config {
+	commodities, recipes, base := catalog()
 	return Config{
 		StartingCapital: 1000,
-		BasePrice: map[Resource]int{
-			Lemon:    20,
-			Sugar:    10,
-			Ice:      10,
-			Cup:      10,
-			Lemonade: 90,
-		},
-		Spread:     0.10,
-		RevertRate: 0.15,
-		Sigma:      0.12,
-		ClampMin:   0.25,
-		ClampMax:   4.0,
+		Commodities:     commodities,
+		Recipes:         recipes,
+		BasePrice:       base,
+		Spread:          0.10,
+		RevertRate:      0.15,
+		Sigma:           0.12,
+		ClampMin:        0.25,
+		ClampMax:        4.0,
 		FreeDepth: map[Resource]int{
 			Lemon: 80, Sugar: 80, Ice: 80, Cup: 80, Lemonade: 80,
 		},

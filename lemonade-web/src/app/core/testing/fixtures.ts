@@ -1,4 +1,5 @@
 import {
+  Commodity,
   DayReport,
   GameStats,
   GameView,
@@ -133,6 +134,7 @@ export function newGameView(overrides: Partial<GameView> = {}): GameView {
     projection: { lemonadeToProduce: 0, iceToMelt: 0, limitedBy: 'lemon' },
     priceLog: [{ day: 1, prices: [20, 10, 10, 10, 90], events: [] }],
     basePrices: [20, 10, 10, 10, 90],
+    commodities: commodities(),
     netWorth: { cash: 1000, stock: 0, facilities: 500, total: 1500 },
     runId: 'run-current',
     best: null,
@@ -239,7 +241,54 @@ export function runDetail(overrides: Partial<RunDetail> = {}): RunDetail {
       { day: 2, prices: [22, 9, 10, 11, 100], events: ['Heat Wave'] },
     ],
     basePrices: [20, 10, 10, 10, 90],
+    commodities: commodities(),
     reports: [],
     ...overrides,
   };
+}
+
+/** The default catalog, as the API reports it. */
+export function commodities(): Commodity[] {
+  return [
+    {
+      key: 'lemon',
+      name: 'Lemons',
+      category: 'ingredient',
+      storageClass: 'cold',
+      isProduct: false,
+      order: 10,
+    },
+    {
+      key: 'sugar',
+      name: 'Sugar',
+      category: 'ingredient',
+      storageClass: 'dry',
+      isProduct: false,
+      order: 20,
+    },
+    {
+      key: 'ice',
+      name: 'Ice',
+      category: 'ingredient',
+      storageClass: 'frozen',
+      isProduct: false,
+      order: 30,
+    },
+    {
+      key: 'cup',
+      name: 'Cups',
+      category: 'ingredient',
+      storageClass: 'dry',
+      isProduct: false,
+      order: 40,
+    },
+    {
+      key: 'lemonade',
+      name: 'Lemonade',
+      category: 'product',
+      storageClass: 'finished',
+      isProduct: true,
+      order: 50,
+    },
+  ];
 }

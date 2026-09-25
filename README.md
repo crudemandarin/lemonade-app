@@ -120,6 +120,8 @@ go test ./internal/domain                                            # balance g
 BALANCE_REPORT=1 go test ./internal/domain -run TestBalanceReport -v # full report
 ```
 
+The commodities and recipes are data tables in [lemonade-api/internal/domain/content/](lemonade-api/internal/domain/content/) (`commodities.go`, `recipes.go`), each with a validation test. A commodity's base price there seeds `Config.BasePrice`, which stays the tuning knob. Keep the first five commodities in their order: timelines saved before the catalog store stock as arrays in that order.
+
 Changing a price, cost or upkeep also changes a few exact numbers asserted in the API and domain tests (for example the $775 first warehouse upgrade); update those alongside.
 
 ## Known limitations

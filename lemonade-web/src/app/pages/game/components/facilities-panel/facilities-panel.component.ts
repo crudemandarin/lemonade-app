@@ -8,7 +8,7 @@ import {
   SaleInfo,
   WarehouseView,
 } from '../../../../core/api.models';
-import { RESOURCE_LABELS } from '../../../../core/resources';
+import { resourceIcon, resourceLabel } from '../../../../core/resources';
 import { CardComponent } from '../../../../shared/card/card.component';
 import { ConfirmDialogComponent } from '../../../../shared/confirm-dialog/confirm-dialog.component';
 import { HelpLinkComponent } from '../../../../shared/help/help-link.component';
@@ -53,7 +53,8 @@ export class FacilitiesPanelComponent {
 
   protected readonly pending = signal<PendingSale | null>(null);
 
-  protected readonly labels = RESOURCE_LABELS;
+  protected readonly label = resourceLabel;
+  protected readonly icon = resourceIcon;
 
   protected buildings(n: number): string {
     return n === 1 ? '1 building' : `${n} buildings`;
