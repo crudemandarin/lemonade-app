@@ -913,3 +913,197 @@ func TestOldSavesHaveNoPastReportsUntilTheyPlay(t *testing.T) {
 	}
 	e.wantError(e.do("GET", "/api/game/reports/1", "joe12", nil), http.StatusNotFound, "not_found")
 }
+
+// giveUpAfterBuying plays a run to a known score: buying n lemons costs $22 each and
+// is worth $18 each at the bid, so the net worth is $1,500 - 4n.
+func (e *testEnv) giveUpAfterBuying(user string, n int) {
+	e.t.Helper()
+	if n > 0 {
+		e.do("POST", "/api/game/buy", user, map[string]any{"resource": "lemon", "qty": n})
+	}
+	if rec := e.do("POST", "/api/game/give-up", user, nil); rec.Code != 200 {
+		e.t.Fatalf("give up: %s", rec.Body)
+	}
+}
+
+func TestGlobalBoardHasOneRowPerPlayerWithTheirBestRun(t *testing.T) {
+	e := newEnv(t)
+	for _, u := range []string{"ann12", "bob34", "cat56"} {
+		e.login(u)
+	}
+	e.giveUpAfterBuying("ann12", 5) // 1480
+	e.do("POST", "/api/game/new", "ann12", nil)
+	e.giveUpAfterBuying("ann12", 0) // 1500: her best
+	e.do("POST", "/api/game/new", "ann12", nil)
+	e.giveUpAfterBuying("ann12", 9) // 1464
+	e.giveUpAfterBuying("bob34", 0) // 1500, finished after ann's: ranks below her
+	e.giveUpAfterBuying("cat56", 10)
+
+	rec := e.do("GET", "/api/scores", "cat56", nil)
+	if rec.Code != 200 {
+		t.Fatal(rec.Body)
+	}
+	board := decode[scoresDTO](t, rec)
+	if len(board.Rows) != 3 {
+		t.Fatalf("rows: %+v", board.Rows)
+	}
+	want := []struct {
+		user  string
+		score int
+	}{{"ann12", 1500}, {"bob34", 1500}, {"cat56", 1460}}
+	for i, w := range want {
+		r := board.Rows[i]
+		if r.Rank != i+1 || r.Username != w.user || r.Score != w.score || r.Days != 1 || r.CreatedAt.IsZero() {
+			t.Fatalf("row %d = %+v, want %s %d", i, r, w.user, w.score)
+		}
+		if r.IsMe != (w.user == "cat56") {
+			t.Fatalf("row %d isMe = %v", i, r.IsMe)
+		}
+	}
+	if board.Me == nil || board.Me.Rank != 3 || board.Me.Username != "cat56" || !board.Me.IsMe {
+		t.Fatalf("me: %+v", board.Me)
+	}
+	if strings.Contains(rec.Body.String(), "runId") {
+		t.Fatal("the global board must not expose run ids")
+	}
+}
+
+func TestBoardShowsMeBelowTheLimitAndNothingForARookie(t *testing.T) {
+	e := newEnv(t)
+	for _, u := range []string{"ann12", "bob34", "cat56", "dan78"} {
+		e.login(u)
+	}
+	e.giveUpAfterBuying("ann12", 0)
+	e.giveUpAfterBuying("bob34", 1)
+	e.giveUpAfterBuying("cat56", 2)
+
+	board := decode[scoresDTO](t, e.do("GET", "/api/scores?limit=2", "cat56", nil))
+	if len(board.Rows) != 2 || board.Me == nil || board.Me.Rank != 3 {
+		t.Fatalf("limit 2: rows %d, me %+v", len(board.Rows), board.Me)
+	}
+	// dan has no finished run: the board loads, and there is no row for him.
+	if dan := decode[scoresDTO](t, e.do("GET", "/api/scores", "dan78", nil)); dan.Me != nil || len(dan.Rows) != 3 {
+		t.Fatalf("dan: %+v", dan)
+	}
+}
+
+func TestBoardLimitIsClampedAndValidated(t *testing.T) {
+	e := newEnv(t)
+	e.login("ann12")
+	e.giveUpAfterBuying("ann12", 0)
+	for _, q := range []string{"limit=0", "limit=-5", "limit=1000", "limit=100"} {
+		if rec := e.do("GET", "/api/scores?"+q, "ann12", nil); rec.Code != 200 || len(decode[scoresDTO](t, rec).Rows) != 1 {
+			t.Fatalf("%s: %d %s", q, rec.Code, rec.Body)
+		}
+	}
+	e.wantError(e.do("GET", "/api/scores?limit=lots", "ann12", nil), http.StatusBadRequest, "invalid_limit")
+}
+
+func TestActiveRunsNeverAppearOnTheBoard(t *testing.T) {
+	e := newEnv(t)
+	e.login("ann12")
+	e.do("POST", "/api/game/buy", "ann12", map[string]any{"resource": "lemon", "qty": 3})
+	board := decode[scoresDTO](t, e.do("GET", "/api/scores", "ann12", nil))
+	if len(board.Rows) != 0 || board.Me != nil {
+		t.Fatalf("an unfinished run is on the board: %+v", board)
+	}
+}
+
+func TestMyRunsAreNewestFirstWithTheBestFlagged(t *testing.T) {
+	e := newEnv(t)
+	e.login("ann12")
+	e.login("bob34")
+	e.giveUpAfterBuying("ann12", 5) // 1480
+	e.do("POST", "/api/game/new", "ann12", nil)
+	e.giveUpAfterBuying("ann12", 0) // 1500
+	e.do("POST", "/api/game/new", "ann12", nil)
+	e.do("POST", "/api/game/end-day", "ann12", nil)
+	e.giveUpAfterBuying("ann12", 8) // day 2, 1468
+	e.giveUpAfterBuying("bob34", 0)
+
+	runs := decode[[]runSummaryDTO](t, e.do("GET", "/api/runs", "ann12", nil))
+	if len(runs) != 3 {
+		t.Fatalf("runs: %+v", runs)
+	}
+	if runs[0].Score >= 1500 || runs[0].Days != 2 || runs[1].Score != 1500 || runs[2].Score != 1480 {
+		t.Fatalf("order or scores: %+v", runs)
+	}
+	for i, r := range runs {
+		if r.IsBest != (i == 1) || r.EndedBy != "gave_up" {
+			t.Fatalf("run %d: %+v", i, r)
+		}
+	}
+	if none := decode[[]runSummaryDTO](t, e.do("GET", "/api/runs", "bob34", nil)); len(none) != 1 {
+		t.Fatalf("bob sees %d runs, want only his own", len(none))
+	}
+}
+
+func TestRunDetailIsForItsOwnerOnly(t *testing.T) {
+	e := newEnv(t)
+	e.login("ann12")
+	e.login("bob34")
+	e.do("POST", "/api/game/buy", "ann12", map[string]any{"resource": "lemon", "qty": 4})
+	e.do("POST", "/api/game/end-day", "ann12", nil)
+	e.do("POST", "/api/game/end-day", "ann12", nil)
+	run := e.storedGame("ann12").RunID
+	e.do("POST", "/api/game/give-up", "ann12", nil)
+
+	rec := e.do("GET", "/api/runs/"+run, "ann12", nil)
+	if rec.Code != 200 {
+		t.Fatal(rec.Body)
+	}
+	d := decode[runDetailDTO](t, rec)
+	if d.RunID != run || d.EndedBy != "gave_up" || d.Days != 3 || !d.IsBest || d.Score != d.NetWorth {
+		t.Fatalf("summary: %+v", d.runSummaryDTO)
+	}
+	if len(d.Timeline) == 0 || len(d.PriceLog) != 3 || len(d.BasePrices) != 5 || d.Stats.CasesBought != 4 {
+		t.Fatalf("history missing: timeline %d, prices %d, stats %+v", len(d.Timeline), len(d.PriceLog), d.Stats)
+	}
+	if len(d.Reports) != 2 || d.Reports[0].Day != 1 || d.Reports[1].Day != 2 {
+		t.Fatalf("report index: %+v", d.Reports)
+	}
+
+	e.wantError(e.do("GET", "/api/runs/"+run, "bob34", nil), http.StatusNotFound, "not_found")
+	e.wantError(e.do("GET", "/api/runs/nope", "ann12", nil), http.StatusNotFound, "not_found")
+	// A run still in progress is not a finished run.
+	e.do("POST", "/api/game/new", "ann12", nil)
+	e.wantError(e.do("GET", "/api/runs/"+e.storedGame("ann12").RunID, "ann12", nil), http.StatusNotFound, "not_found")
+}
+
+func TestScoreRoutesNeedALogin(t *testing.T) {
+	e := newEnv(t)
+	for _, path := range []string{"/api/scores", "/api/runs", "/api/runs/x"} {
+		if rec := e.do("GET", path, "", nil); rec.Code != http.StatusUnauthorized {
+			t.Errorf("%s without a username: %d", path, rec.Code)
+		}
+		if rec := e.do("GET", path, "ghost", nil); rec.Code != http.StatusUnauthorized {
+			t.Errorf("%s for an unknown user: %d", path, rec.Code)
+		}
+	}
+}
+
+func TestGameViewCarriesTheRunIDAndPersonalBest(t *testing.T) {
+	e := newEnv(t)
+	e.login("ann12")
+	v := e.game("ann12")
+	if v.Best != nil || v.RunID == "" || v.RunID != e.storedGame("ann12").RunID {
+		t.Fatalf("fresh player: best %+v runId %q", v.Best, v.RunID)
+	}
+
+	e.do("POST", "/api/game/end-day", "ann12", nil)
+	rec := e.do("POST", "/api/game/give-up", "ann12", nil)
+	v = decode[gameViewDTO](t, rec)
+	if v.Best == nil || v.Best.RunID != v.RunID || v.Best.Score != v.NetWorth.Total || v.Best.Days != 2 {
+		t.Fatalf("the finished run is the first personal best: %+v runId %q", v.Best, v.RunID)
+	}
+
+	// A worse next run leaves the best where it was; the callout compares run ids.
+	e.do("POST", "/api/game/new", "ann12", nil)
+	e.do("POST", "/api/game/buy", "ann12", map[string]any{"resource": "lemon", "qty": 9})
+	first := v.Best
+	rec = e.do("POST", "/api/game/give-up", "ann12", nil)
+	v = decode[gameViewDTO](t, rec)
+	if v.Best.RunID != first.RunID || v.Best.RunID == v.RunID {
+		t.Fatalf("a worse run replaced the best: %+v", v.Best)
+	}
+}

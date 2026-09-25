@@ -154,6 +154,9 @@ type gameViewDTO struct {
 	Projection   projectionDTO      `json:"projection"`
 	PriceLog     []pricePointDTO    `json:"priceLog"`
 	NetWorth     netWorthDTO        `json:"netWorth"`
+	// RunID names this playthrough; Best is the player's top finished run so far (null if none).
+	RunID string   `json:"runId"`
+	Best  *bestDTO `json:"best"`
 	// BasePrices are the long-run prices (lemon, sugar, ice, cup, lemonade), for the "% of base" view.
 	BasePrices []int `json:"basePrices"`
 }
@@ -260,6 +263,7 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 		Projection: projectionDTO(domain.PreviewEndDay(g, cfg)),
 		PriceLog:   toPriceLogDTOs(g, cfg),
 		NetWorth:   netWorthDTO(domain.NetWorthBreakdown(g, cfg)),
+		RunID:      g.RunID,
 		BasePrices: basePrices(cfg),
 	}
 }
@@ -274,8 +278,13 @@ func toTimelineDTOs(g domain.Game) []timelinePointDTO {
 		}
 		return []timelinePointDTO{{Day: g.Day, Kind: string(domain.PointStart), Capital: g.Capital, Stock: stock}}
 	}
-	out := make([]timelinePointDTO, 0, len(g.Timeline))
-	for _, p := range g.Timeline {
+	return timelinePointDTOs(g.Timeline)
+}
+
+// timelinePointDTOs maps timeline points, for a live game or a finished run.
+func timelinePointDTOs(points []domain.TimelinePoint) []timelinePointDTO {
+	out := make([]timelinePointDTO, 0, len(points))
+	for _, p := range points {
 		out = append(out, timelinePointDTO{
 			Day: p.Day, Kind: string(p.Kind), Resource: string(p.Resource), Facility: string(p.Facility),
 			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock[:],
@@ -294,12 +303,16 @@ func basePrices(cfg domain.Config) []int {
 
 // toPriceLogDTOs maps the price log, turning event keys into display names.
 func toPriceLogDTOs(g domain.Game, cfg domain.Config) []pricePointDTO {
+	return priceLogDTOs(g.PriceLog, cfg)
+}
+
+func priceLogDTOs(log []domain.PricePoint, cfg domain.Config) []pricePointDTO {
 	names := make(map[string]string, len(cfg.Events))
 	for _, e := range cfg.Events {
 		names[e.Key] = e.Name
 	}
-	out := make([]pricePointDTO, 0, len(g.PriceLog))
-	for _, p := range g.PriceLog {
+	out := make([]pricePointDTO, 0, len(log))
+	for _, p := range log {
 		events := make([]string, 0, len(p.Events))
 		for _, key := range p.Events {
 			if name, ok := names[key]; ok {

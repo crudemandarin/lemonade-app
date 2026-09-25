@@ -340,3 +340,145 @@ func TestMemoryKeepsEffectsToo(t *testing.T) {
 		t.Fatalf("%d runs", len(m.Runs()))
 	}
 }
+
+// scoresContract runs against every Repository. Scores are huge so the test's rows
+// outrank anything already in a shared database.
+func scoresContract(t *testing.T, repo Repository, prefix string) {
+	t.Helper()
+	ctx := context.Background()
+	cfg := domain.DefaultConfig()
+	const base = 9_000_000
+
+	users := map[string]domain.User{}
+	for _, name := range []string{"ann", "bob", "cat", "dan"} {
+		g := domain.NewGame(cfg, 1)
+		g.RunID = prefix + "-play-" + name
+		u, err := repo.CreateUserWithGame(ctx, prefix+name, g)
+		if err != nil {
+			t.Fatal(err)
+		}
+		users[name] = u
+	}
+	finish := func(name, runID string, score, days int, endedBy string) {
+		t.Helper()
+		rec := domain.RunRecord{
+			RunID: prefix + "-" + runID, Days: days, Score: base + score, NetWorth: base + score,
+			Capital: 100, EndedBy: endedBy,
+			Timeline: []domain.TimelinePoint{{Day: 1, Kind: domain.PointStart, Capital: 1000}},
+			PriceLog: []domain.PricePoint{{Day: 1, Prices: [5]int{20, 10, 10, 10, 90}}},
+		}
+		if _, err := repo.Mutate(ctx, users[name].ID, func(g *domain.Game) (domain.Effects, error) {
+			return domain.Effects{Finished: &rec}, nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Nothing finished yet: no rows for them, and no personal best.
+	if best, err := repo.BestScore(ctx, users["ann"].ID); err != nil || best != nil {
+		t.Fatalf("best before any run: %v %v", best, err)
+	}
+	if runs, err := repo.UserRuns(ctx, users["ann"].ID); err != nil || runs == nil || len(runs) != 0 {
+		t.Fatalf("runs before any run: %v %v", runs, err)
+	}
+
+	// ann has three runs (her best is 500); bob ties her best but finished later; cat is lower.
+	finish("ann", "a1", 300, 5, domain.EndedByBankrupt)
+	finish("ann", "a2", 500, 9, domain.EndedByGaveUp)
+	finish("ann", "a3", 100, 3, domain.EndedByBankrupt)
+	finish("bob", "b1", 500, 12, domain.EndedByGaveUp)
+	finish("cat", "c1", 200, 4, domain.EndedByBankrupt)
+
+	top, err := repo.TopScores(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(top) < 3 {
+		t.Fatalf("top = %+v", top)
+	}
+	// One row per user (their best), ranked by score, and the earlier finish wins the tie.
+	want := []struct {
+		name  string
+		score int
+		days  int
+	}{{"ann", 500, 9}, {"bob", 500, 12}, {"cat", 200, 4}}
+	for i, w := range want {
+		row := top[i]
+		if row.Rank != i+1 || row.Username != prefix+w.name || row.Score != base+w.score || row.Days != w.days {
+			t.Fatalf("row %d = %+v, want %s %d on day %d", i, row, w.name, w.score, w.days)
+		}
+	}
+	seen := map[string]bool{}
+	for _, r := range top {
+		if seen[r.Username] {
+			t.Fatalf("%s appears twice", r.Username)
+		}
+		seen[r.Username] = true
+	}
+
+	// The limit cuts the list but not a user's own rank.
+	if two, _ := repo.TopScores(ctx, 2); len(two) != 2 {
+		t.Fatalf("limit 2 returned %d", len(two))
+	}
+	me, err := repo.BestScore(ctx, users["cat"].ID)
+	if err != nil || me == nil || me.Rank != 3 || me.Score != base+200 || me.Username != prefix+"cat" {
+		t.Fatalf("cat's best = %+v, %v", me, err)
+	}
+	if me, _ := repo.BestScore(ctx, users["ann"].ID); me == nil || me.Rank != 1 || me.RunID != prefix+"-a2" {
+		t.Fatalf("ann's best = %+v", me)
+	}
+	if best, _ := repo.BestScore(ctx, users["dan"].ID); best != nil {
+		t.Fatalf("dan has no finished run: %+v", best)
+	}
+
+	// A user's history is newest first and complete.
+	runs, err := repo.UserRuns(ctx, users["ann"].ID)
+	if err != nil || len(runs) != 3 {
+		t.Fatalf("ann's runs: %v %+v", err, runs)
+	}
+	if runs[0].RunID != prefix+"-a3" || runs[1].RunID != prefix+"-a2" || runs[2].RunID != prefix+"-a1" {
+		t.Fatalf("order: %+v", runs)
+	}
+	if runs[1].EndedBy != domain.EndedByGaveUp || runs[1].Days != 9 || runs[1].Score != base+500 {
+		t.Fatalf("summary: %+v", runs[1])
+	}
+
+	// One run in full, for its owner only.
+	run, err := repo.GetRun(ctx, users["ann"].ID, prefix+"-a2")
+	if err != nil || run.Score != base+500 || len(run.Timeline) != 1 || len(run.PriceLog) != 1 || run.CreatedAt.IsZero() {
+		t.Fatalf("run detail: %v %+v", err, run)
+	}
+	if _, err := repo.GetRun(ctx, users["bob"].ID, prefix+"-a2"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("another user's run: %v", err)
+	}
+	if _, err := repo.GetRun(ctx, users["ann"].ID, prefix+"-missing"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("unknown run: %v", err)
+	}
+}
+
+func TestMemoryScores(t *testing.T) {
+	scoresContract(t, NewMemory(), "mem")
+}
+
+func TestPostgresScores(t *testing.T) {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		t.Skip("DATABASE_URL not set")
+	}
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := NewPostgres(db)
+	if err := repo.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	cleanup := func() {
+		db.Exec("DELETE FROM runs WHERE run_id LIKE 'pgsc-%'")
+		db.Exec("DELETE FROM games WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'pgsc%')")
+		db.Exec("DELETE FROM users WHERE username LIKE 'pgsc%'")
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+	scoresContract(t, repo, "pgsc")
+}

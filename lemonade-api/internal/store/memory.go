@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"sync"
+	"time"
 
 	"lemonade-api/internal/domain"
 )
@@ -19,6 +20,8 @@ type Memory struct {
 	reports  map[string]map[int]domain.DayReport // by run ID, then day
 	runOwner map[string]uint                     // finished run ID -> user ID
 	runs     []domain.RunRecord                  // finished runs, oldest first
+	runMeta  map[string]runMeta                  // when each finished
+	seq      int
 }
 
 func NewMemory() *Memory {
@@ -29,6 +32,7 @@ func NewMemory() *Memory {
 
 		reports:  map[string]map[int]domain.DayReport{},
 		runOwner: map[string]uint{},
+		runMeta:  map[string]runMeta{},
 	}
 }
 
@@ -94,6 +98,8 @@ func (m *Memory) Mutate(_ context.Context, userID uint, fn func(g *domain.Game) 
 	if r := effects.Finished; r != nil && !m.hasRun(r.RunID) {
 		m.runs = append(m.runs, *r)
 		m.runOwner[r.RunID] = userID
+		m.seq++
+		m.runMeta[r.RunID] = runMeta{createdAt: time.Now(), seq: m.seq}
 	}
 	return g, nil
 }
@@ -151,4 +157,106 @@ func (m *Memory) GetReport(_ context.Context, runID string, day int) (domain.Day
 		return domain.DayReport{}, ErrNotFound
 	}
 	return r, nil
+}
+
+// runMeta orders finished runs: by finish time, then by arrival (the clock can tie).
+type runMeta struct {
+	createdAt time.Time
+	seq       int
+}
+
+// earlier reports whether a finished before b.
+func (a runMeta) earlier(b runMeta) bool {
+	if !a.createdAt.Equal(b.createdAt) {
+		return a.createdAt.Before(b.createdAt)
+	}
+	return a.seq < b.seq
+}
+
+func (m *Memory) usernameOf(userID uint) string {
+	for name, u := range m.users {
+		if u.ID == userID {
+			return name
+		}
+	}
+	return ""
+}
+
+// board builds the ranked best-run-per-user list; callers hold the lock.
+func (m *Memory) board() []ScoreRow {
+	best := map[uint]domain.RunRecord{}
+	for _, r := range m.runs {
+		uid := m.runOwner[r.RunID]
+		cur, ok := best[uid]
+		if !ok || r.Score > cur.Score ||
+			(r.Score == cur.Score && m.runMeta[r.RunID].earlier(m.runMeta[cur.RunID])) {
+			best[uid] = r
+		}
+	}
+	rows := make([]ScoreRow, 0, len(best))
+	for uid, r := range best {
+		rows = append(rows, ScoreRow{
+			UserID: uid, Username: m.usernameOf(uid), RunID: r.RunID, Score: r.Score,
+			Days: r.Days, NetWorth: r.NetWorth, CreatedAt: m.runMeta[r.RunID].createdAt,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].Score != rows[j].Score {
+			return rows[i].Score > rows[j].Score
+		}
+		return m.runMeta[rows[i].RunID].earlier(m.runMeta[rows[j].RunID])
+	})
+	for i := range rows {
+		rows[i].Rank = i + 1
+	}
+	return rows
+}
+
+func (m *Memory) TopScores(_ context.Context, limit int) ([]ScoreRow, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	rows := m.board()
+	if limit < len(rows) {
+		rows = rows[:limit]
+	}
+	return rows, nil
+}
+
+func (m *Memory) BestScore(_ context.Context, userID uint) (*ScoreRow, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, r := range m.board() {
+		if r.UserID == userID {
+			r := r
+			return &r, nil
+		}
+	}
+	return nil, nil
+}
+
+func (m *Memory) UserRuns(_ context.Context, userID uint) ([]RunSummary, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := []RunSummary{}
+	for _, r := range m.runs {
+		if m.runOwner[r.RunID] == userID {
+			out = append(out, RunSummary{
+				RunID: r.RunID, Score: r.Score, Days: r.Days, NetWorth: r.NetWorth,
+				Capital: r.Capital, EndedBy: r.EndedBy, CreatedAt: m.runMeta[r.RunID].createdAt,
+			})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return m.runMeta[out[j].RunID].earlier(m.runMeta[out[i].RunID]) })
+	return out, nil
+}
+
+func (m *Memory) GetRun(_ context.Context, userID uint, runID string) (RunDetail, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, r := range m.runs {
+		if r.RunID == runID && m.runOwner[runID] == userID {
+			return RunDetail{RunRecord: r, CreatedAt: m.runMeta[runID].createdAt}, nil
+		}
+	}
+	return RunDetail{}, ErrNotFound
 }

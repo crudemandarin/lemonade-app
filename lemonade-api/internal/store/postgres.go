@@ -426,3 +426,95 @@ func fromRow(row gameRow) domain.Game {
 	domain.SeedPriceLog(&g)
 	return g
 }
+
+// scoreSQL ranks each player's best finished run: highest score first, an earlier
+// finish winning a tie (and the row id settling the rest). DISTINCT ON keeps one run
+// per user; ROW_NUMBER gives the rank, so a player far down the board still has one.
+const scoreSQL = `
+WITH best AS (
+  SELECT DISTINCT ON (user_id) id, user_id, run_id, score, days, net_worth, created_at
+  FROM runs
+  ORDER BY user_id, score DESC, created_at ASC, id ASC
+), ranked AS (
+  SELECT ROW_NUMBER() OVER (ORDER BY b.score DESC, b.created_at ASC, b.id ASC) AS rank,
+         b.user_id, u.username, b.run_id, b.score, b.days, b.net_worth, b.created_at
+  FROM best b JOIN users u ON u.id = b.user_id
+)
+SELECT rank, user_id, username, run_id, score, days, net_worth, created_at FROM ranked`
+
+type scoreScan struct {
+	Rank      int
+	UserID    uint
+	Username  string
+	RunID     string
+	Score     int
+	Days      int
+	NetWorth  int
+	CreatedAt time.Time
+}
+
+func (p *Postgres) TopScores(ctx context.Context, limit int) ([]ScoreRow, error) {
+	var scans []scoreScan
+	if err := p.db.WithContext(ctx).Raw(scoreSQL+" ORDER BY rank LIMIT ?", limit).Scan(&scans).Error; err != nil {
+		return nil, err
+	}
+	out := make([]ScoreRow, 0, len(scans))
+	for _, s := range scans {
+		out = append(out, ScoreRow(s))
+	}
+	return out, nil
+}
+
+func (p *Postgres) BestScore(ctx context.Context, userID uint) (*ScoreRow, error) {
+	var scans []scoreScan
+	if err := p.db.WithContext(ctx).Raw(scoreSQL+" WHERE user_id = ?", userID).Scan(&scans).Error; err != nil {
+		return nil, err
+	}
+	if len(scans) == 0 {
+		return nil, nil
+	}
+	row := ScoreRow(scans[0])
+	return &row, nil
+}
+
+func (p *Postgres) UserRuns(ctx context.Context, userID uint) ([]RunSummary, error) {
+	var rows []runRow
+	err := p.db.WithContext(ctx).Select("run_id, score, days, net_worth, capital, ended_by, created_at").
+		Where("user_id = ?", userID).Order("created_at DESC, id DESC").Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make([]RunSummary, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, RunSummary{
+			RunID: r.RunID, Score: r.Score, Days: r.Days, NetWorth: r.NetWorth,
+			Capital: r.Capital, EndedBy: r.EndedBy, CreatedAt: r.CreatedAt,
+		})
+	}
+	return out, nil
+}
+
+func (p *Postgres) GetRun(ctx context.Context, userID uint, runID string) (RunDetail, error) {
+	var row runRow
+	err := p.db.WithContext(ctx).Where("user_id = ? AND run_id = ?", userID, runID).First(&row).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return RunDetail{}, ErrNotFound
+	}
+	if err != nil {
+		return RunDetail{}, err
+	}
+	rec := domain.RunRecord{
+		RunID: row.RunID, Days: row.Days, Score: row.Score, NetWorth: row.NetWorth,
+		Capital: row.Capital, EndedBy: row.EndedBy, Stats: domain.Stats(row.Stats),
+	}
+	for _, p := range row.Timeline {
+		rec.Timeline = append(rec.Timeline, domain.TimelinePoint{
+			Day: p.Day, Kind: domain.PointKind(p.Kind), Resource: domain.Resource(p.Resource), Facility: domain.FacilityType(p.Facility),
+			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock,
+		})
+	}
+	for _, pp := range row.PriceLog {
+		rec.PriceLog = append(rec.PriceLog, domain.PricePoint{Day: pp.Day, Prices: pp.Prices, Events: pp.Events})
+	}
+	return RunDetail{RunRecord: rec, CreatedAt: row.CreatedAt}, nil
+}

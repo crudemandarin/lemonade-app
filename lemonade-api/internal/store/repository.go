@@ -3,12 +3,43 @@ package store
 import (
 	"context"
 	"errors"
+	"time"
 
 	"lemonade-api/internal/domain"
 )
 
 // ErrNotFound is returned when a user or game does not exist.
 var ErrNotFound = errors.New("not found")
+
+// ScoreRow is one player's best finished run on the global board.
+type ScoreRow struct {
+	// Rank is 1-based: highest score first, an earlier finish wins a tie.
+	Rank      int
+	UserID    uint
+	Username  string
+	RunID     string
+	Score     int
+	Days      int
+	NetWorth  int
+	CreatedAt time.Time
+}
+
+// RunSummary is one line of a player's record history.
+type RunSummary struct {
+	RunID     string
+	Score     int
+	Days      int
+	NetWorth  int
+	Capital   int
+	EndedBy   string
+	CreatedAt time.Time
+}
+
+// RunDetail is a finished run in full.
+type RunDetail struct {
+	domain.RunRecord
+	CreatedAt time.Time
+}
 
 // Repository persists users and their single game. The domain never sees it:
 // handlers load a game, call a domain function, and save the result.
@@ -34,6 +65,21 @@ type Repository interface {
 
 	// GetReport returns one day's report of a run, or ErrNotFound.
 	GetReport(ctx context.Context, runID string, day int) (domain.DayReport, error)
+
+	// TopScores is the global board: each player's best finished run, best first,
+	// at most limit rows. Runs still in progress never appear.
+	TopScores(ctx context.Context, limit int) ([]ScoreRow, error)
+
+	// BestScore is the player's own row on the board, with its rank however far down
+	// it is, or nil when they have no finished run.
+	BestScore(ctx context.Context, userID uint) (*ScoreRow, error)
+
+	// UserRuns lists the player's finished runs, newest first (empty, not nil, when none).
+	UserRuns(ctx context.Context, userID uint) ([]RunSummary, error)
+
+	// GetRun returns one finished run of this player, or ErrNotFound (also for
+	// someone else's run).
+	GetRun(ctx context.Context, userID uint, runID string) (RunDetail, error)
 
 	// Mutate loads the user's game under a row lock, calls fn, and saves the result
 	// and fn's effects (a day report, a finished run) in one transaction. If fn

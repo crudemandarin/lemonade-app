@@ -77,6 +77,10 @@ func (h *Game) Register(router gin.IRouter) {
 	api := router.Group("/api")
 	api.POST("/login", h.login)
 
+	api.GET("/scores", h.requireUser, h.scores)
+	api.GET("/runs", h.requireUser, h.myRuns)
+	api.GET("/runs/:runId", h.requireUser, h.myRun)
+
 	g := api.Group("/game", h.requireUser)
 	g.GET("", h.getGame)
 	g.POST("/new", h.newGame)
@@ -148,7 +152,7 @@ func (h *Game) getGame(c *gin.Context) {
 		abortErr(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toGameView(g, h.cfg))
+	h.respondView(c, g)
 }
 
 // newGame starts a fresh run, but only once the last one is over: an unfinished run
@@ -168,7 +172,31 @@ func (h *Game) newGame(c *gin.Context) {
 		abortErr(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toGameView(g, h.cfg))
+	h.respondView(c, g)
+}
+
+// view is the game view plus the caller's personal best, so the page can show it
+// and celebrate a new one.
+func (h *Game) view(c *gin.Context, g domain.Game) (gameViewDTO, error) {
+	v := toGameView(g, h.cfg)
+	best, err := h.repo.BestScore(c.Request.Context(), currentUser(c).ID)
+	if err != nil {
+		return v, err
+	}
+	if best != nil {
+		v.Best = &bestDTO{Score: best.Score, Days: best.Days, RunID: best.RunID}
+	}
+	return v, nil
+}
+
+// respondView writes the game view, or the error that stopped it.
+func (h *Game) respondView(c *gin.Context, g domain.Game) {
+	v, err := h.view(c, g)
+	if err != nil {
+		abortErr(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, v)
 }
 
 // mutate runs one domain action under the row lock and responds with the new view.
@@ -177,7 +205,7 @@ func (h *Game) mutate(c *gin.Context, action func(g *domain.Game) error) {
 	if !ok {
 		return
 	}
-	c.JSON(http.StatusOK, toGameView(g, h.cfg))
+	h.respondView(c, g)
 }
 
 // mutateWithEffects runs one action under the row lock and saves its effects with
@@ -364,7 +392,7 @@ func (h *Game) giveUp(c *gin.Context) {
 	if !ok {
 		return
 	}
-	c.JSON(http.StatusOK, toGameView(g, h.cfg))
+	h.respondView(c, g)
 }
 
 func (h *Game) endDay(c *gin.Context) {
@@ -386,5 +414,10 @@ func (h *Game) endDay(c *gin.Context) {
 	if !ok {
 		return
 	}
-	c.JSON(http.StatusOK, endDayResponseDTO{Report: toDayReport(report), Game: toGameView(g, h.cfg)})
+	view, err := h.view(c, g)
+	if err != nil {
+		abortErr(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, endDayResponseDTO{Report: toDayReport(report), Game: view})
 }
