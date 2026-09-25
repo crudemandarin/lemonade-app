@@ -151,7 +151,18 @@ func (h *Game) getGame(c *gin.Context) {
 	c.JSON(http.StatusOK, toGameView(g, h.cfg))
 }
 
+// newGame starts a fresh run, but only once the last one is over: an unfinished run
+// must be given up first, so every run ends with a record.
 func (h *Game) newGame(c *gin.Context) {
+	current, err := h.repo.GetGame(c.Request.Context(), currentUser(c).ID)
+	if err != nil {
+		abortErr(c, err)
+		return
+	}
+	if current.Status == domain.StatusActive {
+		abort(c, http.StatusConflict, "run_active", "Give up your current game before starting a new one.")
+		return
+	}
 	g, err := h.repo.ReplaceGame(c.Request.Context(), currentUser(c).ID, h.freshGame())
 	if err != nil {
 		abortErr(c, err)

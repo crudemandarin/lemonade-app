@@ -515,15 +515,27 @@ func TestBankruptcyBlocksActionsUntilNewGame(t *testing.T) {
 	}
 }
 
-func TestNewGameReplacesActiveGame(t *testing.T) {
+// A run in progress cannot be thrown away: it has to be given up (and so recorded) first.
+func TestNewGameIsRefusedWhileARunIsActive(t *testing.T) {
 	e := newEnv(t)
 	e.login("joe12")
 	e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 5})
+	before := e.storedGame("joe12")
 
+	e.wantError(e.do("POST", "/api/game/new", "joe12", nil), http.StatusConflict, "run_active")
+	after := e.storedGame("joe12")
+	if after.RunID != before.RunID || after.Inventory[domain.Lemon] != 5 {
+		t.Fatal("a refused new game changed the run")
+	}
+
+	e.do("POST", "/api/game/give-up", "joe12", nil)
 	rec := e.do("POST", "/api/game/new", "joe12", nil)
 	v := decode[gameViewDTO](t, rec)
-	if v.Capital != 1000 || v.Resources[0].Stock != 0 {
-		t.Fatalf("view = %+v", v)
+	if rec.Code != 200 || v.Capital != 1000 || v.Resources[0].Stock != 0 || v.Status != domain.StatusActive {
+		t.Fatalf("after giving up: %d %+v", rec.Code, v)
+	}
+	if e.storedGame("joe12").RunID == before.RunID {
+		t.Fatal("the new game reused the old run id")
 	}
 }
 
@@ -700,6 +712,7 @@ func TestEveryRunHasItsOwnID(t *testing.T) {
 	if len(first) != 36 {
 		t.Fatalf("run id %q is not a uuid", first)
 	}
+	e.do("POST", "/api/game/give-up", "joe12", nil)
 	e.do("POST", "/api/game/new", "joe12", nil)
 	if second := e.storedGame("joe12").RunID; second == "" || second == first {
 		t.Fatalf("new game kept run id %q", second)
