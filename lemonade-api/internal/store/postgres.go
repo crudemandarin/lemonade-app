@@ -100,6 +100,8 @@ type gameRow struct {
 	Stats        statsRow             `gorm:"type:jsonb;serializer:json"`
 	// PriceLog is NULL on rows saved before it existed; fromRow seeds those.
 	PriceLog []priceRow `gorm:"type:jsonb;serializer:json"`
+	// Goals are the achievement facts; NULL (all zero) on rows saved before they existed.
+	Goals domain.GoalStats `gorm:"type:jsonb;serializer:json"`
 
 	UpdatedAt time.Time
 }
@@ -135,6 +137,25 @@ type runRow struct {
 
 func (runRow) TableName() string { return "runs" }
 
+// achievementRow is one achievement a player has unlocked, with the run it came from.
+// The key is unique per player, so unlocking twice is a no-op.
+type achievementRow struct {
+	UserID     uint   `gorm:"primaryKey;autoIncrement:false"`
+	Key        string `gorm:"primaryKey"`
+	RunID      string
+	UnlockedAt time.Time `gorm:"not null"`
+}
+
+func (achievementRow) TableName() string { return "achievements" }
+
+// backfillRow marks a one-off data job as done.
+type backfillRow struct {
+	Name   string `gorm:"primaryKey"`
+	DoneAt time.Time
+}
+
+func (backfillRow) TableName() string { return "backfills" }
+
 // Postgres implements Repository on GORM.
 type Postgres struct {
 	db *gorm.DB
@@ -146,7 +167,7 @@ func NewPostgres(db *gorm.DB) *Postgres {
 
 // Migrate creates or updates the users and games tables.
 func (p *Postgres) Migrate() error {
-	return p.db.AutoMigrate(&userRow{}, &gameRow{}, &dayReportRow{}, &runRow{})
+	return p.db.AutoMigrate(&userRow{}, &gameRow{}, &dayReportRow{}, &runRow{}, &achievementRow{}, &backfillRow{})
 }
 
 func (p *Postgres) FindUser(ctx context.Context, username string) (domain.User, error) {
@@ -407,6 +428,16 @@ func saveEffects(tx *gorm.DB, userID uint, g domain.Game, e domain.Effects) erro
 			return err
 		}
 	}
+	if len(e.Unlocked) > 0 {
+		now := time.Now()
+		rows := make([]achievementRow, 0, len(e.Unlocked))
+		for _, key := range e.Unlocked {
+			rows = append(rows, achievementRow{UserID: userID, Key: key, RunID: g.RunID, UnlockedAt: now})
+		}
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&rows).Error; err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -430,6 +461,7 @@ func toRow(g domain.Game) gameRow {
 		Timeline:        make([]pointRow, 0, len(g.Timeline)),
 		PriceLog:        make([]priceRow, 0, len(g.PriceLog)),
 		Stats:           statsRow(g.Stats),
+		Goals:           g.Goals,
 	}
 	for _, p := range g.Timeline {
 		row.Timeline = append(row.Timeline, pointRow{
@@ -492,6 +524,7 @@ func fromRow(row gameRow) domain.Game {
 		WarehouseQty:    make(map[domain.Resource]int, len(row.WarehouseQty)),
 		Market:          make(map[domain.Resource]*domain.ResourceMarket, len(row.Market)),
 		Stats:           domain.Stats(row.Stats),
+		Goals:           row.Goals,
 	}
 	for _, p := range row.Timeline {
 		g.Timeline = append(g.Timeline, domain.TimelinePoint{
@@ -558,10 +591,11 @@ WITH best AS (
   ORDER BY user_id, score DESC, created_at ASC, id ASC
 ), ranked AS (
   SELECT ROW_NUMBER() OVER (ORDER BY b.score DESC, b.created_at ASC, b.id ASC) AS rank,
-         b.user_id, u.username, b.run_id, b.score, b.days, b.net_worth, b.created_at
+         b.user_id, u.username, b.run_id, b.score, b.days, b.net_worth, b.created_at,
+         (SELECT COUNT(*) FROM achievements a WHERE a.user_id = b.user_id) AS achievements
   FROM best b JOIN users u ON u.id = b.user_id
 )
-SELECT rank, user_id, username, run_id, score, days, net_worth, created_at FROM ranked`
+SELECT rank, user_id, username, run_id, score, days, net_worth, created_at, achievements FROM ranked`
 
 type scoreScan struct {
 	Rank      int
@@ -572,6 +606,8 @@ type scoreScan struct {
 	Days      int
 	NetWorth  int
 	CreatedAt time.Time
+	// Achievements is how many achievements the player has unlocked.
+	Achievements int
 }
 
 func (p *Postgres) TopScores(ctx context.Context, limit int) ([]ScoreRow, error) {

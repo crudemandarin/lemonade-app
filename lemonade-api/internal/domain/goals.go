@@ -99,7 +99,7 @@ func (g *Game) noteBuy(cfg Config, r Resource, qty, cost, plain int) {
 	if cost > plain {
 		s.TradesWithImpact++
 	}
-	if base := cfg.BasePrice[r]; base > 0 && slices.Contains(Inputs, r) {
+	if base := cfg.BasePrice[r]; base > 0 && slices.Contains(cfg.Inputs(), r) {
 		pct := (cost*100 + qty*base - 1) / (qty * base) // rounded up: never flatters
 		if s.LowestInputBuyPercent == 0 || pct < s.LowestInputBuyPercent {
 			s.LowestInputBuyPercent = pct

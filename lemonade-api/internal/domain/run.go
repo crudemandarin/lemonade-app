@@ -29,6 +29,9 @@ type Effects struct {
 	Report *DayReport
 	// Finished is set when the run ended (bankruptcy or giving up).
 	Finished *RunRecord
+	// Unlocked are the achievement keys this mutation earned. Storing one the player
+	// already has is a no-op.
+	Unlocked []string
 }
 
 // FinishRun builds the record of a run that has just ended. The score is the

@@ -24,6 +24,9 @@ type Memory struct {
 	runs     []domain.RunRecord                  // finished runs, oldest first
 	runMeta  map[string]runMeta                  // when each finished
 	seq      int
+
+	achievements map[uint]map[string]Achievement // by user, then key
+	backfills    map[string]bool
 }
 
 func NewMemory() *Memory {
@@ -169,6 +172,14 @@ func (m *Memory) Mutate(_ context.Context, userID uint, fn func(g *domain.Game) 
 		m.seq++
 		m.runMeta[r.RunID] = runMeta{createdAt: time.Now(), seq: m.seq}
 	}
+	if len(effects.Unlocked) > 0 {
+		now := time.Now()
+		grants := make([]Achievement, 0, len(effects.Unlocked))
+		for _, key := range effects.Unlocked {
+			grants = append(grants, Achievement{Key: key, RunID: g.RunID, UnlockedAt: now})
+		}
+		m.grant(userID, grants)
+	}
 	return g, nil
 }
 
@@ -266,6 +277,7 @@ func (m *Memory) board() []ScoreRow {
 		rows = append(rows, ScoreRow{
 			UserID: uid, Username: m.usernameOf(uid), RunID: r.RunID, Score: r.Score,
 			Days: r.Days, NetWorth: r.NetWorth, CreatedAt: m.runMeta[r.RunID].createdAt,
+			Achievements: len(m.achievements[uid]),
 		})
 	}
 	sort.Slice(rows, func(i, j int) bool {

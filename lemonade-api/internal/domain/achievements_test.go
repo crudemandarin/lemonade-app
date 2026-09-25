@@ -63,13 +63,13 @@ func TestPredicatesAtTheirBoundaries(t *testing.T) {
 	}
 	maxWarehouses := func(g *Game) {
 		g.WarehouseLevel = cfg.MaxLevel
-		for _, r := range Resources {
+		for _, r := range cfg.Resources() {
 			g.WarehouseQty[r] = cfg.MaxQuantity
 		}
 	}
 	maxProduction := func(g *Game) { g.ProductionLevel, g.ProductionQty = cfg.MaxLevel, cfg.MaxQuantity }
 	fill := func(g *Game) {
-		for _, r := range Resources {
+		for _, r := range cfg.Resources() {
 			g.Inventory[r] = Capacity(*g, cfg, r)
 		}
 	}
@@ -292,7 +292,7 @@ func TestRecordDayFacts(t *testing.T) {
 		t.Helper()
 		if trade {
 			_ = SellClamped(&g, cfg, Lemonade, 100) // room for tonight's batch
-			for _, r := range Inputs {
+			for _, r := range cfg.Inputs() {
 				if err := Buy(&g, cfg, r, 10); err != nil {
 					t.Fatal(err)
 				}
@@ -352,7 +352,7 @@ func TestGoalFactsNeverChangeHowTheGamePlays(t *testing.T) {
 	play := func(withFacts bool) Game {
 		g := NewGame(cfg, 7)
 		for d := 0; d < 40; d++ {
-			for _, r := range Inputs {
+			for _, r := range cfg.Inputs() {
 				_ = BuyClamped(&g, cfg, r, 10)
 			}
 			_ = SellClamped(&g, cfg, Lemonade, 100)

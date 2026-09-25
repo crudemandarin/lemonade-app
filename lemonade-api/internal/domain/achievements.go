@@ -165,7 +165,7 @@ func totalStock(g Game) int {
 }
 
 func allWarehousesFull(g Game, cfg Config) bool {
-	for _, r := range Resources {
+	for _, r := range cfg.Resources() {
 		c := Capacity(g, cfg, r)
 		if c <= 0 || g.Inventory[r] < c {
 			return false
@@ -182,7 +182,7 @@ func facilityMaxed(g Game, cfg Config, kind FacilityType) bool {
 		if g.WarehouseLevel < cfg.MaxLevel {
 			return false
 		}
-		for _, r := range Resources {
+		for _, r := range cfg.Resources() {
 			if g.WarehouseQty[r] < cfg.MaxQuantity {
 				return false
 			}
@@ -265,7 +265,7 @@ func ValidatePredicate(p content.Predicate, cfg Config) error {
 		return nil
 	}
 	commodity := func() error {
-		if !Resource(p.Commodity).Valid() {
+		if !cfg.Valid(Resource(p.Commodity)) {
 			return fmt.Errorf("%s: unknown commodity %q", p.Kind, p.Commodity)
 		}
 		return nil
