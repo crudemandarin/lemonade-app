@@ -77,9 +77,9 @@ describe('MarketPanelComponent', () => {
     fixture.detectChanges();
   };
 
-  it('offers 10, 50, 100 and All in a radio group, defaulting to 10', () => {
+  it('offers 1, 10, 50, 100 and All in a radio group, defaulting to 10', () => {
     expect(el.querySelector('[role=radiogroup]')).not.toBeNull();
-    expect(radios().map((r) => r.value)).toEqual(['10', '50', '100', 'all']);
+    expect(radios().map((r) => r.value)).toEqual(['1', '10', '50', '100', 'all']);
     expect(radios().find((r) => r.checked)!.value).toBe('10');
   });
 
@@ -210,8 +210,21 @@ describe('MarketPanelComponent', () => {
       );
     });
 
-    it('shows nothing when no stock is held', () => {
-      expect(row('sugar').querySelector('.cost-text')).toBeNull();
+    it('shows no figures when no stock is held', () => {
+      expect(row('sugar').querySelector('.cost-text')!.textContent!.trim()).toBe('');
+      expect(row('sugar').querySelector('.gain')).toBeNull();
+    });
+
+    it('keeps the stock cell the same height with or without stock', () => {
+      // Lemon holds 4, sugar holds 0: buying into an empty row must not resize it.
+      const held = row('lemon').querySelector<HTMLElement>('.stock')!.offsetHeight;
+      const empty = row('sugar').querySelector<HTMLElement>('.stock')!.offsetHeight;
+      expect(empty).toBe(held);
+      const rows = newGameView().resources;
+      rows[1] = { ...rows[1], stock: 3, avgCost: 10, unrealizedGain: -3 };
+      fixture.componentRef.setInput('resources', rows);
+      fixture.detectChanges();
+      expect(row('sugar').querySelector<HTMLElement>('.stock')!.offsetHeight).toBe(empty);
     });
   });
 });

@@ -17,6 +17,16 @@ import { PastDaysDrawerComponent } from './components/past-days-drawer/past-days
 import { MarketPanelComponent } from './components/market-panel/market-panel.component';
 import { StatsStripComponent } from './components/stats-strip/stats-strip.component';
 
+const TIMELINE_KEY = 'lemonade.timelineOpen';
+
+function loadTimelineOpen(): boolean {
+  try {
+    return localStorage.getItem(TIMELINE_KEY) !== 'closed';
+  } catch {
+    return true;
+  }
+}
+
 /** Wires the presentational game components to the GameStore. */
 @Component({
   selector: 'app-game',
@@ -45,6 +55,9 @@ export class GameComponent implements OnInit {
 
   protected readonly confirmingGiveUp = signal(false);
 
+  /** The timeline card can be folded away; the choice is remembered. */
+  protected readonly timelineOpen = signal(loadTimelineOpen());
+
   protected readonly pastOpen = signal(false);
   protected readonly pastDays = signal<ReportSummary[] | null>(null);
   protected readonly pastSelected = signal<number | null>(null);
@@ -55,6 +68,16 @@ export class GameComponent implements OnInit {
 
   ngOnInit(): void {
     this.store.load();
+  }
+
+  protected toggleTimeline(): void {
+    const open = !this.timelineOpen();
+    this.timelineOpen.set(open);
+    try {
+      localStorage.setItem(TIMELINE_KEY, open ? 'open' : 'closed');
+    } catch {
+      // Storage can be blocked; the choice just won't persist.
+    }
   }
 
   protected giveUp(): void {

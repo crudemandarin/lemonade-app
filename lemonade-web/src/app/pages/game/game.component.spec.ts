@@ -39,6 +39,36 @@ describe('GameComponent', () => {
     expect(el.querySelectorAll('app-timeline-charts').length).toBe(1);
   });
 
+  describe('game timeline card', () => {
+    beforeEach(() => localStorage.removeItem('lemonade.timelineOpen'));
+    afterEach(() => localStorage.removeItem('lemonade.timelineOpen'));
+
+    it('can be folded away and opened again', async () => {
+      const el = await render();
+      const toggle = () => el.querySelector<HTMLButtonElement>('.timeline-toggle')!;
+      expect(toggle().getAttribute('aria-expanded')).toBe('true');
+      expect(toggle().textContent).toContain('Hide');
+
+      toggle().click();
+      fixture.detectChanges();
+      expect(el.querySelector('app-timeline-charts')).toBeNull();
+      expect(toggle().getAttribute('aria-expanded')).toBe('false');
+      expect(toggle().textContent).toContain('Show');
+      expect(el.querySelector('app-card .card-header h2')).not.toBeNull(); // the title stays
+
+      toggle().click();
+      fixture.detectChanges();
+      expect(el.querySelector('app-timeline-charts')).not.toBeNull();
+    });
+
+    it('remembers a folded timeline', async () => {
+      localStorage.setItem('lemonade.timelineOpen', 'closed');
+      const el = await render();
+      expect(el.querySelector('app-timeline-charts')).toBeNull();
+      expect(el.querySelector('.timeline-toggle')!.textContent).toContain('Show');
+    });
+  });
+
   it('shows the same result screen after giving up', async () => {
     const el = await render({ status: 'gave_up', day: 6 });
     expect(el.querySelector('app-game-over h1')!.textContent).toContain('You called it on day 6');

@@ -57,6 +57,10 @@
 }
 
 .cost-text {
+  // Always one line tall, even with no stock, so a row never grows when you first buy.
+  display: block;
+  min-height: 1.125rem;
+  line-height: 1.125rem;
   color: var(--text-muted);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;

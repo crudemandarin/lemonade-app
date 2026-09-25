@@ -59,11 +59,25 @@
       />
 
       <app-card title="Game timeline">
-        <app-timeline-charts
-          [points]="game.timeline"
-          [priceLog]="game.priceLog"
-          [basePrices]="game.basePrices"
-        />
+        <button
+          cardActions
+          type="button"
+          class="btn btn-ghost timeline-toggle"
+          aria-controls="timeline-body"
+          [attr.aria-expanded]="timelineOpen()"
+          (click)="toggleTimeline()"
+        >
+          {{ timelineOpen() ? 'Hide' : 'Show' }}
+        </button>
+        @if (timelineOpen()) {
+          <div id="timeline-body">
+            <app-timeline-charts
+              [points]="game.timeline"
+              [priceLog]="game.priceLog"
+              [basePrices]="game.basePrices"
+            />
+          </div>
+        }
       </app-card>
 
       <app-facilities-panel

@@ -16,7 +16,7 @@ export interface TradeRequest {
 }
 
 /** Selectable trade amounts; `all` is sent as a huge quantity with clamp, so the server does the maths. */
-export const TRADE_AMOUNTS = ['10', '50', '100', 'all'] as const;
+export const TRADE_AMOUNTS = ['1', '10', '50', '100', 'all'] as const;
 export type TradeAmount = (typeof TRADE_AMOUNTS)[number];
 export const ALL_QTY = 1_000_000;
 const STORAGE_KEY = 'lemonade.tradeAmount';

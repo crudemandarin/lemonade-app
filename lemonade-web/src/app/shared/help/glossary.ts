@@ -75,13 +75,6 @@ export const HELP_TERMS: HelpTerm[] = [
       'What the market charges you when you buy. It sits 10% above the price, so buying and selling straight away always loses a little.',
   },
   {
-    id: 'avg-cost',
-    section: 'market',
-    term: 'Average cost',
-    definition:
-      'The average you paid per case of what you hold. For lemonade it is what its ingredients cost. The green or red figure is your gain or loss if you sold everything at the bid.',
-  },
-  {
     id: 'bulk',
     section: 'market',
     term: 'Buy or sell amount',

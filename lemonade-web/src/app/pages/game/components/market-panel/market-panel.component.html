@@ -50,9 +50,8 @@
             <span class="bar-fill" [style.width.%]="fill(row)"></span>
           </span>
           <span class="stock-text">{{ row.stock }} / {{ row.capacity }}</span>
-          @if (row.stock > 0) {
-            <span class="cost-text">
-              <app-help-link term="avg-cost" label="average cost" />
+          <span class="cost-text">
+            @if (row.stock > 0) {
               {{ row.resource === 'lemonade' ? 'cost to make' : 'avg' }}
               {{ row.avgCost | money }}
               <span
@@ -62,8 +61,10 @@
                 [attr.aria-label]="gainLabel(row.unrealizedGain)"
                 >{{ gainText(row.unrealizedGain) }}</span
               >
-            </span>
-          }
+            } @else {
+              &nbsp;
+            }
+          </span>
         </span>
 
         <span class="price" role="cell">
