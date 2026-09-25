@@ -1,8 +1,8 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 
-import { AuthService, IS_STANDALONE, apiErrorCode } from './auth.service';
+import { AuthService, IS_STANDALONE, READY_TIMEOUT_MS, apiErrorCode } from './auth.service';
 import { SessionService } from './session.service';
 import { FakeAuthPort, provideFakeAuth } from './testing/fake-auth';
 
@@ -42,6 +42,21 @@ describe('AuthService', () => {
     expect(auth.ready()).toBeTrue();
     expect(auth.firebaseUser()).toBeNull();
   });
+
+  it('stops waiting for a Firebase that never answers and treats the player as signed out', fakeAsync(() => {
+    const auth = setup((p) => (p.holdFirstEvent = true));
+    tick(READY_TIMEOUT_MS - 1);
+    expect(auth.ready()).toBeFalse();
+
+    tick(1);
+    expect(auth.ready()).toBeTrue();
+    expect(auth.firebaseUser()).toBeNull();
+
+    // If it answers late, that still counts.
+    port.emit({ uid: 'u1' });
+    expect(auth.firebaseUser()).toEqual({ uid: 'u1' });
+    http.expectOne('/api/me').flush({ id: 1, username: 'lemonjoe' });
+  }));
 
   it('loads the profile of a restored session', async () => {
     const auth = setup((p) => (p.user = { uid: 'u1' }));

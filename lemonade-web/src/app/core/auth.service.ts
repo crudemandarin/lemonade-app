@@ -13,6 +13,14 @@ export const IS_STANDALONE = new InjectionToken<() => boolean>('IS_STANDALONE', 
     typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches,
 });
 
+/**
+ * How long startup waits for Firebase to report the stored session. It always does in
+ * practice; in one observed case (a brand-new browser profile whose first page load
+ * was abandoned mid-start) the next load's IndexedDB stayed blocked, and without this
+ * the app would sit on "Loading…" for good.
+ */
+export const READY_TIMEOUT_MS = 10_000;
+
 /** The API error code of a failed request, e.g. "username_taken". */
 export function apiErrorCode(err: unknown): string | null {
   if (err instanceof HttpErrorResponse && err.error && typeof err.error === 'object') {
@@ -47,8 +55,14 @@ export class AuthService {
   });
 
   constructor() {
-    this.readyPromise = new Promise((resolve) =>
+    this.readyPromise = new Promise((resolve) => {
+      const markReady = () => {
+        this._ready.set(true);
+        resolve();
+      };
+      const timer = setTimeout(markReady, READY_TIMEOUT_MS);
       this.port.init((user) => {
+        clearTimeout(timer);
         this._user.set(user);
         if (user) {
           this.loadProfile().catch(() => undefined);
@@ -56,10 +70,9 @@ export class AuthService {
           this.profileRequest = null;
           this.session.signOut();
         }
-        this._ready.set(true);
-        resolve();
-      }),
-    );
+        markReady();
+      });
+    });
   }
 
   whenReady(): Promise<void> {

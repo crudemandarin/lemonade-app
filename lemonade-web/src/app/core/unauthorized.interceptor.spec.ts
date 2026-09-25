@@ -49,6 +49,16 @@ describe('unauthorizedInterceptor', () => {
     expect(navigate).toHaveBeenCalledWith('/signin/username');
   });
 
+  it('does not redirect on the profile probe itself, or the guard and the redirect would chase each other', () => {
+    http.get('/api/me').subscribe({ error: () => undefined });
+    mock
+      .expectOne('/api/me')
+      .flush({ error: 'profile_required', message: 'x' }, { status: 403, statusText: '' });
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(port.signOutCalls).toBe(0);
+  });
+
   it('leaves the session alone on other errors', () => {
     fail(409, { error: 'insufficient_funds', message: 'x' });
 
