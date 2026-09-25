@@ -1,4 +1,6 @@
 import {
+  Achievement,
+  AchievementsResponse,
   Commodity,
   DayReport,
   GameStats,
@@ -138,6 +140,7 @@ export function newGameView(overrides: Partial<GameView> = {}): GameView {
     netWorth: { cash: 1000, stock: 0, facilities: 500, total: 1500 },
     runId: 'run-current',
     best: null,
+    unlocked: [],
     ...overrides,
   };
 }
@@ -213,6 +216,7 @@ export function scoreRow(overrides: Partial<ScoreRow> = {}): ScoreRow {
     netWorth: 2500,
     createdAt: '2026-09-20T12:00:00Z',
     isMe: false,
+    achievements: 0,
     ...overrides,
   };
 }
@@ -243,6 +247,7 @@ export function runDetail(overrides: Partial<RunDetail> = {}): RunDetail {
     basePrices: [20, 10, 10, 10, 90],
     commodities: commodities(),
     reports: [],
+    achievements: [],
     ...overrides,
   };
 }
@@ -291,4 +296,36 @@ export function commodities(): Commodity[] {
       order: 50,
     },
   ];
+}
+
+export function achievement(overrides: Partial<Achievement> = {}): Achievement {
+  return {
+    key: 'nw_5k',
+    name: 'Pocket money',
+    description: 'Reach a net worth of $5,000.',
+    category: 'wealth',
+    tier: 'bronze',
+    hidden: false,
+    unlocked: false,
+    unlockedAt: null,
+    runId: null,
+    progress: null,
+    ...overrides,
+  };
+}
+
+export function achievementsResponse(
+  overrides: Partial<AchievementsResponse> = {},
+): AchievementsResponse {
+  const achievements = overrides.achievements ?? [achievement()];
+  return {
+    categories: [
+      { key: 'wealth', name: 'Wealth' },
+      { key: 'oddities', name: 'Oddities' },
+    ],
+    achievements,
+    unlockedCount: achievements.filter((a) => a.unlocked).length,
+    total: achievements.length,
+    ...overrides,
+  };
 }

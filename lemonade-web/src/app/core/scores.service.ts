@@ -1,7 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { DayReport, RunDetail, RunSummary, ScoresResponse } from './api.models';
+import {
+  AchievementsResponse,
+  DayReport,
+  RunDetail,
+  RunSummary,
+  ScoresResponse,
+} from './api.models';
 import { ApiService } from './api.service';
 
 /**
@@ -15,6 +21,10 @@ export class ScoresService {
 
   scores(limit?: number): Promise<ScoresResponse> {
     return firstValueFrom(this.api.scores(limit));
+  }
+
+  achievements(): Promise<AchievementsResponse> {
+    return firstValueFrom(this.api.achievements());
   }
 
   myRuns(): Promise<RunSummary[]> {

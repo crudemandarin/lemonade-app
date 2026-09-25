@@ -222,6 +222,45 @@ export interface GameView {
   runId: string;
   /** The player's top finished run, or null before they have finished one. */
   best: Best | null;
+  /** Achievements this response's mutation just earned; `[]` on a plain read. */
+  unlocked: UnlockedAchievement[];
+}
+
+export type AchievementTier = 'bronze' | 'silver' | 'gold';
+
+/** One achievement a mutation just unlocked, for the toast. */
+export interface UnlockedAchievement {
+  key: string;
+  name: string;
+  tier: AchievementTier;
+}
+
+export interface AchievementCategory {
+  key: string;
+  name: string;
+}
+
+/** One row of the achievements page. A locked hidden row has a null name and description. */
+export interface Achievement {
+  key: string;
+  name: string | null;
+  description: string | null;
+  category: string;
+  tier: AchievementTier;
+  hidden: boolean;
+  unlocked: boolean;
+  unlockedAt: string | null;
+  /** The run that unlocked it. */
+  runId: string | null;
+  /** How far the current game is, for measurable goals; null otherwise or once unlocked. */
+  progress: { current: number; target: number } | null;
+}
+
+export interface AchievementsResponse {
+  categories: AchievementCategory[];
+  achievements: Achievement[];
+  unlockedCount: number;
+  total: number;
 }
 
 export type EndedBy = 'bankrupt' | 'gave_up';
@@ -236,6 +275,8 @@ export interface ScoreRow {
   createdAt: string;
   /** The caller's own row. */
   isMe: boolean;
+  /** How many achievements the player has unlocked. */
+  achievements: number;
 }
 
 export interface ScoresResponse {
@@ -266,6 +307,8 @@ export interface RunDetail extends RunSummary {
   commodities: Commodity[];
   /** The run's ended days, as the past-days list returns them. */
   reports: ReportSummary[];
+  /** The achievements this run unlocked. */
+  achievements: UnlockedAchievement[];
 }
 
 /** `limitedBy` is a resource, `production`, `space`, or empty when production capacity is 0. */

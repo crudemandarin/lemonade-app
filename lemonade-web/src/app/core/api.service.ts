@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import {
+  AchievementsResponse,
   DayReport,
   EndDayResponse,
   FacilityType,
@@ -109,6 +110,11 @@ export class ApiService {
     return this.http.get<ScoresResponse>(`${API_URL}/scores`, {
       params: limit ? { limit } : {},
     });
+  }
+
+  /** Every achievement with the caller's unlocked state and progress. */
+  achievements(): Observable<AchievementsResponse> {
+    return this.http.get<AchievementsResponse>(`${API_URL}/achievements`);
   }
 
   /** The caller's finished runs, newest first. */

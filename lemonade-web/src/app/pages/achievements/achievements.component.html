@@ -1,0 +1,50 @@
+<h1>Achievements</h1>
+
+@switch (state()) {
+  @case ('loading') {
+    <p class="note">Loading achievements…</p>
+  }
+  @case ('error') {
+    <p class="note" role="alert">
+      Couldn't load your achievements.
+      <button type="button" class="btn btn-sm retry" (click)="load()">Try again</button>
+    </p>
+  }
+  @default {
+    @if (data(); as d) {
+      <p class="lede">
+        {{ d.unlockedCount }} of {{ d.total }} unlocked. They are just for fun: they never change
+        how the game plays or your score.
+      </p>
+      @for (g of groups(); track g.key) {
+        <app-card [title]="g.name">
+          <ul class="list">
+            @for (a of g.rows; track a.key) {
+              <li class="row" [class.locked]="!a.unlocked" [attr.data-key]="a.key">
+                <div class="head">
+                  <span class="name">{{ a.name ?? '???' }}</span>
+                  <span class="tier">{{ a.tier }}</span>
+                  <span class="state">{{ a.unlocked ? 'Unlocked' : 'Locked' }}</span>
+                </div>
+                <p class="desc">{{ a.description ?? 'Hidden until you unlock it.' }}</p>
+                @if (a.unlocked && a.unlockedAt) {
+                  <p class="when">Unlocked {{ a.unlockedAt | date: 'mediumDate' }}</p>
+                } @else if (a.progress) {
+                  <div class="bar-line">
+                    <progress
+                      class="bar"
+                      [value]="a.progress.current"
+                      [max]="a.progress.target"
+                      [attr.aria-label]="'Progress toward ' + a.name"
+                    ></progress>
+                    <span class="count">{{ a.progress.current }} of {{ a.progress.target }}</span>
+                  </div>
+                }
+              </li>
+            }
+          </ul>
+        </app-card>
+      }
+    }
+  }
+}

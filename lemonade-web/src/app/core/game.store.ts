@@ -5,6 +5,7 @@ import { apiErrorMessage } from './api-error';
 import { DayReport, FacilityType, GameView, ReportSummary, Resource } from './api.models';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
+import { ToastService } from './toast.service';
 
 /**
  * The single source of game state in the UI. Every mutation returns the updated
@@ -14,6 +15,7 @@ import { AuthService } from './auth.service';
 export class GameStore {
   private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
+  private readonly toasts = inject(ToastService);
 
   private readonly _game = signal<GameView | null>(null);
   private readonly _report = signal<DayReport | null>(null);
@@ -97,6 +99,7 @@ export class GameStore {
     if (res) {
       this._game.set(res.game);
       this._report.set(res.report);
+      this.toasts.unlocked(res.game.unlocked);
     }
   }
 
@@ -112,6 +115,7 @@ export class GameStore {
     const game = await this.run(request);
     if (game) {
       this._game.set(game);
+      this.toasts.unlocked(game.unlocked);
     }
   }
 

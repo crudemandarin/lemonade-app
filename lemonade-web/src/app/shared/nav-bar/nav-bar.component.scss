@@ -75,7 +75,9 @@ a.btn {
   }
 
   .secure-link,
-  .secured {
+  .secured,
+  .scores-link,
+  .achievements-link {
     padding-inline: 0.5rem;
   }
 
@@ -85,7 +87,7 @@ a.btn {
   }
 
   .name {
-    max-width: 6rem;
+    max-width: 4.5rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

@@ -51,6 +51,7 @@
                   <th scope="col">Player</th>
                   <th scope="col" class="num">Score</th>
                   <th scope="col" class="num">Days</th>
+                  <th scope="col" class="num">Achievements</th>
                 </tr>
               </thead>
               <tbody>
@@ -65,11 +66,12 @@
                     </th>
                     <td class="num" data-label="Score">{{ r.score | money }}</td>
                     <td class="num" data-label="Days">Day {{ r.days }}</td>
+                    <td class="num" data-label="Achievements">{{ r.achievements }}</td>
                   </tr>
                 }
                 @if (meBelow(); as me) {
                   <tr class="gap" aria-hidden="true">
-                    <td colspan="4">…</td>
+                    <td colspan="5">…</td>
                   </tr>
                   <tr class="me" aria-current="true">
                     <td class="rank" data-label="Rank">{{ me.rank }}</td>
@@ -78,6 +80,7 @@
                     </th>
                     <td class="num" data-label="Score">{{ me.score | money }}</td>
                     <td class="num" data-label="Days">Day {{ me.days }}</td>
+                    <td class="num" data-label="Achievements">{{ me.achievements }}</td>
                   </tr>
                 }
               </tbody>
