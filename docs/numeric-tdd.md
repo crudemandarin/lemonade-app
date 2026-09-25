@@ -1,0 +1,362 @@
+# Technical Design: Lemonade Tycoon
+
+Turn-based lemonade business game. One loop: a **day**. Score = capital. Angular frontend, Gin (Go) backend, PostgreSQL. Username-only login, installable PWA.
+
+Sources: `docs/claude/` (SPEC, DESIGN, PLAN, DECISIONS, UX-MOCKS). Where they conflict, DECISIONS and the UX addendum win.
+
+## Contents
+
+1. [Scope](#1-scope)
+2. [Architecture](#2-architecture) (system design, cloud deployment)
+3. [Game rules](#3-game-rules) (resources and prices, facilities, end of day, events)
+4. [Data model](#4-data-model)
+5. [API](#5-api)
+6. [Frontend and PWA](#6-frontend-and-pwa)
+7. [Testing](#7-testing)
+8. [Key trade-offs and limits](#8-key-trade-offs-and-limits)
+9. [Balance and tuning](#9-balance-and-tuning)
+- [Appendix: UX mocks](#appendix-ux-mocks)
+
+## 1. Scope
+
+**In**
+- Login, buy/sell of five resources at market bid/ask, expanding and upgrading two facility types
+- End day with a report, bankruptcy, seeded price walk plus random events
+- PWA shell (no offline play)
+- README that installs, runs, and tests from a fresh clone (with the tuning knobs)
+
+**Out (future work):** mixed tiers, demand simulation, price impact from player trades, event forecasting, loans, real auth, leaderboard, e2e tests.
+
+## 2. Architecture
+
+### System design
+
+- **Server is the source of truth.** The UI renders server state and never computes outcomes; every mutation returns the full game view.
+- **Layers** (dependencies point inward):
+  - `internal/domain`: pure game rules. No I/O, Gin, or SQL.
+  - `internal/api`: thin Gin handlers, DTOs, error mapping, username middleware.
+  - `internal/store`: `Repository` interface, Postgres/GORM implementation, in-memory fake.
+  - `main.go` stays at the module root because the Dockerfile and deploy scripts build it.
+- **Determinism:** `rand.New(rand.NewSource(seed ^ int64(day)))` inside `EndDay`; no clock in the domain. The seed comes from the clock at game creation (API layer), so the same seed and actions give the same game.
+- **Concurrency:** every mutation is `load → domain call → save` in one transaction with `SELECT ... FOR UPDATE` (proven by a 20-goroutine test).
+
+### Cloud deployment
+
+Google Cloud, Terraform in `deploy/infra/`; details in [deploy/README.md](../deploy/README.md)):
+
+```mermaid
+flowchart LR
+  user([Player's browser<br/>Angular PWA])
+  dns[Cloudflare DNS<br/>lemonade.nyko.run]
+
+  subgraph gcp[Google Cloud project]
+    web[Cloud Run: web<br/>nginx serves SPA,<br/>proxies /api/*]
+    api[Cloud Run: api<br/>Go + Gin]
+    sql[(Cloud SQL<br/>Postgres 16)]
+    sm[Secret Manager<br/>db-password]
+    ar[Artifact Registry<br/>images]
+    cb[Cloud Build]
+  end
+
+  gh[GitHub Actions<br/>push to main]
+
+  user -->|HTTPS| dns --> web
+  web -->|/api/* HTTPS| api
+  api -->|/cloudsql unix socket| sql
+  sm -.->|secret at startup| api
+  gh -->|keyless login via<br/>Workload Identity| cb
+  cb -->|push images| ar
+  ar -.->|deploy new revision| web
+  ar -.->|deploy new revision| api
+```
+
+The browser only ever talks to `web`; its nginx forwards `/api/*` to `api`, so there is no CORS. Locally, `docker-compose.yml` runs the same three pieces (`web`, `api`, a `postgres:16` container) with `DB_HOST=db` instead of the Cloud SQL socket.
+
+## 3. Game rules
+
+All money is a whole-dollar `int`; one unit = one "case".
+
+### Resources and prices
+
+- **Resources:** lemon, sugar, ice, cup (inputs); lemonade (product). Recipe: 1 of each input → 1 lemonade.
+- **Start:** $1,000, empty stock, everything at level 1.
+- **Base prices:** lemon $20, sugar/ice/cup $10, lemonade $90.
+- **Walk (float):** `p' = p + 0.15(base−p) + p·0.12·N(0,1)`, clamped to [0.25×, 4×] base.
+- **Effective price:** `max(1, round(walked × Π active event multipliers))`. Events never change the walk.
+- **Ask** = `ceil(price×1.1)`. **Bid** = `max(1, floor(price×0.9))`. Both are computed on float-snapped values (`100×1.1` must give 110, not 111).
+- Selling has unlimited depth at the bid, including raw inputs. Buy and sell fail atomically: no partial fills.
+
+### Facilities
+
+Two types, one **shared level (1–4) per type**.
+- **Warehouse:** one per resource, each with its own building count (max 10). Holds only its own resource; capacity = `count × size`.
+- **Production:** one count (max 10); output per day = `count × rate`.
+
+Costs, sizes and upkeep are per building.
+
+| Warehouse | L1 Pantry | L2 Garage | L3 Barn | L4 Industrial Warehouse |
+|---|---|---|---|---|
+| Size (cases) | 10 | 20 | 40 | 80 |
+| Build | $100 | $300 | $800 | $2,000 |
+| Upgrade to next | $100 | $250 | $600 | n/a |
+| Upkeep per day | $2 | $6 | $16 | $40 |
+
+| Production | L1 Kitchen | L2 Food Truck | L3 Bottling Plant | L4 Lemonade Factory |
+|---|---|---|---|---|
+| Rate (lemonade/day) | 10 | 20 | 40 | 80 |
+| Build | $500 | $1,500 | $4,000 | $10,000 |
+| Upgrade to next | $1,000 | $2,500 | $6,000 | n/a |
+| Upkeep per day | $20 | $50 | $120 | $280 |
+
+- **Expand** adds one building at the current level (for a warehouse, the player picks the resource).
+- **Upgrade** raises the whole type one level for `per-building cost × total buildings of the type` (fresh game: 5 Pantries → Garages = $500).
+- Costs, sizes, upkeep, and event data live in one `Config` struct.
+
+### End of day
+
+One atomic step:
+
+1. Produce `min(rate, stock of each input, free lemonade space)`.
+2. Ice melts to 0.
+3. Pay upkeep `Σ buildings × upkeep(level)` (start: $30/day). Upkeep is always owed: a cash shortfall is covered by selling stock at bid (lemonade, lemon, sugar, cup, ice). If that still can't cover it, pay what's left and the game is over.
+4. Day + 1, market walks, events expire then may spawn.
+5. Build the day report.
+
+Bankruptcy is only checked here, so spending to $0 mid-day is legal. After game over every action is rejected until "New game" (replaces the row).
+
+### Events
+
+25% chance per day; table-driven, so adding one is one row.
+
+| Event | Effect | Days |
+|---|---|---|
+| Heat Wave | lemonade ×1.4, ice ×1.3 | 2 |
+| Rainy Week | lemonade ×0.75 | 3 |
+| Lemon Blight | lemon ×1.7 | 3 |
+| Sugar Glut | sugar ×0.7 | 2 |
+| Holiday | lemonade ×1.35 | 1 |
+| Cup Shortage | cup ×1.5 | 2 |
+
+Multipliers stack. Events are visible the day they start, an active event never re-spawns, and events that push the same resource's price in opposite directions never overlap (Heat Wave ↔ Rainy Week, Holiday ↔ Rainy Week). This is derived from the multipliers, so a new row in the table is checked automatically; `Excludes` can still add an explicit pair.
+
+## 4. Data model
+
+Two tables. Scalars a leaderboard would query are real columns; state that is only loaded and saved with the game is JSONB. Tier names are derived from type + level, never stored. There is one game row per user (no history of past games).
+
+**`users`**
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uint | primary key |
+| `username` | text | unique, not null |
+| `created_at` | timestamp | |
+
+**`games`**
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uint | primary key |
+| `user_id` | uint | unique, not null (one game per user) |
+| `seed` | int64 | RNG seed for the price walk and events |
+| `day` | int | current day |
+| `capital` | int | whole dollars |
+| `status` | text | `active`, `bankrupt` or `gave_up` |
+| `run_id` | text | UUID of this playthrough; empty on older rows, assigned on their first mutation |
+| `warehouse_level` | int | 1–4, shared by all warehouses |
+| `production_level` | int | 1–4 |
+| `production_qty` | int | production buildings, 1–10 |
+| `warehouse_qty` | JSONB | buildings per resource `{lemon, sugar, ice, cup, lemonade}` |
+| `price_log` | JSONB | one point per day: effective prices after the market tick, and the active event keys; NULL on older rows, seeded on load |
+| `cost_basis` | JSONB | total dollars paid for the stock of each resource; NULL on older rows, seeded on load |
+| `inventory` | JSONB | cases per resource |
+| `market` | JSONB | per resource: walked price (float), previous effective price, history (≤ 14 days) |
+| `events` | JSONB | active events with days remaining |
+| `timeline` | JSONB | capital and stock snapshot after each action, for the history charts (old days compacted) |
+| `stats` | JSONB | running totals for the game-over summary |
+| `updated_at` | timestamp | |
+
+Two more tables hold what must outlive a game row. `day_reports(run_id, day, payload JSONB)`, primary key `(run_id, day)`, has one row per ended day and is never loaded with the game. `runs(id, user_id, run_id unique, difficulty default 3, days, score, net_worth, capital, ended_by, timeline, stats, price_log, created_at)` has one row per finished run, indexed on `(difficulty, score desc)` and `(user_id, created_at desc)`. Both are written in the same transaction as the game change that produced them.
+
+## 5. API
+
+JSON, camelCase. The contract is `lemonade-web/src/app/core/api.models.ts`.
+
+- `X-Username` header on all game routes (intentionally not secure). Unknown or missing → 401, and the UI then clears the session.
+- Errors: `{"error": "<code>", "message": "..."}`. Status 400 for `invalid_*` codes; 409 for `run_active`, `insufficient_funds`, `insufficient_stock`, `capacity_exceeded`, `max_level`, `max_quantity`, `game_over`.
+
+| Route | Purpose |
+|---|---|
+| `POST /api/login {username}` | create-or-get user (+ new game; username 5–40 ASCII chars, case-insensitive); returns `{id, username}` |
+| `GET /api/game` · `POST /api/game/new` | view · fresh game |
+| `POST /api/game/buy \| sell {resource, qty, clamp?}` | trade at ask · bid; with `clamp`, trades as many as cash, space or stock allow (up to `qty`) instead of failing |
+| `POST /api/game/facilities/warehouse/expand {resource}` · `.../production/expand` | add one building |
+| `POST /api/game/facilities/{warehouse\|production}/upgrade` | upgrade whole type |
+| `GET /api/game/reports[?runId=]` · `GET /api/game/reports/{day}[?runId=]` | ended days of the current run (or of a finished run of the same player): a light list, or one full report; another player's run is a 404 |
+| `POST /api/game/new` | start a fresh run; 409 `run_active` unless the last one is over (bankrupt or given up) |
+| `POST /api/game/give-up` | end the run (`status: gave_up`) and record it; the score is the net worth at that moment |
+| `POST /api/game/facilities/warehouse/sell {resource}` · `.../production/sell` | sell one building back at `ResaleRate` of its build cost; 409 `min_facility` or `stock_exceeds_capacity` |
+| `POST /api/game/end-day` | `{report, game}` |
+| `GET /api/health` | liveness only (Cloud Run reserves `/healthz`) |
+
+The view is display-ready (tier names, bid/ask, capacities, costs, `upgrade: null` at max level), so the client never recomputes rules.
+
+## 6. Frontend and PWA
+
+- Angular 17 standalone components and signals. Only `GameStore` calls `ApiService`; components are presentational.
+- Failed actions show the server message and keep the view. End day is disabled while a request is in flight.
+- **PWA:** manifest, icons, and a service worker (production builds only) that prefetches the shell with **no data group for `/api/**`**. `online.service` drives an offline banner and disables all actions offline.
+- Installability is verified with Chrome's `getInstallabilityErrors` (Lighthouse 12 dropped its PWA audit). nginx serves the manifest as `application/manifest+json` with `no-cache`.
+
+## 7. Testing
+
+| Layer | Coverage |
+|---|---|
+| Domain | Table-driven tests per rule: buy/sell limits, capacity, rounding across $1–$500, expand/upgrade cost scaling, production `min()`, melt, upkeep, bankruptcy truth table, clamp over 1,000 days, event stacking/expiry/exclusion, determinism |
+| API | Handler tests on the in-memory repo: status codes, error shape, contract fields |
+| Store | Repository contract test on the in-memory fake |
+| Frontend | Store, component, and offline tests |
+
+`go test ./...` and `ng test` must pass before each slice is ticked.
+
+## 8. Key trade-offs and limits
+
+| Choice | Buys | Costs |
+|---|---|---|
+| Pure domain | Fast, deterministic tests | A DTO mapping step |
+| JSONB for game internals | No join tables | No SQL analytics |
+| Seed-derived RNG | No generator state stored | |
+| Bid/ask spread | Blocks same-day arbitrage | |
+| Whole dollars | No cents handling | Bulk-sized prices |
+| Shared level per type | Simple upgrades | No Barn-for-lemons; upgrade cost grows with expansion |
+| Liquidation grace | A player can't sit at $0 holding stock | Harsher than "any inventory survives" |
+| Header auth | Matches the brief | Not secure (documented) |
+| PWA shell only | No stale-state bugs | No offline play |
+
+Open question: the brief mentioned three facility types but named two. They are modeled as two; a third is another type with its own level and tiers.
+
+## 9. Balance and tuning
+Every balance number lives in one struct, `DefaultConfig()` in `lemonade-api/internal/domain/config.go`: prices, spread, volatility, events, tier sizes, costs, upkeep. Change a value and restart the API (`docker compose up -d --build api`); the frontend shows whatever the API sends. §3 lists the current values; these are the economy-wide knobs:
+
+| Knob | Value | What it does |
+| ---- | ----- | ------------ |
+| `StartingCapital` | $1,000 | Cash in a new game |
+| `BasePrice` | lemon $20, sugar $10, ice $10, cup $10, **lemonade $90** | Each resource's long-run price per case |
+| `Spread` | 10% | You buy at the *ask* (price +10%, rounded up) and sell at the *bid* (price −10%, rounded down, at least $1), so buying and selling straight back loses about 18% |
+| `Sigma` | 0.12 | Daily price volatility: each day the price moves by about ±12% |
+| `RevertRate` | 0.15 | How strongly prices are pulled back toward their base (15% of the gap per day) |
+| `ClampMin` / `ClampMax` | 0.25× / 4× | Hard floor and ceiling on the walked price |
+| `EventChance` | 25% | Chance per day that a new market event starts |
+| `ResaleRate` | 50% | Share of a building's build cost returned when it is sold (quantity only; levels are never sold) |
+| `MaxLevel` / `MaxQuantity` | 4 / 10 | Highest facility level, and most buildings per warehouse resource (and for production) |
+| `HistoryLength` | 14 | Days of price history kept per resource |
+
+Prices are seeded by the game's seed and day number, so a game is fully reproducible. Quotes are whole dollars, at least $1.
+
+**Unit economics.** One lemonade needs one case each of lemon, sugar, ice and cup. That costs about $55 at the ask and sells for about $81 at the bid, so a lemonade earns **about $22 (+40%)**, but the margin swings from a $7 loss (5th percentile) to a $59 profit (95th). Producing loses money on roughly 1 day in 9.
+
+A new game has 5 Pantries and 1 Kitchen: **$30 a day** in upkeep against about $220 a day of gross profit on average. To grow, production and *all* the warehouses must grow together, and each step also raises upkeep, so over-expanding is the way to go under.
+
+**Why these numbers.** Tuned by simulation, not by feel: simulated players (a careful one, a sloppy one that sometimes forgets the ice or spends its cushion, a careless random one, and an idle one) play hundreds of seeded games. The outcome under the defaults:
+
+| Player | Result |
+| ------ | ------ |
+| Careful, keeps reinvesting | Fills level 1 by about day 28, reaches level 4 by about day 65; about 1 in 8 still go bankrupt within 90 days |
+| Sloppy (forgets ice 8% of days, overspends 6%) | About 2 in 3 go bankrupt within 45 days |
+| Careless (random actions) | All go bankrupt, typically by day 10 |
+| Idle (does nothing) | Bankrupt around day 34 |
+
+Two earlier problems drove the last tuning pass: the market was almost riskless (producing was unprofitable on only 1.4% of days) and a player holding *any* stock could never lose. Lemonade is now $90 (was $100), prices are more volatile, upkeep is doubled, and unpaid upkeep is no longer forgiven.
+
+**Tuning it yourself.**
+
+| To make the game… | Change |
+| ----------------- | ------ |
+| easier | raise `StartingCapital`, lower the `Upkeep` values, lower `Sigma`, raise `BasePrice[Lemonade]` |
+| harder | the opposite, or raise `EventChance` |
+| faster to progress | lower `BuildCost` and `UpgradeCost` |
+| slower to progress | raise them |
+
+Guard-rail tests (`TestBalance*` in [balance_test.go](../lemonade-api/internal/domain/balance_test.go)) fail if a change makes the game too easy, too harsh, riskless or stalled. Commands to run them and print the full report are in the README ("Tuning the game").
+
+Changing a price, cost or upkeep also changes a few exact numbers asserted in the API and domain tests (for example the $500 first warehouse upgrade); update those alongside.
+
+---
+
+# Appendix: UX mocks
+
+Copy is sentence case, no emoji, one icon set, **one primary button per screen**. Routes: `/` Home, `/signin`, `/game` (also shows game over when `status = bankrupt`; redirects to `/signin` with no stored username). "Log out" clears the stored username (there is no session).
+
+**Nav (every page)**
+```
+Signed out: | [logo] Lemonade Tycoon                                   [ Sign in ]   |
+Signed in:  | [logo] Lemonade Tycoon                       (user) lemonjoe [Log out] |
+```
+
+**Home** (signed in: "Play game" reads "Continue game" → `/game`)
+```
+|                             [lemon icon]                               |
+|                          Lemonade Tycoon                               |
+|      Buy low, sell high, and grow your stand into a factory.           |
+|                   [ Play game (primary) ]  [ Sign in ]                 |
+```
+
+**Sign in** (empty name → inline "Enter a username"; login creates or resumes, then `/game`)
+```
+|                    Username                                            |
+|                    [ lemonjoe                    ]                     |
+|                    [ Continue (primary)          ]                     |
+|                    New name? We'll start a game for it.                |
+```
+
+**Game page**
+```
+| Day         Capital        Upkeep per day                              |
+| 4           $1,240         $30                        [ End day -> ]   |
++------------------------------------------------------------------------+
+| (sun) Heat wave: lemonade x1.4 and ice x1.3 for 2 more days            |  events banner
++------------------------------------------------------------------------+
+| Market and inventory                                                   |
+| Resource  Stock         Price        Buy at ask       Sell at bid      |
+| Lemon     [####------]  $20 ^ ~~~    [1] [Buy $22]    [1] [Sell $18]   |
+|           4 / 10                                                       |
+| Lemonade  [##########]  $140 ^ ~~~   [1] [Buy $154]   [1] [Sell $126]  |
+|           10 / 10            (sugar, ice, cups rows follow the same)   |
++------------------------------------------------------------------------+
+| Facilities                                                             |
+| +---------------------------------------------+ +--------------------+ |
+| | [img] Pantry                                | | [img] Kitchen      | |
+| |       Warehouses, level 1 of 4              | |       Production,  | |
+| |       Upkeep $10 per day                    | |       level 1 of 4 | |
+| | [ Upgrade all warehouses to Garage: $500 ]  | | 1 building         | |
+| | Covers 5 buildings at $100 each. Each       | | Makes 10 lemonade  | |
+| | building goes from 10 to 20 cases.          | | per day            | |
+| |---------------------------------------------| | Upkeep $20 per day | |
+| | Lemon     x1  Holds 10 cases  [Expand $100] | | [ Expand: $500 ]   | |
+| | Sugar / Ice / Cups / Lemonade rows the same | | [ Upgrade to Food  | |
+| +---------------------------------------------+ |   Truck: $1,000 ]  | |
++------------------------------------------------------------------------+
+```
+Only "End day" is primary. Stock bar = stock / (`count × size`). Price cell = effective price, trend arrow vs. yesterday, 14-day sparkline (stretch). Buy shows the ask and Sell the bid. One Upgrade button covers a whole type and reads "Max level" at level 4; Expand is per warehouse resource, and Production has its own. Buy/Sell/Expand/Upgrade stay enabled and show the server error (except offline).
+
+**Day report** (modal; built from the end-day `DayReport`; dismiss returns to the game)
+```
+| Day 4 report                       |
+| Lemonade produced        +10       |
+| Ice melted               2 cases   |
+| Upkeep paid              -$30      |
+| Lemonade price           $100 -> $140
+| New event                Heat wave |
+| Capital           $1,240 -> $1,210 |
+| [ Start day 5 (primary) ]          |
+```
+Shows a warning when capital ends at $0 but the game continues.
+
+**Game over** (`New game` → `POST /api/game/new`)
+```
+|                          [sad face icon]                               |
+|                       Bankrupt on day 12                               |
+|         You ran out of cash and stock. Final capital: $0.              |
+|                       [ New game (primary) ]                           |
+```
+
+**Component map:** `nav-bar` (sign in/out) · `stats-strip` (day, capital, upkeep, end-of-day projection; end day) · `events-banner` · `market-panel` (shared trade amount: 10/50/100/All, then Buy and Sell per row) · `facilities-panel` (expandWarehouse, expandProduction, upgrade, sell with confirmation) · `day-report-modal` (body shared with `past-days-drawer`) · `game-over` · `offline-banner`. Open UX: signed-in users are not auto-redirected from `/`; mobile stacks each market row as a card.
