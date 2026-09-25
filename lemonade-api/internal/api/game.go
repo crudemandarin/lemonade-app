@@ -11,13 +11,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"lemonade-api/internal/auth"
 	"lemonade-api/internal/domain"
 	"lemonade-api/internal/store"
 )
 
 const (
-	usernameHeader = "X-Username"
-	userKey        = "user"
 	minUsernameLen = 3
 	maxUsernameLen = 40
 )
@@ -44,6 +43,10 @@ type Game struct {
 	repo    store.Repository
 	cfg     domain.Config
 	newSeed func() int64
+
+	verifier auth.TokenVerifier // nil: no bearer token is accepted
+	devAuth  bool               // also accept X-Username and mount /api/login
+	claims   *claimLimiter
 }
 
 // newRunID is a random v4 UUID naming one playthrough.
@@ -65,17 +68,28 @@ func (h *Game) freshGame() domain.Game {
 }
 
 // NewGame builds the game API. Pass a nil newSeed to seed from the clock.
-func NewGame(repo store.Repository, cfg domain.Config, newSeed func() int64) *Game {
+func NewGame(repo store.Repository, cfg domain.Config, newSeed func() int64, opts ...Option) *Game {
 	if newSeed == nil {
 		newSeed = func() int64 { return time.Now().UnixNano() }
 	}
-	return &Game{repo: repo, cfg: cfg, newSeed: newSeed}
+	h := &Game{repo: repo, cfg: cfg, newSeed: newSeed, claims: newClaimLimiter(time.Now)}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
 }
 
 // Register mounts the game routes under /api.
 func (h *Game) Register(router gin.IRouter) {
 	api := router.Group("/api")
-	api.POST("/login", h.login)
+	if h.devAuth {
+		api.POST("/login", h.login)
+	}
+
+	me := api.Group("/me", h.requireIdentity)
+	me.GET("", h.me)
+	me.POST("/username", h.createProfile)
+	me.POST("/claim", h.claim)
 
 	api.GET("/scores", h.requireUser, h.scores)
 	api.GET("/runs", h.requireUser, h.myRuns)
@@ -93,27 +107,6 @@ func (h *Game) Register(router gin.IRouter) {
 	g.GET("/reports", h.listReports)
 	g.GET("/reports/:day", h.getReport)
 	g.POST("/end-day", h.endDay)
-}
-
-// requireUser identifies the player from X-Username. Intentionally not secure
-// (SPEC rule 22).
-func (h *Game) requireUser(c *gin.Context) {
-	username, ok := normalizeUsername(c.GetHeader(usernameHeader))
-	if !ok {
-		abort(c, http.StatusUnauthorized, "unauthorized", "Sign in first: the X-Username header is required.")
-		return
-	}
-	user, err := h.repo.FindUser(c.Request.Context(), username)
-	if errors.Is(err, store.ErrNotFound) {
-		abort(c, http.StatusUnauthorized, "unauthorized", "Unknown user. Sign in first.")
-		return
-	}
-	if err != nil {
-		abortErr(c, err)
-		return
-	}
-	c.Set(userKey, user)
-	c.Next()
 }
 
 func currentUser(c *gin.Context) domain.User {
