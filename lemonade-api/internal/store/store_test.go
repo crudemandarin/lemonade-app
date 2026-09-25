@@ -191,7 +191,7 @@ func TestPostgresLoadsAnOldShapeRow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Exec("UPDATE games SET cost_basis = NULL WHERE user_id = ?", user.ID).Error; err != nil {
+	if err := db.Exec("UPDATE games SET cost_basis = NULL, price_log = NULL WHERE user_id = ?", user.ID).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -201,6 +201,9 @@ func TestPostgresLoadsAnOldShapeRow(t *testing.T) {
 	}
 	if got.CostBasis[domain.Lemon] != 3*20 { // 3 cases at the walked price of $20
 		t.Fatalf("seeded basis = %v", got.CostBasis)
+	}
+	if len(got.PriceLog) != 1 || got.PriceLog[0].Day != 1 {
+		t.Fatalf("seeded price log = %+v", got.PriceLog)
 	}
 	if _, err := repo.Mutate(ctx, user.ID, func(g *domain.Game) error { return domain.Sell(g, cfg, domain.Lemon, 1) }); err != nil {
 		t.Fatal(err)

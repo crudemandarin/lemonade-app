@@ -33,5 +33,6 @@ func NewGame(cfg Config, seed int64) Game {
 		Events:          nil,
 	}
 	g.record(TimelinePoint{Day: 1, Kind: PointStart})
+	g.logPrices(cfg)
 	return g
 }

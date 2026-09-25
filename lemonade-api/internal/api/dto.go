@@ -124,6 +124,14 @@ type statsDTO struct {
 	PeakDay          int `json:"peakDay"`
 }
 
+// pricePointDTO is one day of the price chart: prices in the order lemon, sugar,
+// ice, cup, lemonade, and the names of the events active that day.
+type pricePointDTO struct {
+	Day    int      `json:"day"`
+	Prices []int    `json:"prices"`
+	Events []string `json:"events"`
+}
+
 type gameViewDTO struct {
 	Day          int                `json:"day"`
 	Capital      int                `json:"capital"`
@@ -135,6 +143,9 @@ type gameViewDTO struct {
 	Timeline     []timelinePointDTO `json:"timeline"`
 	Stats        statsDTO           `json:"stats"`
 	Projection   projectionDTO      `json:"projection"`
+	PriceLog     []pricePointDTO    `json:"priceLog"`
+	// BasePrices are the long-run prices (lemon, sugar, ice, cup, lemonade), for the "% of base" view.
+	BasePrices []int `json:"basePrices"`
 }
 
 type priceChangeDTO struct {
@@ -211,6 +222,8 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 		Timeline:   toTimelineDTOs(g),
 		Stats:      statsDTO(g.Stats),
 		Projection: projectionDTO(domain.PreviewEndDay(g, cfg)),
+		PriceLog:   toPriceLogDTOs(g, cfg),
+		BasePrices: basePrices(cfg),
 	}
 }
 
@@ -230,6 +243,35 @@ func toTimelineDTOs(g domain.Game) []timelinePointDTO {
 			Day: p.Day, Kind: string(p.Kind), Resource: string(p.Resource), Facility: string(p.Facility),
 			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock[:],
 		})
+	}
+	return out
+}
+
+func basePrices(cfg domain.Config) []int {
+	out := make([]int, 0, len(domain.Resources))
+	for _, r := range domain.Resources {
+		out = append(out, cfg.BasePrice[r])
+	}
+	return out
+}
+
+// toPriceLogDTOs maps the price log, turning event keys into display names.
+func toPriceLogDTOs(g domain.Game, cfg domain.Config) []pricePointDTO {
+	names := make(map[string]string, len(cfg.Events))
+	for _, e := range cfg.Events {
+		names[e.Key] = e.Name
+	}
+	out := make([]pricePointDTO, 0, len(g.PriceLog))
+	for _, p := range g.PriceLog {
+		events := make([]string, 0, len(p.Events))
+		for _, key := range p.Events {
+			if name, ok := names[key]; ok {
+				events = append(events, name)
+			} else {
+				events = append(events, key)
+			}
+		}
+		out = append(out, pricePointDTO{Day: p.Day, Prices: append([]int{}, p.Prices[:]...), Events: events})
 	}
 	return out
 }

@@ -652,3 +652,30 @@ func TestGameViewShowsAverageCost(t *testing.T) {
 		t.Fatalf("after selling out: %+v", l)
 	}
 }
+
+func TestGameViewCarriesThePriceLog(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+
+	v := e.game("joe12")
+	if len(v.PriceLog) != 1 || v.PriceLog[0].Day != 1 || len(v.PriceLog[0].Prices) != 5 || v.PriceLog[0].Prices[4] != 90 {
+		t.Fatalf("start log: %+v", v.PriceLog)
+	}
+	if got := v.BasePrices; len(got) != 5 || got[0] != 20 || got[4] != 90 {
+		t.Fatalf("base prices: %v", got)
+	}
+
+	for i := 0; i < 3; i++ {
+		e.do("POST", "/api/game/end-day", "joe12", nil)
+	}
+	v = e.game("joe12")
+	if len(v.PriceLog) != 4 || v.PriceLog[3].Day != 4 {
+		t.Fatalf("after 3 days: %+v", v.PriceLog)
+	}
+	if v.PriceLog[3].Prices[4] != v.Resources[4].Price {
+		t.Fatalf("last logged lemonade %d, shown %d", v.PriceLog[3].Prices[4], v.Resources[4].Price)
+	}
+	if v.PriceLog[0].Events == nil {
+		t.Fatal("events must serialise as [], not null")
+	}
+}

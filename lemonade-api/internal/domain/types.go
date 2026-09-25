@@ -42,6 +42,9 @@ type Game struct {
 	Market map[Resource]*ResourceMarket
 	Events []ActiveEvent
 
+	// PriceLog is one point per day, for the price chart; see pricelog.go.
+	PriceLog []PricePoint
+
 	// Timeline and Stats record how the game went; see timeline.go.
 	Timeline []TimelinePoint
 	Stats    Stats
@@ -115,6 +118,11 @@ func (g Game) Clone() Game {
 	}
 
 	c.Timeline = append([]TimelinePoint(nil), g.Timeline...)
+	c.PriceLog = make([]PricePoint, len(g.PriceLog))
+	for i, p := range g.PriceLog {
+		p.Events = append([]string(nil), p.Events...)
+		c.PriceLog[i] = p
+	}
 
 	c.Events = nil
 	for _, e := range g.Events {

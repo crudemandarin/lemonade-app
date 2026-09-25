@@ -54,6 +54,12 @@ type statsRow struct {
 	PeakDay          int `json:"peakDay"`
 }
 
+type priceRow struct {
+	Day    int      `json:"day"`
+	Prices [5]int   `json:"prices"`
+	Events []string `json:"events"`
+}
+
 type eventRow struct {
 	Key         string             `json:"key"`
 	Name        string             `json:"name"`
@@ -82,6 +88,8 @@ type gameRow struct {
 	Events       []eventRow           `gorm:"type:jsonb;serializer:json"`
 	Timeline     []pointRow           `gorm:"type:jsonb;serializer:json"`
 	Stats        statsRow             `gorm:"type:jsonb;serializer:json"`
+	// PriceLog is NULL on rows saved before it existed; fromRow seeds those.
+	PriceLog []priceRow `gorm:"type:jsonb;serializer:json"`
 
 	UpdatedAt time.Time
 }
@@ -219,6 +227,7 @@ func toRow(g domain.Game) gameRow {
 		Market:          make(map[string]marketRow, len(g.Market)),
 		Events:          make([]eventRow, 0, len(g.Events)),
 		Timeline:        make([]pointRow, 0, len(g.Timeline)),
+		PriceLog:        make([]priceRow, 0, len(g.PriceLog)),
 		Stats:           statsRow(g.Stats),
 	}
 	for _, p := range g.Timeline {
@@ -226,6 +235,9 @@ func toRow(g domain.Game) gameRow {
 			Day: p.Day, Kind: string(p.Kind), Resource: string(p.Resource), Facility: string(p.Facility),
 			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock,
 		})
+	}
+	for _, pp := range g.PriceLog {
+		row.PriceLog = append(row.PriceLog, priceRow{Day: pp.Day, Prices: pp.Prices, Events: pp.Events})
 	}
 	for r, n := range g.Inventory {
 		row.Inventory[string(r)] = n
@@ -279,6 +291,9 @@ func fromRow(row gameRow) domain.Game {
 			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock,
 		})
 	}
+	for _, pp := range row.PriceLog {
+		g.PriceLog = append(g.PriceLog, domain.PricePoint{Day: pp.Day, Prices: pp.Prices, Events: pp.Events})
+	}
 	for r, n := range row.Inventory {
 		g.Inventory[domain.Resource(r)] = n
 	}
@@ -313,5 +328,6 @@ func fromRow(row gameRow) domain.Game {
 	}
 	// Games saved before cost basis existed get an approximate one.
 	domain.SeedCostBasis(&g)
+	domain.SeedPriceLog(&g)
 	return g
 }

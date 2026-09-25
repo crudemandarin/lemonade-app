@@ -64,6 +64,7 @@ func EndDay(g *Game, cfg Config) (DayReport, error) {
 		}
 	}
 
+	g.logPrices(cfg)
 	report.CapitalAfter = g.Capital
 
 	return report, nil
