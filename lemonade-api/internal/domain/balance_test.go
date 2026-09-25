@@ -23,6 +23,15 @@ type simResult struct {
 	firstUp   int    // first day any upgrade was bought
 	lvlDay    [5]int // first day both facility types reached level k (index k)
 	maxedDay  int    // first day everything is at max level and max count
+	// Empire: the first day the bot was in era k (index k, 2 to 5), its net worth then,
+	// and its net worth at the start of each day (index = day-1).
+	eraDay [6]int
+	eraNW  [6]int
+	nw     []int
+	// buyouts is how many rivals the bot bought.
+	buyouts int
+	// flatRun is the longest stretch of days its net worth did not rise.
+	flatRun int
 }
 
 // The cash cushion a careful owner keeps before reinvesting: days of the new upkeep plus a
@@ -252,7 +261,7 @@ func report(name string, cfg Config, bot func(Config, int64, int) simResult, day
 	var bankrupt, full, up, l2, l3, l4, maxed []int
 	for s := int64(1); s <= int64(seeds); s++ {
 		r := bot(cfg, s, days)
-		for _, d := range []int{5, 10, 15, 20, 30, 45, 60, 90} {
+		for _, d := range []int{5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 200} {
 			if d <= len(r.capital) {
 				at[d] = append(at[d], r.capital[d-1])
 			}
@@ -285,8 +294,10 @@ func report(name string, cfg Config, bot func(Config, int64, int) simResult, day
 	}
 	fmt.Printf("%-9s bankrupt %3d%% (median day %d) | maxed L1 by day %d (%d%% did) | 1st upgrade day %d | capital median:", name,
 		100*len(bankrupt)/seeds, median(bankrupt), median(full), 100*len(full)/seeds, median(up))
-	for _, d := range []int{5, 10, 15, 20, 30, 45, 60, 90} {
-		fmt.Printf(" d%d=$%d", d, median(at[d]))
+	for _, d := range []int{5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 200} {
+		if len(at[d]) > 0 {
+			fmt.Printf(" d%d=$%d", d, median(at[d]))
+		}
 	}
 	fmt.Println()
 }
