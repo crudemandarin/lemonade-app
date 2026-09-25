@@ -79,6 +79,7 @@ type gameRow struct {
 	WarehouseLevel  int    `gorm:"not null"`
 	ProductionLevel int    `gorm:"not null"`
 	ProductionQty   int    `gorm:"not null"`
+	RunID           string // empty on rows saved before runs existed
 
 	Inventory map[string]int `gorm:"type:jsonb;serializer:json"`
 	// CostBasis is NULL on rows saved before it existed; fromRow seeds those.
@@ -96,6 +97,35 @@ type gameRow struct {
 
 func (gameRow) TableName() string { return "games" }
 
+// dayReportRow is one ended day of one run. Reports are written when the day ends
+// and never loaded with the game, so the game row does not grow.
+type dayReportRow struct {
+	RunID   string           `gorm:"primaryKey"`
+	Day     int              `gorm:"primaryKey;autoIncrement:false"`
+	Payload domain.DayReport `gorm:"type:jsonb;serializer:json"`
+}
+
+func (dayReportRow) TableName() string { return "day_reports" }
+
+// runRow is a finished run. Difficulty is reserved (3 is the default level).
+type runRow struct {
+	ID         uint       `gorm:"primaryKey"`
+	UserID     uint       `gorm:"not null;index:idx_runs_user_created,priority:1"`
+	RunID      string     `gorm:"not null;uniqueIndex"`
+	Difficulty int        `gorm:"not null;default:3;index:idx_runs_difficulty_score,priority:1"`
+	Days       int        `gorm:"not null"`
+	Score      int        `gorm:"not null;index:idx_runs_difficulty_score,priority:2,sort:desc"`
+	NetWorth   int        `gorm:"not null"`
+	Capital    int        `gorm:"not null"`
+	EndedBy    string     `gorm:"not null"`
+	Timeline   []pointRow `gorm:"type:jsonb;serializer:json"`
+	Stats      statsRow   `gorm:"type:jsonb;serializer:json"`
+	PriceLog   []priceRow `gorm:"type:jsonb;serializer:json"`
+	CreatedAt  time.Time  `gorm:"index:idx_runs_user_created,priority:2,sort:desc"`
+}
+
+func (runRow) TableName() string { return "runs" }
+
 // Postgres implements Repository on GORM.
 type Postgres struct {
 	db *gorm.DB
@@ -107,7 +137,7 @@ func NewPostgres(db *gorm.DB) *Postgres {
 
 // Migrate creates or updates the users and games tables.
 func (p *Postgres) Migrate() error {
-	return p.db.AutoMigrate(&userRow{}, &gameRow{})
+	return p.db.AutoMigrate(&userRow{}, &gameRow{}, &dayReportRow{}, &runRow{})
 }
 
 func (p *Postgres) FindUser(ctx context.Context, username string) (domain.User, error) {
@@ -183,7 +213,7 @@ func (p *Postgres) ReplaceGame(ctx context.Context, userID uint, game domain.Gam
 	return game.Clone(), nil
 }
 
-func (p *Postgres) Mutate(ctx context.Context, userID uint, fn func(g *domain.Game) error) (domain.Game, error) {
+func (p *Postgres) Mutate(ctx context.Context, userID uint, fn func(g *domain.Game) (domain.Effects, error)) (domain.Game, error) {
 	var out domain.Game
 	err := p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var row gameRow
@@ -196,7 +226,8 @@ func (p *Postgres) Mutate(ctx context.Context, userID uint, fn func(g *domain.Ga
 		}
 
 		g := fromRow(row)
-		if err := fn(&g); err != nil {
+		effects, err := fn(&g)
+		if err != nil {
 			return err
 		}
 
@@ -206,10 +237,45 @@ func (p *Postgres) Mutate(ctx context.Context, userID uint, fn func(g *domain.Ga
 		if err := tx.Save(&updated).Error; err != nil {
 			return err
 		}
+		if err := saveEffects(tx, userID, g, effects); err != nil {
+			return err
+		}
 		out = g
 		return nil
 	})
 	return out, err
+}
+
+// saveEffects writes a day report and a finished run inside the mutation's
+// transaction. Both are idempotent per run, so a retry cannot duplicate them.
+func saveEffects(tx *gorm.DB, userID uint, g domain.Game, e domain.Effects) error {
+	if e.Report != nil && g.RunID != "" {
+		row := dayReportRow{RunID: g.RunID, Day: e.Report.Day, Payload: *e.Report}
+		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&row).Error; err != nil {
+			return err
+		}
+	}
+	if r := e.Finished; r != nil {
+		row := runRow{
+			UserID: userID, RunID: r.RunID, Difficulty: 3, Days: r.Days, Score: r.Score,
+			NetWorth: r.NetWorth, Capital: r.Capital, EndedBy: r.EndedBy,
+			Timeline: make([]pointRow, 0, len(r.Timeline)), Stats: statsRow(r.Stats),
+			PriceLog: make([]priceRow, 0, len(r.PriceLog)),
+		}
+		for _, p := range r.Timeline {
+			row.Timeline = append(row.Timeline, pointRow{
+				Day: p.Day, Kind: string(p.Kind), Resource: string(p.Resource), Facility: string(p.Facility),
+				Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock,
+			})
+		}
+		for _, pp := range r.PriceLog {
+			row.PriceLog = append(row.PriceLog, priceRow{Day: pp.Day, Prices: pp.Prices, Events: pp.Events})
+		}
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&row).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func toRow(g domain.Game) gameRow {
@@ -221,6 +287,7 @@ func toRow(g domain.Game) gameRow {
 		WarehouseLevel:  g.WarehouseLevel,
 		ProductionLevel: g.ProductionLevel,
 		ProductionQty:   g.ProductionQty,
+		RunID:           g.RunID,
 		Inventory:       make(map[string]int, len(g.Inventory)),
 		WarehouseQty:    make(map[string]int, len(g.WarehouseQty)),
 		CostBasis:       make(map[string]int, len(g.CostBasis)),
@@ -280,6 +347,7 @@ func fromRow(row gameRow) domain.Game {
 		WarehouseLevel:  row.WarehouseLevel,
 		ProductionLevel: row.ProductionLevel,
 		ProductionQty:   row.ProductionQty,
+		RunID:           row.RunID,
 		Inventory:       make(map[domain.Resource]int, len(row.Inventory)),
 		WarehouseQty:    make(map[domain.Resource]int, len(row.WarehouseQty)),
 		Market:          make(map[domain.Resource]*domain.ResourceMarket, len(row.Market)),

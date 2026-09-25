@@ -26,6 +26,7 @@ type Repository interface {
 	ReplaceGame(ctx context.Context, userID uint, game domain.Game) (domain.Game, error)
 
 	// Mutate loads the user's game under a row lock, calls fn, and saves the result
-	// in one transaction. If fn returns an error nothing is saved.
-	Mutate(ctx context.Context, userID uint, fn func(g *domain.Game) error) (domain.Game, error)
+	// and fn's effects (a day report, a finished run) in one transaction. If fn
+	// returns an error nothing is saved.
+	Mutate(ctx context.Context, userID uint, fn func(g *domain.Game) (domain.Effects, error)) (domain.Game, error)
 }

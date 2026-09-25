@@ -534,7 +534,7 @@ func (e *testEnv) setGame(user string, edit func(g *domain.Game)) {
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	if _, err := e.repo.Mutate(context.Background(), u.ID, func(g *domain.Game) error { edit(g); return nil }); err != nil {
+	if _, err := e.repo.Mutate(context.Background(), u.ID, func(g *domain.Game) (domain.Effects, error) { edit(g); return domain.Effects{}, nil }); err != nil {
 		e.t.Fatal(err)
 	}
 }
@@ -677,5 +677,111 @@ func TestGameViewCarriesThePriceLog(t *testing.T) {
 	}
 	if v.PriceLog[0].Events == nil {
 		t.Fatal("events must serialise as [], not null")
+	}
+}
+
+func (e *testEnv) storedGame(user string) domain.Game {
+	e.t.Helper()
+	u, err := e.repo.FindUser(context.Background(), user)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	g, err := e.repo.GetGame(context.Background(), u.ID)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return g
+}
+
+func TestEveryRunHasItsOwnID(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+	first := e.storedGame("joe12").RunID
+	if len(first) != 36 {
+		t.Fatalf("run id %q is not a uuid", first)
+	}
+	e.do("POST", "/api/game/new", "joe12", nil)
+	if second := e.storedGame("joe12").RunID; second == "" || second == first {
+		t.Fatalf("new game kept run id %q", second)
+	}
+}
+
+func TestOldSavesGetARunIDOnTheirFirstMutation(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+	u, _ := e.repo.FindUser(context.Background(), "joe12")
+	old := domain.NewGame(e.cfg, 1) // NewGame leaves RunID empty, like a game saved before runs
+	if _, err := e.repo.ReplaceGame(context.Background(), u.ID, old); err != nil {
+		t.Fatal(err)
+	}
+	if e.storedGame("joe12").RunID != "" {
+		t.Fatal("setup: the old save should have no run id")
+	}
+
+	// A refused action saves nothing, so it does not assign one.
+	e.wantError(e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 0}), http.StatusBadRequest, "invalid_quantity")
+	if e.storedGame("joe12").RunID != "" {
+		t.Fatal("a failed action assigned a run id")
+	}
+
+	e.do("POST", "/api/game/end-day", "joe12", nil)
+	run := e.storedGame("joe12").RunID
+	if len(run) != 36 || len(e.repo.Reports(run)) != 1 {
+		t.Fatalf("run id %q, reports %v", run, e.repo.Reports(run))
+	}
+}
+
+func TestEndDayStoresItsReportWithTheGame(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+	run := e.storedGame("joe12").RunID
+	for i := 0; i < 3; i++ {
+		e.do("POST", "/api/game/end-day", "joe12", nil)
+	}
+	reports := e.repo.Reports(run)
+	if len(reports) != 3 || reports[1].Day != 1 || reports[3].Day != 3 {
+		t.Fatalf("reports: %+v", reports)
+	}
+	if len(reports[2].PriceChanges) != 5 {
+		t.Fatalf("stored report lost its prices: %+v", reports[2])
+	}
+}
+
+func TestBankruptcyRecordsExactlyOneRun(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+	run := e.storedGame("joe12").RunID
+	e.setGame("joe12", func(g *domain.Game) { g.Capital = 0 })
+
+	rec := e.do("POST", "/api/game/end-day", "joe12", nil)
+	if rec.Code != 200 {
+		t.Fatal(rec.Body)
+	}
+	runs := e.repo.Runs()
+	if len(runs) != 1 {
+		t.Fatalf("%d runs recorded, want 1", len(runs))
+	}
+	r := runs[0]
+	if r.RunID != run || r.EndedBy != "bankrupt" || r.Days != 1 || r.Score != r.NetWorth {
+		t.Fatalf("%+v", r)
+	}
+	if len(e.repo.Reports(run)) != 1 {
+		t.Fatal("the fatal day's report should be stored too")
+	}
+	// The game is over: another end-day is refused and records nothing more.
+	e.wantError(e.do("POST", "/api/game/end-day", "joe12", nil), http.StatusConflict, "game_over")
+	if len(e.repo.Runs()) != 1 {
+		t.Fatal("a second end-day recorded another run")
+	}
+}
+
+func TestGameViewCarriesNetWorth(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+	e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 5})
+	nw := e.game("joe12").NetWorth
+	// $890 cash, 5 lemons at the $18 bid, and $500 of buildings.
+	if nw.Cash != 890 || nw.Stock != 90 || nw.Facilities != 500 || nw.Total != 1480 {
+		t.Fatalf("%+v", nw)
 	}
 }

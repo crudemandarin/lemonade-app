@@ -64,18 +64,18 @@ func repoContract(t *testing.T, repo Repository, username string) {
 	}
 
 	// Mutate saves changes; an error from fn saves nothing.
-	if _, err := repo.Mutate(ctx, user.ID, func(g *domain.Game) error {
+	if _, err := repo.Mutate(ctx, user.ID, func(g *domain.Game) (domain.Effects, error) {
 		g.Capital = 123
-		return errors.New("boom")
+		return domain.Effects{}, errors.New("boom")
 	}); err == nil {
 		t.Fatal("expected fn error to propagate")
 	}
 	if g, _ := repo.GetGame(ctx, user.ID); g.Capital != game.Capital {
 		t.Fatalf("failed mutate was saved: capital = %d, want %d", g.Capital, game.Capital)
 	}
-	if _, err := repo.Mutate(ctx, user.ID, func(g *domain.Game) error {
+	if _, err := repo.Mutate(ctx, user.ID, func(g *domain.Game) (domain.Effects, error) {
 		g.Capital = 123
-		return nil
+		return domain.Effects{}, nil
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -90,9 +90,9 @@ func repoContract(t *testing.T, repo Repository, username string) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if _, err := repo.Mutate(ctx, user.ID, func(g *domain.Game) error {
+			if _, err := repo.Mutate(ctx, user.ID, func(g *domain.Game) (domain.Effects, error) {
 				g.Capital++
-				return nil
+				return domain.Effects{}, nil
 			}); err != nil {
 				t.Error(err)
 			}
@@ -128,7 +128,7 @@ func repoContract(t *testing.T, repo Repository, username string) {
 	if _, err := repo.GetGame(ctx, 99999); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("GetGame unknown: %v", err)
 	}
-	if _, err := repo.Mutate(ctx, 99999, func(*domain.Game) error { return nil }); !errors.Is(err, ErrNotFound) {
+	if _, err := repo.Mutate(ctx, 99999, func(*domain.Game) (domain.Effects, error) { return domain.Effects{}, nil }); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("Mutate unknown: %v", err)
 	}
 }
@@ -205,10 +205,118 @@ func TestPostgresLoadsAnOldShapeRow(t *testing.T) {
 	if len(got.PriceLog) != 1 || got.PriceLog[0].Day != 1 {
 		t.Fatalf("seeded price log = %+v", got.PriceLog)
 	}
-	if _, err := repo.Mutate(ctx, user.ID, func(g *domain.Game) error { return domain.Sell(g, cfg, domain.Lemon, 1) }); err != nil {
+	if _, err := repo.Mutate(ctx, user.ID, func(g *domain.Game) (domain.Effects, error) {
+		return domain.Effects{}, domain.Sell(g, cfg, domain.Lemon, 1)
+	}); err != nil {
 		t.Fatal(err)
 	}
 	if after, _ := repo.GetGame(ctx, user.ID); after.CostBasis[domain.Lemon] != 40 {
 		t.Fatalf("basis after a sale = %v", after.CostBasis)
+	}
+}
+
+func TestPostgresSavesEffectsWithTheGame(t *testing.T) {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		t.Skip("DATABASE_URL not set")
+	}
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := NewPostgres(db)
+	if err := repo.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	cleanup := func() {
+		db.Exec("DELETE FROM day_reports WHERE run_id LIKE 'pgfx-%'")
+		db.Exec("DELETE FROM runs WHERE run_id LIKE 'pgfx-%'")
+		db.Exec("DELETE FROM games WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'pgfx%')")
+		db.Exec("DELETE FROM users WHERE username LIKE 'pgfx%'")
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	ctx := context.Background()
+	cfg := domain.DefaultConfig()
+	game := domain.NewGame(cfg, 3)
+	game.RunID = "pgfx-run-1"
+	user, err := repo.CreateUserWithGame(ctx, "pgfx1", game)
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := func(table string) (n int64) {
+		db.Table(table).Where("run_id = ?", "pgfx-run-1").Count(&n)
+		return n
+	}
+
+	// Ending a day stores its report; doing it twice replaces, never duplicates.
+	endDay := func(g *domain.Game) (domain.Effects, error) {
+		report, err := domain.EndDay(g, cfg)
+		return domain.Effects{Report: &report}, err
+	}
+	if _, err := repo.Mutate(ctx, user.ID, endDay); err != nil {
+		t.Fatal(err)
+	}
+	if count("day_reports") != 1 {
+		t.Fatalf("day_reports = %d", count("day_reports"))
+	}
+
+	// An error from fn saves neither the game nor its effects.
+	if _, err := repo.Mutate(ctx, user.ID, func(g *domain.Game) (domain.Effects, error) {
+		report, _ := domain.EndDay(g, cfg)
+		return domain.Effects{Report: &report}, errors.New("boom")
+	}); err == nil {
+		t.Fatal("expected the error")
+	}
+	if count("day_reports") != 1 {
+		t.Fatalf("a failed mutation wrote a report: %d", count("day_reports"))
+	}
+
+	// A finished run is stored once, even if the same record arrives twice.
+	finish := func(g *domain.Game) (domain.Effects, error) {
+		rec := domain.FinishRun(*g, cfg, domain.EndedByGaveUp)
+		return domain.Effects{Finished: &rec}, nil
+	}
+	for i := 0; i < 2; i++ {
+		if _, err := repo.Mutate(ctx, user.ID, finish); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var run runRow
+	if err := db.Where("run_id = ?", "pgfx-run-1").First(&run).Error; err != nil {
+		t.Fatal(err)
+	}
+	if count("runs") != 1 || run.UserID != user.ID || run.EndedBy != "gave_up" || run.Difficulty != 3 ||
+		run.Score != run.NetWorth || len(run.Timeline) == 0 || len(run.PriceLog) == 0 {
+		t.Fatalf("run row: %+v", run)
+	}
+
+	// A game row written before runs existed has no run id and still loads.
+	if err := db.Exec("UPDATE games SET run_id = NULL WHERE user_id = ?", user.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if g, err := repo.GetGame(ctx, user.ID); err != nil || g.RunID != "" {
+		t.Fatalf("old row: %v, run id %q", err, g.RunID)
+	}
+}
+
+func TestMemoryKeepsEffectsToo(t *testing.T) {
+	m := NewMemory()
+	ctx := context.Background()
+	cfg := domain.DefaultConfig()
+	game := domain.NewGame(cfg, 3)
+	game.RunID = "mem-run"
+	user, _ := m.CreateUserWithGame(ctx, "memfx", game)
+	for i := 0; i < 2; i++ {
+		if _, err := m.Mutate(ctx, user.ID, func(g *domain.Game) (domain.Effects, error) {
+			rec := domain.FinishRun(*g, cfg, domain.EndedByGaveUp)
+			return domain.Effects{Finished: &rec}, nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(m.Runs()) != 1 {
+		t.Fatalf("%d runs", len(m.Runs()))
 	}
 }

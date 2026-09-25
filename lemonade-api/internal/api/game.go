@@ -1,7 +1,9 @@
 package api
 
 import (
+	"crypto/rand"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -41,6 +43,24 @@ type Game struct {
 	repo    store.Repository
 	cfg     domain.Config
 	newSeed func() int64
+}
+
+// newRunID is a random v4 UUID naming one playthrough.
+func newRunID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		panic(err) // the OS random source failing is not recoverable
+	}
+	b[6] = b[6]&0x0f | 0x40
+	b[8] = b[8]&0x3f | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
+
+// freshGame starts a new run with its own ID.
+func (h *Game) freshGame() domain.Game {
+	g := domain.NewGame(h.cfg, h.newSeed())
+	g.RunID = newRunID()
+	return g
 }
 
 // NewGame builds the game API. Pass a nil newSeed to seed from the clock.
@@ -109,7 +129,7 @@ func (h *Game) login(c *gin.Context) {
 	ctx := c.Request.Context()
 	user, err := h.repo.FindUser(ctx, username)
 	if errors.Is(err, store.ErrNotFound) {
-		user, err = h.repo.CreateUserWithGame(ctx, username, domain.NewGame(h.cfg, h.newSeed()))
+		user, err = h.repo.CreateUserWithGame(ctx, username, h.freshGame())
 	}
 	if err != nil {
 		abortErr(c, err)
@@ -128,7 +148,7 @@ func (h *Game) getGame(c *gin.Context) {
 }
 
 func (h *Game) newGame(c *gin.Context) {
-	g, err := h.repo.ReplaceGame(c.Request.Context(), currentUser(c).ID, domain.NewGame(h.cfg, h.newSeed()))
+	g, err := h.repo.ReplaceGame(c.Request.Context(), currentUser(c).ID, h.freshGame())
 	if err != nil {
 		abortErr(c, err)
 		return
@@ -138,12 +158,30 @@ func (h *Game) newGame(c *gin.Context) {
 
 // mutate runs one domain action under the row lock and responds with the new view.
 func (h *Game) mutate(c *gin.Context, action func(g *domain.Game) error) {
-	g, err := h.repo.Mutate(c.Request.Context(), currentUser(c).ID, action)
-	if err != nil {
-		abortErr(c, err)
+	g, _, ok := h.mutateWithEffects(c, func(g *domain.Game) (domain.Effects, error) { return domain.Effects{}, action(g) })
+	if !ok {
 		return
 	}
 	c.JSON(http.StatusOK, toGameView(g, h.cfg))
+}
+
+// mutateWithEffects runs one action under the row lock and saves its effects with
+// the game. A game saved before runs existed gets its run ID here, on its first
+// mutation. On failure it has already answered, and ok is false.
+func (h *Game) mutateWithEffects(c *gin.Context, action func(g *domain.Game) (domain.Effects, error)) (g domain.Game, e domain.Effects, ok bool) {
+	g, err := h.repo.Mutate(c.Request.Context(), currentUser(c).ID, func(g *domain.Game) (domain.Effects, error) {
+		if g.RunID == "" {
+			g.RunID = newRunID()
+		}
+		var err error
+		e, err = action(g)
+		return e, err
+	})
+	if err != nil {
+		abortErr(c, err)
+		return g, e, false
+	}
+	return g, e, true
 }
 
 type tradeRequest struct {
@@ -238,13 +276,21 @@ func (h *Game) upgrade(c *gin.Context) {
 
 func (h *Game) endDay(c *gin.Context) {
 	var report domain.DayReport
-	g, err := h.repo.Mutate(c.Request.Context(), currentUser(c).ID, func(g *domain.Game) error {
+	g, _, ok := h.mutateWithEffects(c, func(g *domain.Game) (domain.Effects, error) {
 		var err error
 		report, err = domain.EndDay(g, h.cfg)
-		return err
+		if err != nil {
+			return domain.Effects{}, err
+		}
+		effects := domain.Effects{Report: &report}
+		if report.Bankrupt {
+			// Same transaction as the status change: no bankrupt game without its record.
+			rec := domain.FinishRun(*g, h.cfg, domain.EndedByBankrupt)
+			effects.Finished = &rec
+		}
+		return effects, nil
 	})
-	if err != nil {
-		abortErr(c, err)
+	if !ok {
 		return
 	}
 	c.JSON(http.StatusOK, endDayResponseDTO{Report: toDayReport(report), Game: toGameView(g, h.cfg)})

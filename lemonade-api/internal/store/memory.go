@@ -14,6 +14,9 @@ type Memory struct {
 	nextID uint
 	users  map[string]domain.User
 	games  map[uint]domain.Game
+
+	reports map[string]map[int]domain.DayReport // by run ID, then day
+	runs    []domain.RunRecord                  // finished runs, oldest first
 }
 
 func NewMemory() *Memory {
@@ -21,6 +24,8 @@ func NewMemory() *Memory {
 		nextID: 1,
 		users:  map[string]domain.User{},
 		games:  map[uint]domain.Game{},
+
+		reports: map[string]map[int]domain.DayReport{},
 	}
 }
 
@@ -64,7 +69,7 @@ func (m *Memory) ReplaceGame(_ context.Context, userID uint, game domain.Game) (
 	return game.Clone(), nil
 }
 
-func (m *Memory) Mutate(_ context.Context, userID uint, fn func(g *domain.Game) error) (domain.Game, error) {
+func (m *Memory) Mutate(_ context.Context, userID uint, fn func(g *domain.Game) (domain.Effects, error)) (domain.Game, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	stored, ok := m.games[userID]
@@ -72,9 +77,46 @@ func (m *Memory) Mutate(_ context.Context, userID uint, fn func(g *domain.Game) 
 		return domain.Game{}, ErrNotFound
 	}
 	g := stored.Clone()
-	if err := fn(&g); err != nil {
+	effects, err := fn(&g)
+	if err != nil {
 		return domain.Game{}, err
 	}
 	m.games[userID] = g.Clone()
+	if effects.Report != nil && g.RunID != "" {
+		if m.reports[g.RunID] == nil {
+			m.reports[g.RunID] = map[int]domain.DayReport{}
+		}
+		m.reports[g.RunID][effects.Report.Day] = *effects.Report
+	}
+	if r := effects.Finished; r != nil && !m.hasRun(r.RunID) {
+		m.runs = append(m.runs, *r)
+	}
 	return g, nil
+}
+
+func (m *Memory) hasRun(runID string) bool {
+	for _, r := range m.runs {
+		if r.RunID == runID {
+			return true
+		}
+	}
+	return false
+}
+
+// Runs returns the finished runs, oldest first. Test helper: not part of Repository.
+func (m *Memory) Runs() []domain.RunRecord {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]domain.RunRecord(nil), m.runs...)
+}
+
+// Reports returns the stored day reports of a run by day. Test helper: not part of Repository.
+func (m *Memory) Reports(runID string) map[int]domain.DayReport {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := map[int]domain.DayReport{}
+	for d, r := range m.reports[runID] {
+		out[d] = r
+	}
+	return out
 }

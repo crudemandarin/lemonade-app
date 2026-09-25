@@ -22,6 +22,9 @@ type ActiveEvent struct {
 // Game is the full mutable state of one player's playthrough. It is a plain value;
 // callers own persistence. All mutating domain functions take *Game.
 type Game struct {
+	// RunID identifies this playthrough across saves and its finished record. Empty on
+	// games saved before runs existed; the API assigns one on their first mutation.
+	RunID   string
 	Seed    int64
 	Day     int
 	Capital int

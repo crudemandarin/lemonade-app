@@ -132,6 +132,15 @@ type pricePointDTO struct {
 	Events []string `json:"events"`
 }
 
+// netWorthDTO is what the player is worth today: cash, stock at the bid, and what
+// every building would resell for. The score of a finished run is its final total.
+type netWorthDTO struct {
+	Cash       int `json:"cash"`
+	Stock      int `json:"stock"`
+	Facilities int `json:"facilities"`
+	Total      int `json:"total"`
+}
+
 type gameViewDTO struct {
 	Day          int                `json:"day"`
 	Capital      int                `json:"capital"`
@@ -144,6 +153,7 @@ type gameViewDTO struct {
 	Stats        statsDTO           `json:"stats"`
 	Projection   projectionDTO      `json:"projection"`
 	PriceLog     []pricePointDTO    `json:"priceLog"`
+	NetWorth     netWorthDTO        `json:"netWorth"`
 	// BasePrices are the long-run prices (lemon, sugar, ice, cup, lemonade), for the "% of base" view.
 	BasePrices []int `json:"basePrices"`
 }
@@ -223,6 +233,7 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 		Stats:      statsDTO(g.Stats),
 		Projection: projectionDTO(domain.PreviewEndDay(g, cfg)),
 		PriceLog:   toPriceLogDTOs(g, cfg),
+		NetWorth:   netWorthDTO(domain.NetWorthBreakdown(g, cfg)),
 		BasePrices: basePrices(cfg),
 	}
 }
