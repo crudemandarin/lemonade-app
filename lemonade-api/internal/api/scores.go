@@ -34,6 +34,8 @@ type scoreRowDTO struct {
 	CreatedAt time.Time `json:"createdAt"`
 	// IsMe marks the caller's own row.
 	IsMe bool `json:"isMe"`
+	// Achievements is how many the player has unlocked, shown as a badge.
+	Achievements int `json:"achievements"`
 }
 
 type scoresDTO struct {
@@ -64,12 +66,14 @@ type runDetailDTO struct {
 	Commodities []commodityDTO `json:"commodities"`
 	// Reports is the light list of the run's ended days, as GET /game/reports returns.
 	Reports []reportSummaryDTO `json:"reports"`
+	// Achievements are the ones this run unlocked.
+	Achievements []unlockedDTO `json:"achievements"`
 }
 
 func toScoreRow(r store.ScoreRow, callerID uint) scoreRowDTO {
 	return scoreRowDTO{
 		Rank: r.Rank, Username: r.Username, Score: r.Score, Days: r.Days,
-		NetWorth: r.NetWorth, CreatedAt: r.CreatedAt, IsMe: r.UserID == callerID,
+		NetWorth: r.NetWorth, CreatedAt: r.CreatedAt, IsMe: r.UserID == callerID, Achievements: r.Achievements,
 	}
 }
 
@@ -157,16 +161,22 @@ func (h *Game) myRun(c *gin.Context) {
 	for _, r := range reports {
 		summaries = append(summaries, toReportSummary(r))
 	}
+	unlocked, err := h.repo.ListAchievements(ctx, me)
+	if err != nil {
+		abortErr(c, err)
+		return
+	}
 	c.JSON(http.StatusOK, runDetailDTO{
 		runSummaryDTO: toRunSummary(store.RunSummary{
 			RunID: run.RunID, Score: run.Score, Days: run.Days, NetWorth: run.NetWorth,
 			Capital: run.Capital, EndedBy: run.EndedBy, CreatedAt: run.CreatedAt,
 		}, best),
-		Stats:       statsDTO(run.Stats),
-		Timeline:    timelinePointDTOs(run.Timeline, h.cfg),
-		PriceLog:    priceLogDTOs(run.PriceLog, h.cfg),
-		BasePrices:  basePrices(h.cfg),
-		Commodities: toCommodityDTOs(h.cfg),
-		Reports:     summaries,
+		Stats:        statsDTO(run.Stats),
+		Timeline:     timelinePointDTOs(run.Timeline, h.cfg),
+		PriceLog:     priceLogDTOs(run.PriceLog, h.cfg),
+		BasePrices:   basePrices(h.cfg),
+		Commodities:  toCommodityDTOs(h.cfg),
+		Reports:      summaries,
+		Achievements: runAchievements(unlocked, run.RunID),
 	})
 }
