@@ -31,7 +31,20 @@
         </svg>
         Building sold
       </li>
+      <li>
+        <svg width="16" height="16" viewBox="-8 -8 16 16" aria-hidden="true">
+          <rect class="legend-band" x="-6" y="-6" width="12" height="12" />
+        </svg>
+        Market event
+      </li>
     </ul>
+    <div class="range" role="group" aria-label="Time range">
+      @for (r of ranges; track r.label) {
+        <button type="button" [attr.aria-pressed]="range() === r.days" (click)="setRange(r.days)">
+          {{ r.label }}
+        </button>
+      }
+    </div>
     <button type="button" class="btn btn-ghost table-toggle" (click)="viewTable.set(!viewTable())">
       {{ viewTable() ? 'View charts' : 'View as table' }}
     </button>
@@ -51,7 +64,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (p of points(); track $index) {
+          @for (p of tablePoints(); track $index) {
             <tr>
               <td>{{ p.day }}</td>
               <td>{{ describe(p) }}</td>
@@ -77,7 +90,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (p of priceLog(); track p.day) {
+          @for (p of tablePrices(); track p.day) {
             <tr>
               <td>{{ p.day }}</td>
               <td>{{ p.events.length ? p.events.join(', ') : 'None' }}</td>
@@ -106,6 +119,25 @@
             role="img"
             [attr.aria-label]="capSummary()"
           >
+            <defs>
+              <clipPath [attr.id]="clipName('cap')">
+                <rect
+                  [attr.x]="left()"
+                  y="0"
+                  [attr.width]="plotWidth()"
+                  [attr.height]="capHeight()"
+                />
+              </clipPath>
+            </defs>
+            @for (b of priceBands(); track $index) {
+              <rect
+                class="event-band"
+                [attr.x]="b.x"
+                y="0"
+                [attr.width]="b.width"
+                [attr.height]="capHeight() - 6"
+              />
+            }
             @for (g of capGrid(); track g.y) {
               <line
                 class="grid"
@@ -127,55 +159,57 @@
                 [attr.y2]="capHeight() - 6"
               />
             }
-            @if (enough()) {
-              <path class="area" [attr.d]="capArea()" />
-              <path class="line capital-line" [attr.d]="capLine()" />
-            }
-            @for (m of capMarkers(); track m.index) {
-              <g
-                class="marker"
-                [attr.data-kind]="m.kind"
-                [attr.data-index]="m.index"
-                [attr.transform]="'translate(' + m.x + ' ' + m.y + ')'"
-              >
-                @switch (m.kind) {
-                  @case ('facility_sold') {
-                    <polygon class="halo" points="0,9 8,-7 -8,-7" />
-                    <polygon class="m-facility-sold" points="0,6 6,-5 -6,-5" />
+            <g [attr.clip-path]="clipUrl('cap')">
+              @if (enough()) {
+                <path class="area" [attr.d]="capArea()" />
+                <path class="line capital-line" [attr.d]="capLine()" />
+              }
+              @for (m of capMarkers(); track m.index) {
+                <g
+                  class="marker"
+                  [attr.data-kind]="m.kind"
+                  [attr.data-index]="m.index"
+                  [attr.transform]="'translate(' + m.x + ' ' + m.y + ')'"
+                >
+                  @switch (m.kind) {
+                    @case ('facility_sold') {
+                      <polygon class="halo" points="0,9 8,-7 -8,-7" />
+                      <polygon class="m-facility-sold" points="0,6 6,-5 -6,-5" />
+                    }
+                    @case ('buy') {
+                      <circle class="halo" r="7" />
+                      <circle class="m-buy" r="5" />
+                    }
+                    @case ('sell') {
+                      <circle class="halo" r="7" />
+                      <circle class="m-sell" r="5" />
+                    }
+                    @case ('expand') {
+                      <rect class="halo" x="-7" y="-7" width="14" height="14" />
+                      <rect class="m-expand" x="-5" y="-5" width="10" height="10" />
+                    }
+                    @case ('upgrade') {
+                      <rect
+                        class="halo"
+                        x="-6"
+                        y="-6"
+                        width="12"
+                        height="12"
+                        transform="rotate(45)"
+                      />
+                      <rect
+                        class="m-upgrade"
+                        x="-4"
+                        y="-4"
+                        width="8"
+                        height="8"
+                        transform="rotate(45)"
+                      />
+                    }
                   }
-                  @case ('buy') {
-                    <circle class="halo" r="7" />
-                    <circle class="m-buy" r="5" />
-                  }
-                  @case ('sell') {
-                    <circle class="halo" r="7" />
-                    <circle class="m-sell" r="5" />
-                  }
-                  @case ('expand') {
-                    <rect class="halo" x="-7" y="-7" width="14" height="14" />
-                    <rect class="m-expand" x="-5" y="-5" width="10" height="10" />
-                  }
-                  @case ('upgrade') {
-                    <rect
-                      class="halo"
-                      x="-6"
-                      y="-6"
-                      width="12"
-                      height="12"
-                      transform="rotate(45)"
-                    />
-                    <rect
-                      class="m-upgrade"
-                      x="-4"
-                      y="-4"
-                      width="8"
-                      height="8"
-                      transform="rotate(45)"
-                    />
-                  }
-                }
-              </g>
-            }
+                </g>
+              }
+            </g>
             @if (capEnd(); as end) {
               <circle class="halo" [attr.cx]="end.x" [attr.cy]="end.y" r="6" />
               <circle class="end-dot" [attr.cx]="end.x" [attr.cy]="end.y" r="4" />
@@ -213,6 +247,9 @@
               <div class="tip" [class.left]="tipSide() === 'left'" [style.left.px]="hoverX()">
                 <strong class="value">{{ formatMoney(h.point.capital) }}</strong>
                 <span class="what">{{ describe(h.point) }}</span>
+                @if (hoverEvents().length) {
+                  <span class="event-line">Event: {{ hoverEvents().join(', ') }}</span>
+                }
               </div>
             }
           }
@@ -241,6 +278,25 @@
             role="img"
             aria-label="Stock of each resource over time. Use the table view for exact values."
           >
+            <defs>
+              <clipPath [attr.id]="clipName('stock')">
+                <rect
+                  [attr.x]="left()"
+                  y="0"
+                  [attr.width]="plotWidth()"
+                  [attr.height]="stockAxisY()"
+                />
+              </clipPath>
+            </defs>
+            @for (b of priceBands(); track $index) {
+              <rect
+                class="event-band"
+                [attr.x]="b.x"
+                y="0"
+                [attr.width]="b.width"
+                [attr.height]="stockAxisY()"
+              />
+            }
             @for (g of stockGrid(); track g.y) {
               <line
                 class="grid"
@@ -267,23 +323,25 @@
             }
             <text
               class="tick axis-title"
-              [attr.x]="left() - 6"
+              [attr.x]="left() - 14"
               [attr.y]="stockAxisY() + 16"
               text-anchor="end"
             >
               Day
             </text>
-            @if (enough()) {
-              @for (l of stockLines(); track l.resource) {
-                <path
-                  class="line stock-line"
-                  [attr.data-resource]="l.resource"
-                  [attr.data-color]="l.color"
-                  [style.stroke]="l.color"
-                  [attr.d]="l.d"
-                />
+            <g [attr.clip-path]="clipUrl('stock')">
+              @if (enough()) {
+                @for (l of stockLines(); track l.resource) {
+                  <path
+                    class="line stock-line"
+                    [attr.data-resource]="l.resource"
+                    [attr.data-color]="l.color"
+                    [style.stroke]="l.color"
+                    [attr.d]="l.d"
+                  />
+                }
               }
-            }
+            </g>
             @if (hoverX(); as hx) {
               <line
                 class="cross"
@@ -308,6 +366,9 @@
             @if (hoverChart() === 'stock') {
               <div class="tip" [class.left]="tipSide() === 'left'" [style.left.px]="hoverX()">
                 <span class="what">{{ describe(h.point) }}</span>
+                @if (hoverEvents().length) {
+                  <span class="event-line">Event: {{ hoverEvents().join(', ') }}</span>
+                }
                 <ul>
                   @for (r of resources; track r; let i = $index) {
                     <li>
@@ -364,6 +425,16 @@
             role="img"
             [attr.aria-label]="priceSummary()"
           >
+            <defs>
+              <clipPath [attr.id]="clipName('price')">
+                <rect
+                  [attr.x]="left()"
+                  y="0"
+                  [attr.width]="plotWidth()"
+                  [attr.height]="stockAxisY()"
+                />
+              </clipPath>
+            </defs>
             @for (b of priceBands(); track $index) {
               <rect
                 class="event-band"
@@ -401,22 +472,24 @@
             }
             <text
               class="tick axis-title"
-              [attr.x]="left() - 6"
+              [attr.x]="left() - 14"
               [attr.y]="stockAxisY() + 16"
               text-anchor="end"
             >
               Day
             </text>
-            @if (priceEnough()) {
-              @for (l of priceLines(); track l.resource) {
-                <path
-                  class="line price-line"
-                  [attr.data-resource]="l.resource"
-                  [style.stroke]="l.color"
-                  [attr.d]="l.d"
-                />
+            <g [attr.clip-path]="clipUrl('price')">
+              @if (priceEnough()) {
+                @for (l of priceLines(); track l.resource) {
+                  <path
+                    class="line price-line"
+                    [attr.data-resource]="l.resource"
+                    [style.stroke]="l.color"
+                    [attr.d]="l.d"
+                  />
+                }
               }
-            }
+            </g>
             @if (hoverX(); as hx) {
               <line
                 class="cross"

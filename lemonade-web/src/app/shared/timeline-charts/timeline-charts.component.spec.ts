@@ -342,4 +342,170 @@ describe('TimelineChartsComponent', () => {
       expect(rows[1].textContent).toContain('$126');
     });
   });
+
+  describe('events on every chart', () => {
+    const DAYS: TimelinePoint[] = [
+      timelinePoint({ kind: 'start', day: 1, capital: 1000 }),
+      timelinePoint({ kind: 'end_day', day: 1, capital: 970 }),
+      timelinePoint({ kind: 'end_day', day: 2, capital: 940 }),
+      timelinePoint({ kind: 'end_day', day: 3, capital: 910 }),
+    ];
+    const LOG: PricePoint[] = [
+      { day: 1, prices: [20, 10, 10, 10, 90], events: [] },
+      { day: 2, prices: [22, 9, 10, 11, 126], events: ['Heat Wave'] },
+      { day: 3, prices: [21, 9, 10, 10, 100], events: [] },
+      { day: 4, prices: [21, 9, 10, 10, 100], events: ['Holiday'] },
+    ];
+
+    it('shades event days on the capital, stock and price charts', async () => {
+      await render(DAYS, LOG);
+      for (const chart of ['capital', 'stock', 'prices']) {
+        expect(el.querySelectorAll(`.${chart} .event-band`).length)
+          .withContext(chart)
+          .toBeGreaterThan(0);
+      }
+    });
+
+    it('names the event in the capital and stock tooltips', async () => {
+      await render(DAYS, LOG);
+      // The end of day 1 is the start of day 2, which has the Heat Wave.
+      hover('capital', 0.34);
+      expect(el.querySelector('.capital .tip')!.textContent).toContain('Day 1 ended');
+      expect(el.querySelector('.capital .tip')!.textContent).toContain('Event: Heat Wave');
+      hover('stock', 0.34);
+      expect(el.querySelector('.stock .tip')!.textContent).toContain('Event: Heat Wave');
+      hover('capital', 0); // day 1 had none
+      expect(el.querySelector('.capital .tip')!.textContent).not.toContain('Event:');
+    });
+
+    it('explains the shading in the legend', async () => {
+      await render(DAYS, LOG);
+      expect(el.querySelector('.marker-legend')!.textContent).toContain('Market event');
+    });
+  });
+
+  describe('time range', () => {
+    // A 40-day game: start, then an end_day and a buy on every day.
+    const LONG: TimelinePoint[] = [timelinePoint({ kind: 'start', day: 1, capital: 5000 })];
+    for (let day = 1; day <= 40; day++) {
+      LONG.push(
+        timelinePoint({
+          kind: 'buy',
+          day,
+          resource: 'lemon',
+          qty: 1,
+          amount: 22,
+          capital: 5000 - day * 50 + 10,
+        }),
+        timelinePoint({ kind: 'end_day', day, capital: 5000 - day * 50 }),
+      );
+    }
+    const LONG_LOG: PricePoint[] = Array.from({ length: 41 }, (_, i) => ({
+      day: i + 1,
+      prices: [20, 10, 10, 10, 90],
+      events: i % 10 === 5 ? ['Heat Wave'] : [],
+    }));
+
+    const dayLabels = () =>
+      Array.from(el.querySelectorAll('.stock svg text.tick[text-anchor=middle]')).map((t) =>
+        Number(t.textContent!.trim()),
+      );
+    const pressed = () =>
+      Array.from(el.querySelectorAll<HTMLElement>('.range button'))
+        .filter((b) => b.getAttribute('aria-pressed') === 'true')
+        .map((b) => b.textContent!.trim());
+
+    it('offers 14d, 1m, 3m, 6m and All, with All chosen at first', async () => {
+      await render(LONG, LONG_LOG);
+      expect(
+        Array.from(el.querySelectorAll('.range button')).map((b) => b.textContent!.trim()),
+      ).toEqual(['14d', '1m', '3m', '6m', 'All']);
+      expect(pressed()).toEqual(['All']);
+      expect(dayLabels()[0]).toBe(1);
+    });
+
+    it('shows only the last 14 days when asked, on all three charts', async () => {
+      await render(LONG, LONG_LOG);
+      const allMarkers = markers().length;
+      click('.range button:nth-child(1)');
+      expect(pressed()).toEqual(['14d']);
+      // The axis starts about 14 days before the end (day 41 is the boundary after day 40).
+      expect(dayLabels()[0]).toBeGreaterThanOrEqual(27);
+      expect(markers().length).toBeLessThan(allMarkers);
+      expect(markers().length).toBeGreaterThan(0);
+      // The three charts share the one control: they all draw from the same window.
+      const stockDays = dayLabels();
+      const priceDays = Array.from(
+        el.querySelectorAll('.prices svg text.tick[text-anchor=middle]'),
+      ).map((t) => Number(t.textContent!.trim()));
+      expect(priceDays).toEqual(stockDays);
+    });
+
+    it('clips lines that begin before the window instead of drawing outside it', async () => {
+      await render(LONG, LONG_LOG);
+      click('.range button:nth-child(1)');
+      for (const [chart, id] of [
+        ['capital', 'cap'],
+        ['stock', 'stock'],
+        ['prices', 'price'],
+      ]) {
+        const group = el.querySelector(`.${chart} g[clip-path]`);
+        expect(group).withContext(chart).not.toBeNull();
+        expect(group!.getAttribute('clip-path')).toContain(`-${id})`);
+        const clip = el.querySelector(`.${chart} clipPath rect`)!;
+        expect(Number(clip.getAttribute('x'))).toBeGreaterThan(0);
+      }
+    });
+
+    it('rescales the axes to what is visible', async () => {
+      await render(LONG, LONG_LOG);
+      const labels = () =>
+        Array.from(el.querySelectorAll('.capital svg text.tick[text-anchor=end]')).map((t) =>
+          t.textContent!.trim(),
+        );
+      const before = labels();
+      click('.range button:nth-child(1)');
+      // Capital was $5k early on; in the last 14 days it stays under $3k, so the top tick drops.
+      expect(labels()).not.toEqual(before);
+    });
+
+    it('cannot hover a point that has scrolled out of the range', async () => {
+      await render(LONG, LONG_LOG);
+      click('.range button:nth-child(1)');
+      hover('capital', 0);
+      const text = el.querySelector('.capital .tip')!.textContent!;
+      const day = Number(/Day (\d+) ended/.exec(text)?.[1] ?? /Bought/.exec(text)?.index ?? 0);
+      expect(text).not.toContain('Game started');
+      if (day) {
+        expect(day).toBeGreaterThanOrEqual(26);
+      }
+    });
+
+    it('clears the readout when the range changes', async () => {
+      await render(LONG, LONG_LOG);
+      hover('capital', 0.5);
+      expect(el.querySelector('.tip')).not.toBeNull();
+      click('.range button:nth-child(2)');
+      expect(el.querySelector('.tip')).toBeNull();
+    });
+
+    it('limits the table view to the range as well', async () => {
+      await render(LONG, LONG_LOG);
+      click('.table-toggle');
+      const all = el.querySelectorAll('table:not(.price-table) tbody tr').length;
+      click('.range button:nth-child(1)');
+      const some = el.querySelectorAll('table:not(.price-table) tbody tr').length;
+      expect(some).toBeLessThan(all);
+      expect(some).toBeGreaterThan(0);
+      expect(el.querySelectorAll('.price-table tbody tr').length).toBeLessThan(41);
+    });
+
+    it('All shows everything again', async () => {
+      await render(LONG, LONG_LOG);
+      click('.range button:nth-child(1)');
+      click('.range button:nth-child(5)');
+      expect(pressed()).toEqual(['All']);
+      expect(dayLabels()[0]).toBe(1);
+    });
+  });
 });
