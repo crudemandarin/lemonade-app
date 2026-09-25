@@ -34,10 +34,15 @@ type scoreRowDTO struct {
 	CreatedAt time.Time `json:"createdAt"`
 	// IsMe marks the caller's own row.
 	IsMe bool `json:"isMe"`
+	// Achievements is how many the player has unlocked, shown as a badge.
+	Achievements int `json:"achievements"`
 }
 
 type scoresDTO struct {
-	Rows []scoreRowDTO `json:"rows"`
+	// Board is the board these rows belong to: all_time or day_100. On day_100 a row's
+	// score is the net worth on arriving at day 100, and its days is always 100.
+	Board string        `json:"board"`
+	Rows  []scoreRowDTO `json:"rows"`
 	// Me is the caller's own best row and rank, even when it is below the rows shown; null with no finished run.
 	Me *scoreRowDTO `json:"me"`
 }
@@ -64,12 +69,14 @@ type runDetailDTO struct {
 	Commodities []commodityDTO `json:"commodities"`
 	// Reports is the light list of the run's ended days, as GET /game/reports returns.
 	Reports []reportSummaryDTO `json:"reports"`
+	// Achievements are the ones this run unlocked.
+	Achievements []unlockedDTO `json:"achievements"`
 }
 
 func toScoreRow(r store.ScoreRow, callerID uint) scoreRowDTO {
 	return scoreRowDTO{
 		Rank: r.Rank, Username: r.Username, Score: r.Score, Days: r.Days,
-		NetWorth: r.NetWorth, CreatedAt: r.CreatedAt, IsMe: r.UserID == callerID,
+		NetWorth: r.NetWorth, CreatedAt: r.CreatedAt, IsMe: r.UserID == callerID, Achievements: r.Achievements,
 	}
 }
 
@@ -85,17 +92,23 @@ func (h *Game) scores(c *gin.Context) {
 		limit = min(max(n, 1), maxScoreLimit)
 	}
 
+	board := store.Board(c.DefaultQuery("board", string(store.BoardAllTime)))
+	if !board.Valid() {
+		abort(c, http.StatusBadRequest, "invalid_board", "Board must be all_time or day_100.")
+		return
+	}
+
 	ctx, me := c.Request.Context(), currentUser(c).ID
-	rows, err := h.repo.TopScores(ctx, limit)
+	rows, err := h.repo.TopBoard(ctx, board, limit)
 	if err != nil {
 		abortErr(c, err)
 		return
 	}
-	out := scoresDTO{Rows: make([]scoreRowDTO, 0, len(rows))}
+	out := scoresDTO{Board: string(board), Rows: make([]scoreRowDTO, 0, len(rows))}
 	for _, r := range rows {
 		out.Rows = append(out.Rows, toScoreRow(r, me))
 	}
-	best, err := h.repo.BestScore(ctx, me)
+	best, err := h.repo.BestOnBoard(ctx, board, me)
 	if err != nil {
 		abortErr(c, err)
 		return
@@ -157,16 +170,22 @@ func (h *Game) myRun(c *gin.Context) {
 	for _, r := range reports {
 		summaries = append(summaries, toReportSummary(r))
 	}
+	unlocked, err := h.repo.ListAchievements(ctx, me)
+	if err != nil {
+		abortErr(c, err)
+		return
+	}
 	c.JSON(http.StatusOK, runDetailDTO{
 		runSummaryDTO: toRunSummary(store.RunSummary{
 			RunID: run.RunID, Score: run.Score, Days: run.Days, NetWorth: run.NetWorth,
 			Capital: run.Capital, EndedBy: run.EndedBy, CreatedAt: run.CreatedAt,
 		}, best),
-		Stats:       statsDTO(run.Stats),
-		Timeline:    timelinePointDTOs(run.Timeline, h.cfg),
-		PriceLog:    priceLogDTOs(run.PriceLog, h.cfg),
-		BasePrices:  basePrices(h.cfg),
-		Commodities: toCommodityDTOs(h.cfg),
-		Reports:     summaries,
+		Stats:        statsDTO(run.Stats),
+		Timeline:     timelinePointDTOs(run.Timeline, h.cfg),
+		PriceLog:     priceLogDTOs(run.PriceLog, h.cfg),
+		BasePrices:   basePrices(h.cfg),
+		Commodities:  toCommodityDTOs(h.cfg),
+		Reports:      summaries,
+		Achievements: runAchievements(unlocked, run.RunID),
 	})
 }

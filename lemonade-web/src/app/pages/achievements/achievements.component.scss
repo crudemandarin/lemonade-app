@@ -1,0 +1,96 @@
+:host {
+  display: grid;
+  gap: 1rem;
+  max-width: 44rem;
+  margin: 0 auto;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.lede,
+.note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+
+  .retry {
+    margin-left: 0.5rem;
+  }
+}
+
+.list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  min-width: 0;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+
+  &:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  &.locked .name {
+    color: var(--text-muted);
+  }
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  align-items: baseline;
+}
+
+.name {
+  font-weight: 600;
+}
+
+// Tier and state are words, so nothing relies on colour alone.
+.tier,
+.state {
+  padding: 0 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: capitalize;
+}
+
+.desc,
+.when {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.bar-line {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.375rem;
+}
+
+.bar {
+  flex: 1;
+  min-width: 0;
+  height: 0.5rem;
+  accent-color: var(--accent-strong);
+}
+
+.count {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}

@@ -3,6 +3,8 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import {
+  AchievementsResponse,
+  Board,
   DayReport,
   EndDayResponse,
   FacilityType,
@@ -106,10 +108,18 @@ export class ApiService {
   }
 
   /** The global board: each player's best run. `me` is the caller's own row. */
-  scores(limit?: number): Observable<ScoresResponse> {
+  scores(limit?: number, board: Board = 'all_time'): Observable<ScoresResponse> {
     return this.http.get<ScoresResponse>(`${API_URL}/scores`, {
-      params: limit ? { limit } : {},
+      params: {
+        ...(limit && { limit }),
+        ...(board !== 'all_time' && { board }),
+      },
     });
+  }
+
+  /** Every achievement with the caller's unlocked state and progress. */
+  achievements(): Observable<AchievementsResponse> {
+    return this.http.get<AchievementsResponse>(`${API_URL}/achievements`);
   }
 
   /** The caller's finished runs, newest first. */

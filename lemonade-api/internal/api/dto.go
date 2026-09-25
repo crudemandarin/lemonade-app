@@ -262,6 +262,8 @@ type gameViewDTO struct {
 	Features     []string      `json:"features"`
 	IceKeepCases int           `json:"iceKeepCases"`
 	Forecast     []forecastDTO `json:"forecast"`
+	// Unlocked are the achievements this response's mutation just earned ([] otherwise).
+	Unlocked []unlockedDTO `json:"unlocked"`
 }
 
 type forecastDTO struct {
@@ -403,6 +405,7 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 		Features:     append([]string{}, domain.Features(g, cfg)...),
 		IceKeepCases: domain.IceKeep(g, cfg),
 		Forecast:     toForecastDTOs(domain.Forecast(g, cfg)),
+		Unlocked:     []unlockedDTO{},
 	}
 }
 

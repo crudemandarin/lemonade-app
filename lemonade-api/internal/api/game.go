@@ -13,6 +13,7 @@ import (
 
 	"lemonade-api/internal/auth"
 	"lemonade-api/internal/domain"
+	"lemonade-api/internal/domain/content"
 	"lemonade-api/internal/store"
 )
 
@@ -89,6 +90,7 @@ func (h *Game) Register(router gin.IRouter) {
 	me.POST("/claim", h.claim)
 
 	api.GET("/scores", h.requireUser, h.scores)
+	api.GET("/achievements", h.requireUser, h.listAchievements)
 	api.GET("/runs", h.requireUser, h.myRuns)
 	api.GET("/runs/:runId", h.requireUser, h.myRun)
 
@@ -198,26 +200,57 @@ func (h *Game) respondView(c *gin.Context, g domain.Game) {
 	c.JSON(http.StatusOK, v)
 }
 
+// respondViewUnlocking is respondView plus the achievements the mutation unlocked.
+func (h *Game) respondViewUnlocking(c *gin.Context, g domain.Game, unlocked []string) {
+	v, err := h.view(c, g)
+	if err != nil {
+		abortErr(c, err)
+		return
+	}
+	v.Unlocked = toUnlocked(unlocked)
+	c.JSON(http.StatusOK, v)
+}
+
 // mutate runs one domain action under the row lock and responds with the new view.
 func (h *Game) mutate(c *gin.Context, action func(g *domain.Game) error) {
-	g, _, ok := h.mutateWithEffects(c, func(g *domain.Game) (domain.Effects, error) { return domain.Effects{}, action(g) })
+	g, e, ok := h.mutateWithEffects(c, func(g *domain.Game) (domain.Effects, error) { return domain.Effects{}, action(g) })
 	if !ok {
 		return
 	}
-	h.respondView(c, g)
+	h.respondViewUnlocking(c, g, e.Unlocked)
 }
 
 // mutateWithEffects runs one action under the row lock and saves its effects with
 // the game. A game saved before runs existed gets its run ID here, on its first
 // mutation. On failure it has already answered, and ok is false.
 func (h *Game) mutateWithEffects(c *gin.Context, action func(g *domain.Game) (domain.Effects, error)) (g domain.Game, e domain.Effects, ok bool) {
-	g, err := h.repo.Mutate(c.Request.Context(), currentUser(c).ID, func(g *domain.Game) (domain.Effects, error) {
+	return h.mutateAchieving(c, false, action)
+}
+
+// mutateAchieving is mutateWithEffects plus achievements: after the action succeeds
+// they are evaluated on the game before and after it, and the new ones are saved in
+// the same transaction (a failed action grants nothing). mayFinish says the action can
+// end the run, which needs the player's run history and board rank, loaded first
+// because the repository holds its lock during the action.
+func (h *Game) mutateAchieving(c *gin.Context, mayFinish bool, action func(g *domain.Game) (domain.Effects, error)) (g domain.Game, e domain.Effects, ok bool) {
+	user := currentUser(c)
+	history, err := h.loadHistory(c.Request.Context(), user.ID, mayFinish)
+	if err != nil {
+		abortErr(c, err)
+		return g, e, false
+	}
+	g, err = h.repo.Mutate(c.Request.Context(), user.ID, func(g *domain.Game) (domain.Effects, error) {
 		if g.RunID == "" {
 			g.RunID = newRunID()
 		}
+		before := g.Clone()
 		var err error
 		e, err = action(g)
-		return e, err
+		if err != nil {
+			return e, err
+		}
+		e.Unlocked = domain.Evaluate(content.Achievements, before, *g, h.cfg, history.achievementContext(user.ID, e.Finished, time.Now()))
+		return e, nil
 	})
 	if err != nil {
 		abortErr(c, err)
@@ -425,7 +458,7 @@ func (h *Game) quote(c *gin.Context) {
 
 // giveUp ends the run and records it, in one transaction.
 func (h *Game) giveUp(c *gin.Context) {
-	g, _, ok := h.mutateWithEffects(c, func(g *domain.Game) (domain.Effects, error) {
+	g, e, ok := h.mutateAchieving(c, true, func(g *domain.Game) (domain.Effects, error) {
 		if err := domain.GiveUp(g); err != nil {
 			return domain.Effects{}, err
 		}
@@ -435,17 +468,22 @@ func (h *Game) giveUp(c *gin.Context) {
 	if !ok {
 		return
 	}
-	h.respondView(c, g)
+	h.respondViewUnlocking(c, g, e.Unlocked)
 }
 
 func (h *Game) endDay(c *gin.Context) {
 	var report domain.DayReport
-	g, _, ok := h.mutateWithEffects(c, func(g *domain.Game) (domain.Effects, error) {
+	g, e, ok := h.mutateAchieving(c, true, func(g *domain.Game) (domain.Effects, error) {
+		before := g.Clone()
 		var err error
 		report, err = domain.EndDay(g, h.cfg)
 		if err != nil {
 			return domain.Effects{}, err
 		}
+		// Goal facts are recorded after EndDay, not inside it, so the rules never see them.
+		domain.RecordDayFacts(before, g, h.cfg, report)
+		// The day-100 board's snapshot, taken once, on arriving at that day.
+		domain.RecordMilestones(g, h.cfg)
 		effects := domain.Effects{Report: &report}
 		if report.Bankrupt {
 			// Same transaction as the status change: no bankrupt game without its record.
@@ -462,5 +500,6 @@ func (h *Game) endDay(c *gin.Context) {
 		abortErr(c, err)
 		return
 	}
+	view.Unlocked = toUnlocked(e.Unlocked)
 	c.JSON(http.StatusOK, endDayResponseDTO{Report: toDayReport(report), Game: view})
 }

@@ -19,6 +19,8 @@ type RunRecord struct {
 	Timeline []TimelinePoint
 	Stats    Stats
 	PriceLog []PricePoint
+	// NetWorthDay100 is the run's net worth on arriving at BoardDay, nil if it ended earlier.
+	NetWorthDay100 *int
 }
 
 // Effects are what a mutation produced beyond changing the game. The store saves
@@ -29,6 +31,9 @@ type Effects struct {
 	Report *DayReport
 	// Finished is set when the run ended (bankruptcy or giving up).
 	Finished *RunRecord
+	// Unlocked are the achievement keys this mutation earned. Storing one the player
+	// already has is a no-op.
+	Unlocked []string
 }
 
 // FinishRun builds the record of a run that has just ended. The score is the
@@ -46,5 +51,7 @@ func FinishRun(g Game, cfg Config, endedBy string) RunRecord {
 		Timeline: c.Timeline,
 		Stats:    c.Stats,
 		PriceLog: c.PriceLog,
+
+		NetWorthDay100: c.NetWorthDay100,
 	}
 }

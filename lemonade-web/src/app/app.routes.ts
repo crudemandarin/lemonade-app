@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { authGuard, guestGuard, onboardingGuard, signedOutGuard } from './core/auth.guard';
+import { AchievementsComponent } from './pages/achievements/achievements.component';
 import { GameComponent } from './pages/game/game.component';
 import { HomeComponent } from './pages/home/home.component';
 import { RunComponent } from './pages/run/run.component';
@@ -35,6 +36,12 @@ export const routes: Routes = [
     component: ScoresComponent,
     canActivate: [authGuard],
     title: 'Scores · Lemonade Tycoon',
+  },
+  {
+    path: 'achievements',
+    component: AchievementsComponent,
+    canActivate: [authGuard],
+    title: 'Achievements · Lemonade Tycoon',
   },
   {
     path: 'runs/:id',
