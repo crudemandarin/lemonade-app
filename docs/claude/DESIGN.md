@@ -72,15 +72,15 @@ Facility tiers (L1 → L4). Size/rate is per building; costs and upkeep are per 
 | | L1 | L2 | L3 | L4 |
 |---|---|---|---|---|
 | **Warehouse name** | Pantry | Garage | Barn | Industrial Warehouse |
-| Size (cases) | 10 | 20 | 40 | 80 |
-| Expand (build) cost | $100 | $300 | $800 | $2,000 |
-| Upgrade cost to next | $100 | $250 | $600 | n/a |
-| Upkeep/day | $2 | $6 | $16 | $40 |
+| Size (cases) | 10 | 25 | 60 | 150 |
+| Expand (build) cost | $100 | $220 | $450 | $900 |
+| Upgrade cost to next | $155 | $200 | $400 | n/a |
+| Upkeep/day | $2 | $4 | $8 | $15 |
 | **Production name** | Kitchen | Food Truck | Bottling Plant | Lemonade Factory |
-| Rate (lemonade/day) | 10 | 20 | 40 | 80 |
-| Expand (build) cost | $500 | $1,500 | $4,000 | $10,000 |
-| Upgrade cost to next | $1,000 | $2,500 | $6,000 | n/a |
-| Upkeep/day | $20 | $50 | $120 | $280 |
+| Rate (lemonade/day) | 10 | 25 | 60 | 150 |
+| Expand (build) cost | $500 | $1,100 | $2,200 | $4,500 |
+| Upgrade cost to next | $780 | $1,000 | $2,000 | n/a |
+| Upkeep/day | $20 | $40 | $75 | $150 |
 
 Upgrade total = per-building upgrade cost × total buildings of the type. Upkeep total = per-building upkeep × buildings, summed over all warehouse buildings and production.
 

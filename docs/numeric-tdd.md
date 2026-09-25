@@ -96,20 +96,21 @@ Costs, sizes and upkeep are per building.
 
 | Warehouse | L1 Pantry | L2 Garage | L3 Barn | L4 Industrial Warehouse |
 |---|---|---|---|---|
-| Size (cases) | 10 | 20 | 40 | 80 |
-| Build | $100 | $300 | $800 | $2,000 |
-| Upgrade to next | $100 | $250 | $600 | n/a |
-| Upkeep per day | $2 | $6 | $16 | $40 |
+| Size (cases) | 10 | 25 | 60 | 150 |
+| Build | $100 | $220 | $450 | $900 |
+| Upgrade to next | $155 | $200 | $400 | n/a |
+| Upkeep per day | $2 | $4 | $8 | $15 |
+| Market depth (cases at plain price) | 80 | 280 | 480 | 960 |
 
 | Production | L1 Kitchen | L2 Food Truck | L3 Bottling Plant | L4 Lemonade Factory |
 |---|---|---|---|---|
-| Rate (lemonade/day) | 10 | 20 | 40 | 80 |
-| Build | $500 | $1,500 | $4,000 | $10,000 |
-| Upgrade to next | $1,000 | $2,500 | $6,000 | n/a |
-| Upkeep per day | $20 | $50 | $120 | $280 |
+| Rate (lemonade/day) | 10 | 25 | 60 | 150 |
+| Build | $500 | $1,100 | $2,200 | $4,500 |
+| Upgrade to next | $780 | $1,000 | $2,000 | n/a |
+| Upkeep per day | $20 | $40 | $75 | $150 |
 
 - **Expand** adds one building at the current level (for a warehouse, the player picks the resource).
-- **Upgrade** raises the whole type one level for `per-building cost × total buildings of the type` (fresh game: 5 Pantries → Garages = $500).
+- **Upgrade** raises the whole type one level for `per-building cost × total buildings of the type` (fresh game: 5 Pantries → Garages = $775).
 - Costs, sizes, upkeep, and event data live in one `Config` struct.
 
 ### End of day
@@ -256,8 +257,9 @@ Every balance number lives in one struct, `DefaultConfig()` in `lemonade-api/int
 | `RevertRate` | 0.15 | How strongly prices are pulled back toward their base (15% of the gap per day) |
 | `ClampMin` / `ClampMax` | 0.25× / 4× | Hard floor and ceiling on the walked price |
 | `EventChance` | 25% | Chance per day that a new market event starts |
-| `FreeDepth` | 80 cases per resource | How many cases you can buy (or sell) at the plain price before the market reacts to your own trading |
-| `ImpactSlope` | 0.3% | Each case beyond the free depth moves the price a further 0.3%: the ask up when you buy, the bid down when you sell |
+| `FreeDepth` | 80 cases per resource | How many cases you can buy (or sell) at the plain price at warehouse level 1 before the market reacts to your own trading |
+| `DepthByLevel` | 1, 3.5, 6, 12 | Multiplies `FreeDepth` by warehouse level: 80, 280, 480 and 960 cases. A bigger business reaches more customers (interim, until territories) |
+| `ImpactShape` | 0.24 | Each case beyond the free depth moves the price by this times its share of the depth (0.3% a case at a depth of 80, 0.086% at 280): the ask up when you buy, the bid down when you sell |
 | `Recovery` | 50% | Share of your remembered trading volume the market forgets each night |
 | `ImpactCap` | 60% | Most a price can move because of your own trades |
 | `ResaleRate` | 50% | Share of a building's build cost returned when it is sold (quantity only; levels are never sold) |
@@ -293,9 +295,27 @@ Two earlier problems drove the last tuning pass: the market was almost riskless 
 
 Findings: (1) The exploit is real and needs no skill: the price-blind spammer out-earns the careful grower ($34.6k against $29.9k at day 60, $388k against $308k at day 90) and 80% of spammers survive 120 days. Only 23% of spammers are bankrupt or under $1,000 at day 90. (2) Waiting for good prices does not pay: upkeep is due every day whether or not anything is produced, so skipping days makes the thresholders die more (64% against 20%). The "free option" in the diagnosis is much weaker than volume. (3) Lemonade cannot be hoarded: a warehouse holds exactly one day of production at every level (10/20/40/80 each), so the hoarder sells daily and matches the opportunist. (4) The handoff's literal buy rule (ask at most 0.9 x base) needs the price about 18% under base in lemon, sugar and cups at the same time and starves the bot.
 
-**Market depth (balance handoff, phase 1).** The market now reacts to the player's own trading, which is what stops the price-blind volume strategy. Each resource remembers how many cases the player recently bought and sold, separately (so buying only raises the ask and selling only lowers the bid, and no buy-then-sell round trip can profit). The k-th case traded costs the plain ask (or pays the plain bid) until the free depth is used up, then moves 0.3% per further case up to a 60% cap; half of the remembered volume is forgotten each night. Costs are summed per case in whole dollars. The game view's `bid` and `ask` are the price of the next single case, each row says how much free depth is left and how far the price has moved, and a per-amount ladder (1, 10, 50, 100, all) gives the server's total for the trade bar, so the UI does no price arithmetic. Net worth and the score still value stock at the plain bid and ignore price impact.
+**Market depth (balance handoff, phase 1).** The market now reacts to the player's own trading, which is what stops the price-blind volume strategy. Each resource remembers how many cases the player recently bought and sold, separately (so buying only raises the ask and selling only lowers the bid, and no buy-then-sell round trip can profit). The k-th case traded costs the plain ask (or pays the plain bid) until the free depth is used up, then moves the price by 0.24 times the case's share of the free depth per further case (0.3% a case at level 1) up to a 60% cap; half of the remembered volume is forgotten each night. Costs are summed per case in whole dollars. The game view's `bid` and `ask` are the price of the next single case, each row says how much free depth is left and how far the price has moved, and a per-amount ladder (1, 10, 50, 100, all) gives the server's total for the trade bar, so the UI does no price arithmetic. Net worth and the score still value stock at the plain bid and ignore price impact.
 
 Knobs were chosen by sweeping free depth (40 to 200), slope (0.2% to 1.5%) and recovery (30% or 50%) against the bots. The handoff's first guess (40 free cases, 1.5% per case) made every bot go bankrupt, including the careful one. After: a careful player and the skilled traders run at about $9-10k at day 60 and $15k at day 90 (before: $30k and $308k), 20% bankrupt over 120 days, and the price-blind spammer is bankrupt in 100% of games (before: 20%, and it was the richest bot). Careful and skilled bots now size each batch to the last case that still earns money and only add capacity when capacity is what limits profit, as a real careful player would. Early game is untouched: a level 1 or 2 business stays inside 80 free cases. Still unmet: nobody now reaches "everything maxed" (before: median day 66), and the best play flattens out around $15k.
+
+**Late game phase 0 (scale economics).** With the flat depth of pass 1 a careful player stalled near $15k: the market absorbed about 54 cases a day at any size, upgrades made each case dearer, and a maxed business paid $4,800 a day in upkeep. Three changes fix it. (1) The free depth grows with warehouse level (`DepthByLevel`). (2) The impact is relative to the depth (`ImpactShape`), so heavy trading feels the same at every size, and level 1 is byte-for-byte the old 0.3% a case (tested). (3) Tiers get cheaper per case as they grow (upkeep per case of production: $2.00, $1.60, $1.25, $1.00), and the L1 to L2 upgrade costs about 0.7 times the next tier's build cost while later upgrades cost about 0.45 times.
+
+| Careful grower, 200 seeds, 120 days | Pass 1 | This phase | Target |
+|---|---|---|---|
+| Bankrupt | 21% | 9% | 13% or less |
+| Median capital, day 5 / 10 / 15 / 20 | $980 / $1,010 / $1,210 / $1,520 | identical | within 10% |
+| Day 60 | $10.5k | $17.3k | at least $15k |
+| Day 90 | $14.6k | $50.8k | at least $40k |
+| Gain day 60 to 90 over day 30 to 60 | 0.6x | 2.5x | at least 1.5x |
+| L3 median day | never | 75 | 90 or earlier |
+| Everything maxed | never | day 93, 64% within 120 days | at least 50%, median day 90 or later |
+| Spammer bankrupt or under $1,000 at day 90 | 100% | 99% | at least 25% |
+| Spammer beats a skilled bot at day 60 | 0% | 0% | never |
+
+Skilled trading bots land near the grower (thresholder day 90 $52.7k, opportunist $66.0k, both 5% or less bankrupt, maxing by day 86 to 91 in 67% to 77% of seeds).
+
+`TestEachLevelPaysMoreThanTheLast` is the permanent guard: a steady-state model prices every case of a day at the pressure left by the day before (recovery 50%) and asserts that, with ten buildings, the best net profit a day strictly rises from L1 to L4 (about $1.0k, $3.6k, $6.4k and $13.0k a day at base prices, best volumes 50, 175, 300 and 600 cases).
 
 **Tuning it yourself.**
 

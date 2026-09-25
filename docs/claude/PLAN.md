@@ -76,6 +76,10 @@ Time estimates are rough and cumulative.
   - [ ] Phase 3: retune; Phase 4: UX, docs, verification
   - Phase 2 (perishable lemonade) is out of scope by decision.
 
+- [x] **Slice 14b: Late game phase 0 (see `HANDOFF-LATE-GAME-PHASE0.md`, DECISIONS 36)**
+  - [x] Depth by warehouse level, impact relative to depth, economies of scale in the tier table, upgrade cost sweep, bot cushion, `TestEachLevelPaysMoreThanTheLast`
+  - Future work: phases 1 to 7 of `LATE-GAME-DESIGN.md` (territories, rivals, upgrades, recipes, managers)
+
 - [ ] **Slice 15: Sign in with Google (see `HANDOFF-AUTH.md`; DECISIONS 34, 35)**
   - [x] 15a: backend: token verifier, `/api/me` profile and claim endpoints, store methods
   - [x] 15b: frontend: Firebase auth service, bearer interceptor, guards, sign-in and username pages, runtime config

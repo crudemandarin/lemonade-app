@@ -96,7 +96,7 @@ At 800 cases a day the k-th case sits hundreds of cases past any sensible free d
 
 Ask these first; do not add a mechanic without an answer:
 1. **Confirm the target reading:** success = the volume spammer no longer beats the careful player (met), and the "1.5x to 5x" wording is dropped.
-2. **The late game.** Options, roughly in order of how much I would recommend them:
+2. **The late game.** *Answered by the user with a mix of a and c, delivered in late game phase 0 (DECISIONS 36; depth by warehouse level and cheaper big tiers).* Options, roughly in order of how much I would recommend them:
    - a. **Scale depth with warehouse level** (per-tier `FreeDepth`, for example 80 / 160 / 320 / 640). Bigger warehouses then mean deeper markets, so upgrading is what unlocks growth and maxing becomes reachable but slow. Smallest change; keeps the exploit closed at every tier because the spammer at each tier still exceeds its depth.
    - b. **Concave impact** (for example sqrt of excess) instead of linear, so heavy volume is punished less steeply.
    - c. **Lower big-tier upkeep** (the Factory costs $280 a day per building) so the flat late game still grows.

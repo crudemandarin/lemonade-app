@@ -129,7 +129,7 @@ export const HELP_TERMS: HelpTerm[] = [
     section: 'market',
     term: 'Price impact',
     definition:
-      'The market is not bottomless. Buy or sell a lot and the price moves against you: buying pushes the ask up, selling pushes the bid down. The first 80 cases of each resource trade at the normal price, and your recent volume fades by half every night. Small businesses never notice; a big factory does.',
+      'The market is not bottomless. Buy or sell a lot and the price moves against you: buying pushes the ask up, selling pushes the bid down. The first 80 cases of each resource trade at the normal price with a Pantry (more with bigger warehouses), and your recent volume fades by half every night. Small businesses never notice; a big factory does.',
   },
   {
     id: 'market-depth',

@@ -38,14 +38,16 @@ type Config struct {
 	ClampMax   float64
 
 	// Market depth: the player's own trades move prices against them. The first
-	// FreeDepth[r] cases bought (or sold) recently trade at the plain quote; beyond that each
-	// case moves the price by ImpactSlope, up to ImpactCap. Bought and sold cases are tracked
-	// separately, so buying only raises the ask and selling only lowers the bid. Each night
-	// the remembered volume falls by Recovery.
-	FreeDepth   map[Resource]int
-	ImpactSlope float64
-	Recovery    float64
-	ImpactCap   float64
+	// FreeDepth[r] cases bought (or sold) recently trade at the plain quote at warehouse
+	// level 1; DepthByLevel multiplies it for higher levels (index level-1). Beyond the depth
+	// each case moves the price by ImpactShape times its share of the depth, up to
+	// ImpactCap. Bought and sold cases are tracked separately, so buying only raises the ask
+	// and selling only lowers the bid. Each night the remembered volume falls by Recovery.
+	FreeDepth    map[Resource]int
+	DepthByLevel []float64
+	ImpactShape  float64
+	Recovery     float64
+	ImpactCap    float64
 
 	// ResaleRate is the share of a building's build cost returned when it is sold.
 	ResaleRate float64
@@ -82,7 +84,8 @@ func DefaultConfig() Config {
 		FreeDepth: map[Resource]int{
 			Lemon: 80, Sugar: 80, Ice: 80, Cup: 80, Lemonade: 80,
 		},
-		ImpactSlope:   0.003,
+		DepthByLevel:  []float64{1, 3.5, 6, 12},
+		ImpactShape:   0.24, // 0.3% per case at the level-1 depth of 80
 		Recovery:      0.5,
 		ImpactCap:     0.6,
 		ResaleRate:    0.5,
@@ -136,16 +139,16 @@ func DefaultConfig() Config {
 			},
 		},
 		WarehouseTiers: []Tier{
-			{Name: "Pantry", Size: 10, BuildCost: 100, UpgradeCost: 100, Upkeep: 2},
-			{Name: "Garage", Size: 20, BuildCost: 300, UpgradeCost: 250, Upkeep: 6},
-			{Name: "Barn", Size: 40, BuildCost: 800, UpgradeCost: 600, Upkeep: 16},
-			{Name: "Industrial Warehouse", Size: 80, BuildCost: 2000, UpgradeCost: 0, Upkeep: 40},
+			{Name: "Pantry", Size: 10, BuildCost: 100, UpgradeCost: 155, Upkeep: 2},
+			{Name: "Garage", Size: 25, BuildCost: 220, UpgradeCost: 200, Upkeep: 4},
+			{Name: "Barn", Size: 60, BuildCost: 450, UpgradeCost: 400, Upkeep: 8},
+			{Name: "Industrial Warehouse", Size: 150, BuildCost: 900, UpgradeCost: 0, Upkeep: 15},
 		},
 		ProductionTiers: []Tier{
-			{Name: "Kitchen", Size: 10, BuildCost: 500, UpgradeCost: 1000, Upkeep: 20},
-			{Name: "Food Truck", Size: 20, BuildCost: 1500, UpgradeCost: 2500, Upkeep: 50},
-			{Name: "Bottling Plant", Size: 40, BuildCost: 4000, UpgradeCost: 6000, Upkeep: 120},
-			{Name: "Lemonade Factory", Size: 80, BuildCost: 10000, UpgradeCost: 0, Upkeep: 280},
+			{Name: "Kitchen", Size: 10, BuildCost: 500, UpgradeCost: 780, Upkeep: 20},
+			{Name: "Food Truck", Size: 25, BuildCost: 1100, UpgradeCost: 1000, Upkeep: 40},
+			{Name: "Bottling Plant", Size: 60, BuildCost: 2200, UpgradeCost: 2000, Upkeep: 75},
+			{Name: "Lemonade Factory", Size: 150, BuildCost: 4500, UpgradeCost: 0, Upkeep: 150},
 		},
 	}
 }

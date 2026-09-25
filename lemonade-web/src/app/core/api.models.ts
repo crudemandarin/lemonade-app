@@ -104,6 +104,10 @@ export interface WarehouseResourceView extends SaleInfo {
 }
 
 export interface WarehouseView extends FacilityTypeView {
+  /** Cases the market takes at the plain price at this level. */
+  marketDepth: number;
+  /** The same after the upgrade; 0 at max level. */
+  upgradeMarketDepth: number;
   resources: WarehouseResourceView[];
 }
 

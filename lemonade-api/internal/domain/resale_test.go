@@ -31,11 +31,11 @@ func TestSellWarehouseBuilding(t *testing.T) {
 
 func TestSellProductionBuildingUsesItsLevelsBuildCost(t *testing.T) {
 	g, cfg := newTestGame()
-	g.ProductionQty, g.ProductionLevel = 2, 2 // Food Truck: build $1,500
+	g.ProductionQty, g.ProductionLevel = 2, 2 // Food Truck: build $1,100
 	if err := SellFacility(&g, cfg, Production, ""); err != nil {
 		t.Fatal(err)
 	}
-	if g.ProductionQty != 1 || g.Capital != 1000+750 || g.ProductionLevel != 2 {
+	if g.ProductionQty != 1 || g.Capital != 1000+550 || g.ProductionLevel != 2 {
 		t.Fatalf("qty=%d level=%d capital=%d", g.ProductionQty, g.ProductionLevel, g.Capital)
 	}
 }
@@ -95,8 +95,8 @@ func TestFacilityResaleValue(t *testing.T) {
 	if got := FacilityResaleValue(g, cfg); got != 5*50+250 {
 		t.Fatalf("got %d, want 500", got)
 	}
-	g.WarehouseLevel, g.ProductionQty = 2, 3 // 5 Garages ($150), 3 Kitchens... level 1 kitchens
-	if got := FacilityResaleValue(g, cfg); got != 5*150+3*250 {
+	g.WarehouseLevel, g.ProductionQty = 2, 3 // 5 Garages ($110), 3 Kitchens... level 1 kitchens
+	if got := FacilityResaleValue(g, cfg); got != 5*110+3*250 {
 		t.Fatalf("got %d", got)
 	}
 }

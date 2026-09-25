@@ -12,6 +12,7 @@ func impactCfg(free int) Config {
 	for _, r := range Resources {
 		cfg.FreeDepth[r] = free
 	}
+	cfg.DepthByLevel = []float64{1, 1, 1, 1} // depth does not grow with the warehouse here
 	return cfg
 }
 
@@ -252,11 +253,12 @@ func TestImpactIsDeterministic(t *testing.T) {
 }
 
 func TestForcedSalesUseImpactAwareBids(t *testing.T) {
-	cfg := impactCfg(3)
-	cfg.ImpactSlope = 0.1
+	cfg := impactCfg(1)
+	cfg.ImpactShape = 0.1 // 10% a case at a depth of 1
 	g := NewGame(cfg, 1)
 	g.WarehouseLevel = 4
 	g.WarehouseQty[Lemonade] = 10
+	g.ProductionQty = 10 // enough upkeep that the sale runs past the free depth of 1
 	g.Inventory[Lemonade] = 200
 	g.CostBasis[Lemonade] = 200 * 50
 	g.Capital = 0

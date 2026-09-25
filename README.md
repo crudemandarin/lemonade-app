@@ -120,7 +120,7 @@ go test ./internal/domain                                            # balance g
 BALANCE_REPORT=1 go test ./internal/domain -run TestBalanceReport -v # full report
 ```
 
-Changing a price, cost or upkeep also changes a few exact numbers asserted in the API and domain tests (for example the $500 first warehouse upgrade); update those alongside.
+Changing a price, cost or upkeep also changes a few exact numbers asserted in the API and domain tests (for example the $775 first warehouse upgrade); update those alongside.
 
 ## Known limitations
 

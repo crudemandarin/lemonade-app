@@ -25,9 +25,10 @@ describe('FacilitiesPanelComponent', () => {
     expect(warehouseCard().textContent).toContain('Pantry');
     expect(warehouseCard().textContent).toContain('level 1 of 4');
     expect(warehouseCard().querySelector('.upgrade')!.textContent).toContain(
-      'Upgrade all warehouses to Garage: $500',
+      'Upgrade all warehouses to Garage: $775',
     );
-    expect(warehouseCard().textContent).toContain('Covers 5 buildings at $100 each');
+    expect(warehouseCard().textContent).toContain('Covers 5 buildings at $155 each');
+    expect(warehouseCard().textContent).toMatch(/market takes more[\s\S]*80 to\s*280/);
     expect(productionCard().textContent).toContain('Makes 10 lemonade per day');
   });
 

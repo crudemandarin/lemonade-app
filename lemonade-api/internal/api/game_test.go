@@ -200,14 +200,14 @@ func TestGameViewMatchesContract(t *testing.T) {
 		wh.SizePerBuilding != 10 || wh.ExpandCost != 100 || wh.UpkeepPerDay != 10 || len(wh.Resources) != 5 {
 		t.Errorf("warehouse = %+v", wh)
 	}
-	if up := wh.Upgrade; up == nil || up.TierName != "Garage" || up.CostPerBuilding != 100 || up.TotalCost != 500 || up.UpkeepIncrease != 20 || up.SizePerBuilding != 20 {
+	if up := wh.Upgrade; up == nil || up.TierName != "Garage" || up.CostPerBuilding != 155 || up.TotalCost != 775 || up.UpkeepIncrease != 10 || up.SizePerBuilding != 25 {
 		t.Errorf("warehouse upgrade = %+v", wh.Upgrade)
 	}
 	pr := v.Facilities.Production
 	if pr.TierName != "Kitchen" || pr.Buildings != 1 || pr.ExpandCost != 500 || pr.UpkeepPerDay != 20 || pr.RatePerDay != 10 || pr.SizePerBuilding != 10 {
 		t.Errorf("production = %+v", pr)
 	}
-	if up := pr.Upgrade; up == nil || up.TierName != "Food Truck" || up.TotalCost != 1000 || up.UpkeepIncrease != 30 || up.SizePerBuilding != 20 {
+	if up := pr.Upgrade; up == nil || up.TierName != "Food Truck" || up.TotalCost != 780 || up.UpkeepIncrease != 20 || up.SizePerBuilding != 25 {
 		t.Errorf("production upgrade = %+v", pr.Upgrade)
 	}
 
@@ -1147,15 +1147,14 @@ func TestPriceImpactShowsUpInTheViewAfterHeavyTrading(t *testing.T) {
 	e.login("joe12")
 	e.setGame("joe12", func(g *domain.Game) {
 		g.Capital = 1_000_000
-		g.WarehouseLevel = 4
-		g.WarehouseQty[domain.Lemon] = 10
+		g.WarehouseQty[domain.Lemon] = 30 // 300 cases at level 1; the free depth is 80
 	})
 	plain := e.game("joe12").Resources[0].Ask
 
-	e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 120})
+	e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 100})
 	lemon := e.game("joe12").Resources[0]
 	if lemon.Ask <= plain || lemon.BuyImpactPercent <= 0 || lemon.BuyDepthLeft != 0 {
-		t.Fatalf("after buying 120: ask %d (plain %d), impact %d%%, depth left %d", lemon.Ask, plain, lemon.BuyImpactPercent, lemon.BuyDepthLeft)
+		t.Fatalf("after buying 100: ask %d (plain %d), impact %d%%, depth left %d", lemon.Ask, plain, lemon.BuyImpactPercent, lemon.BuyDepthLeft)
 	}
 	if lemon.SellImpactPercent != 0 || lemon.Bid != 18 {
 		t.Fatalf("buying moved the bid: %+v", lemon)
@@ -1175,8 +1174,7 @@ func TestQuoteEndpoint(t *testing.T) {
 	e.login("joe12")
 	e.setGame("joe12", func(g *domain.Game) {
 		g.Capital = 1_000_000
-		g.WarehouseLevel = 4
-		g.WarehouseQty[domain.Lemon] = 10
+		g.WarehouseQty[domain.Lemon] = 30
 	})
 
 	rec := e.do("GET", "/api/game/quote?resource=lemon&side=buy&qty=200", "joe12", nil)

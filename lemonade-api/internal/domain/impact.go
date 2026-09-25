@@ -10,19 +10,39 @@ import "math"
 func snapUp(x float64) int   { return int(math.Ceil(snap(x))) }
 func snapDown(x float64) int { return int(math.Floor(snap(x))) }
 
+// freeDepth is how many cases of r the player's market absorbs at the plain price: the
+// level-1 FreeDepth times the multiplier for the warehouse level. Warehouse level is the
+// interim stand-in for "a bigger business reaches more customers"; territories will
+// replace it here and no call site changes.
+func freeDepth(g Game, cfg Config, r Resource) int {
+	return FreeDepthAtLevel(cfg, r, g.WarehouseLevel)
+}
+
+// FreeDepthAtLevel is the free depth of r at a given warehouse level, for previewing what
+// an upgrade would buy.
+func FreeDepthAtLevel(cfg Config, r Resource, level int) int {
+	mult := 1.0
+	if i := level - 1; i >= 0 && i < len(cfg.DepthByLevel) {
+		mult = cfg.DepthByLevel[i]
+	}
+	return int(math.Round(float64(cfg.FreeDepth[r]) * mult))
+}
+
 // impactMove is the fractional price move for the k-th case (1-based) traded now, given
-// what was already traded: zero inside the free depth, then ImpactSlope per case, capped.
-func impactMove(cfg Config, r Resource, pressure float64, k int) float64 {
-	excess := pressure + float64(k) - float64(cfg.FreeDepth[r])
+// what was already traded and the free depth: zero inside the depth, then ImpactShape
+// times the excess as a share of the depth, capped. Scaling by depth keeps the feel the
+// same at every size: trading a given share of the depth moves the price the same amount.
+func impactMove(cfg Config, depth int, pressure float64, k int) float64 {
+	excess := pressure + float64(k) - float64(depth)
 	if excess <= 0 {
 		return 0
 	}
-	return math.Min(cfg.ImpactSlope*excess, cfg.ImpactCap)
+	return math.Min(cfg.ImpactShape*excess/float64(depth), cfg.ImpactCap)
 }
 
 // unitAsk is what the k-th case bought now costs: the plain ask, raised by the impact.
-func unitAsk(cfg Config, r Resource, plain int, pressure float64, k int) int {
-	m := impactMove(cfg, r, pressure, k)
+func unitAsk(cfg Config, depth int, plain int, pressure float64, k int) int {
+	m := impactMove(cfg, depth, pressure, k)
 	if m == 0 {
 		return plain
 	}
@@ -31,8 +51,8 @@ func unitAsk(cfg Config, r Resource, plain int, pressure float64, k int) int {
 
 // unitBid is what the k-th case sold now raises: the plain bid, lowered by the impact,
 // never below $1.
-func unitBid(cfg Config, r Resource, plain int, pressure float64, k int) int {
-	m := impactMove(cfg, r, pressure, k)
+func unitBid(cfg Config, depth int, plain int, pressure float64, k int) int {
+	m := impactMove(cfg, depth, pressure, k)
 	if m == 0 {
 		return plain
 	}
@@ -45,16 +65,16 @@ func unitBid(cfg Config, r Resource, plain int, pressure float64, k int) int {
 // MarginalAsk and MarginalBid are the price of the next single case, which is what the
 // market row shows. They equal the plain quote until the free depth is used up.
 func MarginalAsk(g Game, cfg Config, r Resource) int {
-	return unitAsk(cfg, r, Quotes(g, cfg)[r].Ask, g.BuyPressure[r], 1)
+	return unitAsk(cfg, freeDepth(g, cfg, r), Quotes(g, cfg)[r].Ask, g.BuyPressure[r], 1)
 }
 
 func MarginalBid(g Game, cfg Config, r Resource) int {
-	return unitBid(cfg, r, Quotes(g, cfg)[r].Bid, g.SellPressure[r], 1)
+	return unitBid(cfg, freeDepth(g, cfg, r), Quotes(g, cfg)[r].Bid, g.SellPressure[r], 1)
 }
 
 // FreeDepthLeft is how many more cases can be bought (or sold) at the plain price.
-func FreeDepthLeft(cfg Config, r Resource, pressure float64) int {
-	return max(0, int(math.Floor(float64(cfg.FreeDepth[r])-pressure)))
+func FreeDepthLeft(g Game, cfg Config, r Resource, pressure float64) int {
+	return max(0, int(math.Floor(float64(freeDepth(g, cfg, r))-pressure)))
 }
 
 // TradeQuote is what a purchase or sale of Qty cases costs or raises, in whole dollars.
@@ -88,11 +108,11 @@ func (q TradeQuote) Slippage() float64 {
 // qty, limited by cash and free warehouse space; without it the quote is for exactly qty
 // and ignores both. It never changes the game.
 func QuoteBuy(g Game, cfg Config, r Resource, qty int, clamp bool) TradeQuote {
-	plain := Quotes(g, cfg)[r].Ask
+	plain, depth := Quotes(g, cfg)[r].Ask, freeDepth(g, cfg, r)
 	space := Capacity(g, cfg, r) - g.Inventory[r]
 	var q TradeQuote
 	for k := 1; k <= qty; k++ {
-		price := unitAsk(cfg, r, plain, g.BuyPressure[r], k)
+		price := unitAsk(cfg, depth, plain, g.BuyPressure[r], k)
 		if clamp && (k > space || q.Total+price > g.Capital) {
 			break
 		}
@@ -104,13 +124,13 @@ func QuoteBuy(g Game, cfg Config, r Resource, qty int, clamp bool) TradeQuote {
 // QuoteSell prices selling qty cases of r now. With clamp it sells as many as are held,
 // up to qty; without it the quote is for exactly qty.
 func QuoteSell(g Game, cfg Config, r Resource, qty int, clamp bool) TradeQuote {
-	plain := Quotes(g, cfg)[r].Bid
+	plain, depth := Quotes(g, cfg)[r].Bid, freeDepth(g, cfg, r)
 	var q TradeQuote
 	for k := 1; k <= qty; k++ {
 		if clamp && k > g.Inventory[r] {
 			break
 		}
-		q.Qty, q.Total, q.PlainTotal = k, q.Total+unitBid(cfg, r, plain, g.SellPressure[r], k), q.PlainTotal+plain
+		q.Qty, q.Total, q.PlainTotal = k, q.Total+unitBid(cfg, depth, plain, g.SellPressure[r], k), q.PlainTotal+plain
 	}
 	return q
 }
@@ -141,10 +161,10 @@ func (g *Game) forgetPressure(cfg Config) {
 // buyCost is what qty cases cost now, stopping as soon as the total passes limit (so a
 // huge qty is cheap to reject).
 func buyCost(g Game, cfg Config, r Resource, qty, limit int) int {
-	plain := Quotes(g, cfg)[r].Ask
+	plain, depth := Quotes(g, cfg)[r].Ask, freeDepth(g, cfg, r)
 	total := 0
 	for k := 1; k <= qty; k++ {
-		total += unitAsk(cfg, r, plain, g.BuyPressure[r], k)
+		total += unitAsk(cfg, depth, plain, g.BuyPressure[r], k)
 		if total > limit {
 			break
 		}

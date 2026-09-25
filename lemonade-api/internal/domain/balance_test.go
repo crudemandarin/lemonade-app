@@ -25,6 +25,18 @@ type simResult struct {
 	maxedDay  int    // first day everything is at max level and max count
 }
 
+// The cash cushion a careful owner keeps before reinvesting: days of the new upkeep plus a
+// share of a full batch. Above level 1 a bad stretch costs far more, so the cushion is
+// longer (2 days at level 1, 6 above; late game phase 0 found 2 bankrupted one careful
+// player in five once upgrades paid off).
+func reserveFor(g Game, cfg Config) int {
+	days := 2
+	if g.ProductionLevel > 1 {
+		days = 6
+	}
+	return days*TotalUpkeep(g, cfg) + unitCost(g, cfg)*ProductionCapacity(g, cfg)*3/10
+}
+
 func unitCost(g Game, cfg Config) int {
 	q := Quotes(g, cfg)
 	return q[Lemon].Ask + q[Sugar].Ask + q[Ice].Ask + q[Cup].Ask
@@ -94,7 +106,7 @@ func owner(cfg Config, seed int64, days int, p player) simResult {
 			}
 			gc := g.Clone()
 			apply(&gc)
-			need := 2*TotalUpkeep(gc, cfg) + unitCost(gc, cfg)*ProductionCapacity(gc, cfg)*3/10
+			need := reserveFor(gc, cfg)
 			return g.Capital-cost >= need
 		}
 		doExpand := func(x *Game) {

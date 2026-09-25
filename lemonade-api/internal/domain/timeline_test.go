@@ -132,10 +132,10 @@ func TestFacilityActionsRecordPoints(t *testing.T) {
 		t.Fatal(err)
 	}
 	p = lastPoint(t, g)
-	if p.Kind != PointUpgrade || p.Facility != Warehouse || p.Amount != 100*buildings {
+	if p.Kind != PointUpgrade || p.Facility != Warehouse || p.Amount != 155*buildings {
 		t.Fatalf("upgrade = %+v", p)
 	}
-	if g.Stats.FacilitiesBought != 2 || g.Stats.Upgrades != 1 || g.Stats.FacilitySpend != 100+500+100*buildings {
+	if g.Stats.FacilitiesBought != 2 || g.Stats.Upgrades != 1 || g.Stats.FacilitySpend != 100+500+155*buildings {
 		t.Fatalf("stats = %+v", g.Stats)
 	}
 	// Two expansions in a row are two events, never merged.

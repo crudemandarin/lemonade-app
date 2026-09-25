@@ -93,11 +93,13 @@ export function newGameView(overrides: Partial<GameView> = {}): GameView {
         upkeepPerDay: 5,
         upgrade: {
           tierName: 'Garage',
-          costPerBuilding: 100,
-          totalCost: 500,
-          sizePerBuilding: 20,
+          costPerBuilding: 155,
+          totalCost: 775,
+          sizePerBuilding: 25,
           upkeepIncrease: 10,
         },
+        marketDepth: 80,
+        upgradeMarketDepth: 280,
         resources: (['lemon', 'sugar', 'ice', 'cup', 'lemonade'] as Resource[]).map((resource) => ({
           resource,
           count: 1,

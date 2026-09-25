@@ -39,7 +39,7 @@ func sellStockToCover(g *Game, cfg Config, need int) (cases, proceeds int) {
 		n, raised := 0, 0
 		for n < stock && raised < need {
 			n++
-			raised += unitBid(cfg, r, quotes[r].Bid, g.SellPressure[r], n)
+			raised += unitBid(cfg, freeDepth(*g, cfg, r), quotes[r].Bid, g.SellPressure[r], n)
 		}
 		g.removeStock(r, n)
 		g.addPressure(false, r, n)

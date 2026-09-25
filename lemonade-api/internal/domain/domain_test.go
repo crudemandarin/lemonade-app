@@ -49,7 +49,7 @@ func TestCapacityAcrossLevelsAndQuantities(t *testing.T) {
 	tests := []struct {
 		level, qty, want int
 	}{
-		{1, 1, 10}, {1, 3, 30}, {2, 2, 40}, {3, 1, 40}, {4, 10, 800},
+		{1, 1, 10}, {1, 3, 30}, {2, 2, 50}, {3, 1, 60}, {4, 10, 1500},
 	}
 	for _, tt := range tests {
 		g.WarehouseLevel = tt.level
@@ -232,8 +232,8 @@ func TestUpgradeCostTable(t *testing.T) {
 		tiers []Tier
 		want  []int
 	}{
-		"warehouse":  {cfg.WarehouseTiers, []int{100, 250, 600, 0}},
-		"production": {cfg.ProductionTiers, []int{1000, 2500, 6000, 0}},
+		"warehouse":  {cfg.WarehouseTiers, []int{155, 200, 400, 0}},
+		"production": {cfg.ProductionTiers, []int{780, 1000, 2000, 0}},
 	} {
 		for i, want := range tc.want {
 			if got := tc.tiers[i].UpgradeCost; got != want {
@@ -244,12 +244,12 @@ func TestUpgradeCostTable(t *testing.T) {
 }
 
 func TestUpgradeFreshGameExample(t *testing.T) {
-	// Spec example: a fresh game's 5 Pantries become 5 Garages for 5 x $100 = $500.
+	// Spec example: a fresh game's 5 Pantries become 5 Garages for 5 x $155 = $775.
 	g, cfg := newTestGame()
 	if err := Upgrade(&g, cfg, Warehouse); err != nil {
 		t.Fatal(err)
 	}
-	if g.Capital != 500 || g.WarehouseLevel != 2 || Capacity(g, cfg, Lemon) != 20 {
+	if g.Capital != 225 || g.WarehouseLevel != 2 || Capacity(g, cfg, Lemon) != 25 {
 		t.Fatalf("capital=%d level=%d capacity=%d", g.Capital, g.WarehouseLevel, Capacity(g, cfg, Lemon))
 	}
 }
@@ -262,10 +262,10 @@ func TestUpgrade(t *testing.T) {
 		if err := Upgrade(&g, cfg, Warehouse); err != nil {
 			t.Fatal(err)
 		}
-		if g.Capital != 5000-6*100 || g.WarehouseLevel != 2 {
+		if g.Capital != 5000-6*155 || g.WarehouseLevel != 2 {
 			t.Fatalf("capital=%d level=%d", g.Capital, g.WarehouseLevel)
 		}
-		if Capacity(g, cfg, Lemon) != 40 || Capacity(g, cfg, Sugar) != 20 {
+		if Capacity(g, cfg, Lemon) != 50 || Capacity(g, cfg, Sugar) != 25 {
 			t.Fatal("capacity did not follow the new level")
 		}
 	})
@@ -276,13 +276,13 @@ func TestUpgrade(t *testing.T) {
 		if err := Upgrade(&g, cfg, Production); err != nil {
 			t.Fatal(err)
 		}
-		if g.Capital != 5000-2*1000 || g.ProductionLevel != 2 || ProductionCapacity(g, cfg) != 40 {
+		if g.Capital != 5000-2*780 || g.ProductionLevel != 2 || ProductionCapacity(g, cfg) != 50 {
 			t.Fatalf("capital=%d level=%d cap=%d", g.Capital, g.ProductionLevel, ProductionCapacity(g, cfg))
 		}
 	})
 	t.Run("insufficient funds", func(t *testing.T) {
 		g, cfg := newTestGame()
-		g.Capital = 999
+		g.Capital = 779
 		if err := Upgrade(&g, cfg, Production); !errors.Is(err, ErrInsufficientFunds) {
 			t.Fatalf("err = %v", err)
 		}

@@ -45,7 +45,9 @@
           @if (wh.upgrade; as up) {
             <p class="hint">
               Covers {{ buildings(wh.buildings) }} at {{ up.costPerBuilding | money }} each. Each
-              building goes from {{ wh.sizePerBuilding }} to {{ up.sizePerBuilding }} cases.
+              building goes from {{ wh.sizePerBuilding }} to {{ up.sizePerBuilding }} cases, and the
+              market takes more before prices move: {{ wh.marketDepth }} to
+              {{ wh.upgradeMarketDepth }}.
             </p>
           }
         </div>
