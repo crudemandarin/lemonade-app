@@ -269,6 +269,18 @@ A new game has 5 Pantries and 1 Kitchen: **$30 a day** in upkeep against about $
 
 Two earlier problems drove the last tuning pass: the market was almost riskless (producing was unprofitable on only 1.4% of days) and a player holding *any* stock could never lose. Lemonade is now $90 (was $100), prices are more volatile, upkeep is doubled, and unpaid upkeep is no longer forgiven.
 
+**Exploit baseline (balance handoff, phase 0).** Before any change to the market, bots that play it hard were measured over 200 seeded games each, with the real domain calls (`exploitbots_test.go`; print with `BALANCE_REPORT=1 go test ./internal/domain -run TestBalanceReport -v`). Capital medians count games still running at that day.
+
+| Bot | What it does | Bankrupt | Day 60 | Day 90 | Everything maxed |
+| --- | ------------ | -------- | ------ | ------ | ---------------- |
+| Careful grower (existing) | steady batches, reinvests with a cash cushion | 13% | $29.9k | $308k | day 66 (87% within 120 days) |
+| **Spammer** | never looks at prices: sell all, buy a full batch, expand as soon as affordable | 20% | **$34.6k** | **$388k** | day 59 (82%) |
+| Opportunist (= hoarder) | produces whenever the margin is positive, stocks up at dips, sells at once | 38% | $34.8k | $329k | day 65 (69%) |
+| Thresholder | as above, but skips days with a margin under $10 and holds lemonade for a good bid | 64% | $19.2k | $229k | day 68 (47%) |
+| Thresholder, literal rule (ask at most 0.9 x base only) | never buys at any other time | 100% | dead | dead | never |
+
+Findings: (1) The exploit is real and needs no skill: the price-blind spammer out-earns the careful grower ($34.6k against $29.9k at day 60, $388k against $308k at day 90) and 80% of spammers survive 120 days. Only 23% of spammers are bankrupt or under $1,000 at day 90. (2) Waiting for good prices does not pay: upkeep is due every day whether or not anything is produced, so skipping days makes the thresholders die more (64% against 20%). The "free option" in the diagnosis is much weaker than volume. (3) Lemonade cannot be hoarded: a warehouse holds exactly one day of production at every level (10/20/40/80 each), so the hoarder sells daily and matches the opportunist. (4) The handoff's literal buy rule (ask at most 0.9 x base) needs the price about 18% under base in lemon, sugar and cups at the same time and starves the bot.
+
 **Tuning it yourself.**
 
 | To make the game… | Change |
