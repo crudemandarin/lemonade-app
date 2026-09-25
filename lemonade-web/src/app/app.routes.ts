@@ -7,6 +7,7 @@ import { RunComponent } from './pages/run/run.component';
 import { ScoresComponent } from './pages/scores/scores.component';
 import { SecureComponent } from './pages/secure/secure.component';
 import { SigninComponent } from './pages/signin/signin.component';
+import { UpgradesComponent } from './pages/upgrades/upgrades.component';
 import { UsernameComponent } from './pages/username/username.component';
 
 export const routes: Routes = [
@@ -35,6 +36,12 @@ export const routes: Routes = [
     component: ScoresComponent,
     canActivate: [authGuard],
     title: 'Scores · Lemonade Tycoon',
+  },
+  {
+    path: 'upgrades',
+    component: UpgradesComponent,
+    canActivate: [authGuard],
+    title: 'Upgrades · Lemonade Tycoon',
   },
   {
     path: 'runs/:id',

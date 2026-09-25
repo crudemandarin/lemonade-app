@@ -50,4 +50,18 @@ describe('EventsBannerComponent', () => {
     };
     expect(render([heatWave, blight]).querySelectorAll('.event').length).toBe(2);
   });
+
+  it('shows a forecast as tomorrow or in N days, apart from what is happening now', () => {
+    fixture = TestBed.createComponent(EventsBannerComponent);
+    fixture.componentRef.setInput('events', []);
+    fixture.componentRef.setInput('forecast', [
+      { daysAhead: 1, key: 'heat_wave', name: 'Heat Wave', duration: 2 },
+      { daysAhead: 3, key: 'holiday', name: 'Holiday', duration: 1 },
+    ]);
+    fixture.detectChanges();
+    const lines = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.forecast'),
+    ).map((l) => l.textContent!.replace(/\s+/g, ' ').trim());
+    expect(lines).toEqual(['Tomorrow: Heat Wave, for 2 days', 'In 3 days: Holiday, for 1 day']);
+  });
 });

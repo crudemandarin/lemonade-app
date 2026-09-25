@@ -198,4 +198,35 @@ describe('GameComponent', () => {
       expect(el.querySelector('app-past-days-drawer [role=alert]')).not.toBeNull();
     });
   });
+
+  it("offers to repeat yesterday's trades only with the order book, and repeats them", async () => {
+    const trades = [
+      timelinePoint({ kind: 'buy', resource: 'lemon', qty: 4, day: 2 }),
+      timelinePoint({ kind: 'sell', resource: 'lemonade', qty: 3, day: 2 }),
+      timelinePoint({ kind: 'buy', resource: 'sugar', qty: 9, day: 1 }),
+    ];
+    let el = await render({ day: 3, timeline: trades });
+    expect(el.querySelector('.repeat-trades')).toBeNull();
+    http.verify();
+    fixture.destroy();
+    TestBed.resetTestingModule();
+
+    el = await render({ day: 3, timeline: trades, features: ['repeat_trades'] });
+    el.querySelector<HTMLButtonElement>('.repeat-trades')!.click();
+    const buy = http.expectOne('/api/game/buy');
+    expect(buy.request.body).toEqual({ resource: 'lemon', qty: 4, clamp: true });
+    buy.flush(newGameView({ day: 3, features: ['repeat_trades'] }));
+    await new Promise((resolve) => setTimeout(resolve));
+    const sell = http.expectOne('/api/game/sell');
+    expect(sell.request.body).toEqual({ resource: 'lemonade', qty: 3, clamp: true });
+    sell.flush(newGameView({ day: 3, features: ['repeat_trades'] }));
+    await new Promise((resolve) => setTimeout(resolve));
+  });
+
+  it('shows the forecast in the events banner', async () => {
+    const el = await render({
+      forecast: [{ daysAhead: 1, key: 'heat_wave', name: 'Heat Wave', duration: 2 }],
+    });
+    expect(el.querySelector('.forecast')!.textContent).toContain('Tomorrow: Heat Wave');
+  });
 });

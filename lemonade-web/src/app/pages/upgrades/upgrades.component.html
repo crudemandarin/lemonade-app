@@ -1,0 +1,92 @@
+<h1>Upgrades</h1>
+<p class="lede">
+  One-time purchases that change a rule. They cannot be sold and are not part of your net worth.
+  <app-help-link term="upgrades" label="upgrades" />
+</p>
+
+@if (store.error(); as message) {
+  <p class="alert" role="alert">{{ message }}</p>
+}
+
+@switch (state()) {
+  @case ('loading') {
+    <p class="note">Loading upgrades…</p>
+  }
+  @case ('error') {
+    <p class="note" role="alert">
+      Couldn't load the upgrades.
+      <button type="button" class="btn btn-sm retry" (click)="reload()">Try again</button>
+    </p>
+  }
+  @default {
+    @if (data(); as d) {
+      <p class="summary">
+        <span
+          >Cash <strong [title]="exact(capital())">{{ capital() | money }}</strong></span
+        >
+        <span
+          >Owned <strong>{{ d.ownedCount }}</strong></span
+        >
+        <span
+          >Upgrade upkeep <strong>{{ d.upkeepPerDay | money }}</strong> a day</span
+        >
+      </p>
+
+      @for (group of groups(); track group.key) {
+        <app-card [title]="group.name">
+          <ul class="list">
+            @for (u of group.items; track u.key) {
+              <li [attr.data-upgrade]="u.key" [class.owned]="u.state === 'owned'">
+                <div class="what">
+                  <h3>{{ u.name }}</h3>
+                  <p class="text">{{ u.text }}</p>
+                  <p class="meta">
+                    <span [title]="exact(u.cost)">Cost {{ u.cost | money }}</span>
+                    <span>{{
+                      u.upkeep > 0 ? 'Upkeep ' + exact(u.upkeep) + ' a day' : 'No upkeep'
+                    }}</span>
+                  </p>
+                </div>
+                <div class="state">
+                  @switch (u.state) {
+                    @case ('owned') {
+                      <span class="badge owned-badge">Owned</span>
+                    }
+                    @case ('locked') {
+                      <span class="badge locked-badge">Locked</span>
+                      <span class="reason">{{ u.lockedReason }}</span>
+                    }
+                    @default {
+                      <button
+                        type="button"
+                        class="btn btn-sm buy"
+                        [disabled]="!canBuy(u)"
+                        [attr.aria-label]="'Buy ' + u.name + ' for ' + exact(u.cost)"
+                        (click)="confirming.set(u)"
+                      >
+                        Buy
+                      </button>
+                      @if (shortBy(u) > 0) {
+                        <span class="reason">Need {{ shortBy(u) | money }} more</span>
+                      }
+                    }
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        </app-card>
+      }
+    }
+  }
+}
+
+@if (confirming(); as u) {
+  <app-confirm-dialog
+    [title]="'Buy ' + u.name + '?'"
+    [message]="question(u)"
+    confirmLabel="Buy"
+    (confirmed)="buy(u)"
+    (cancelled)="confirming.set(null)"
+  />
+}

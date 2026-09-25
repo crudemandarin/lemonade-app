@@ -55,6 +55,13 @@ a.btn {
 }
 
 @media (max-width: 480px) {
+  /* Signed in, the links and account controls wrap onto a second line rather than scroll. */
+  .right,
+  .user {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
   .wide-only,
   .user app-icon {
     display: none;

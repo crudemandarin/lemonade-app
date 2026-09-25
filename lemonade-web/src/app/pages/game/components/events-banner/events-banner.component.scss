@@ -23,3 +23,9 @@
     color: var(--accent-strong);
   }
 }
+
+// A forecast is not happening yet: dashed border, and the words say "Tomorrow".
+.forecast {
+  border-style: dashed;
+  background: transparent;
+}

@@ -60,6 +60,16 @@ describe('NavBarComponent', () => {
     );
   });
 
+  it('links to the upgrades page when signed in, and not when signed out', () => {
+    render('lemonjoe');
+    expect(el.querySelector<HTMLAnchorElement>('a.upgrades-link')!.getAttribute('href')).toBe(
+      '/upgrades',
+    );
+    TestBed.resetTestingModule();
+    render(null);
+    expect(el.querySelector('a.upgrades-link')).toBeNull();
+  });
+
   it('has no scores link when signed out', () => {
     render(null);
     expect(el.querySelector('a.scores-link')).toBeNull();

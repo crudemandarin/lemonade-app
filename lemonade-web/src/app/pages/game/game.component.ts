@@ -1,6 +1,6 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 
-import { DayReport, ReportSummary } from '../../core/api.models';
+import { DayReport, ReportSummary, Resource } from '../../core/api.models';
 import { GameStore } from '../../core/game.store';
 import { OnlineService } from '../../core/online.service';
 import { CardComponent } from '../../shared/card/card.component';
@@ -23,6 +23,17 @@ function loadTimelineOpen(): boolean {
     return localStorage.getItem(TIMELINE_KEY) !== 'closed';
   } catch {
     return true;
+  }
+}
+
+const ALERTS_KEY = 'lemonade.priceAlerts';
+
+function loadAlerts(): Record<Resource, number> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(ALERTS_KEY) ?? '{}');
+    return parsed && typeof parsed === 'object' ? (parsed as Record<Resource, number>) : {};
+  } catch {
+    return {};
   }
 }
 
@@ -56,6 +67,18 @@ export class GameComponent implements OnInit {
   /** The timeline card can be folded away; the choice is remembered. */
   protected readonly timelineOpen = signal(loadTimelineOpen());
 
+  /** Price alert levels (the Price alerts upgrade), kept in this browser. */
+  protected readonly alerts = signal<Record<Resource, number>>(loadAlerts());
+
+  /** Yesterday's trades, in order, for the Order book upgrade's "repeat" button. */
+  protected readonly yesterdaysTrades = computed(() => {
+    const game = this.store.game();
+    if (!game || !game.features.includes('repeat_trades')) return [];
+    return game.timeline.filter(
+      (p) => (p.kind === 'buy' || p.kind === 'sell') && p.day === game.day - 1 && p.resource,
+    );
+  });
+
   protected readonly pastOpen = signal(false);
   protected readonly pastDays = signal<ReportSummary[] | null>(null);
   protected readonly pastSelected = signal<number | null>(null);
@@ -75,6 +98,33 @@ export class GameComponent implements OnInit {
       localStorage.setItem(TIMELINE_KEY, open ? 'open' : 'closed');
     } catch {
       // Storage can be blocked; the choice just won't persist.
+    }
+  }
+
+  protected setAlert(change: { resource: Resource; level: number | null }): void {
+    const next = { ...this.alerts() };
+    if (change.level === null) {
+      delete next[change.resource];
+    } else {
+      next[change.resource] = change.level;
+    }
+    this.alerts.set(next);
+    try {
+      localStorage.setItem(ALERTS_KEY, JSON.stringify(next));
+    } catch {
+      // Storage can be blocked; the alert just won't persist.
+    }
+  }
+
+  /** Repeats yesterday's trades one by one, as many cases as cash, space and stock allow. */
+  protected async repeatTrades(): Promise<void> {
+    for (const p of this.yesterdaysTrades()) {
+      const resource = p.resource as Resource;
+      if (p.kind === 'buy') {
+        await this.store.buy(resource, p.qty, true);
+      } else {
+        await this.store.sell(resource, p.qty, true);
+      }
     }
   }
 

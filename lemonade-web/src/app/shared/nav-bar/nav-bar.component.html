@@ -8,6 +8,7 @@
     <app-help-panel />
     @if (username(); as name) {
       <div class="user">
+        <a class="btn btn-ghost upgrades-link" routerLink="/upgrades">Upgrades</a>
         <a class="btn btn-ghost scores-link" routerLink="/scores">Scores</a>
         <app-icon name="user" />
         <span class="name">{{ name }}</span>

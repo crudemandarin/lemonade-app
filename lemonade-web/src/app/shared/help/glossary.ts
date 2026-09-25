@@ -2,7 +2,7 @@ import { Resource } from '../../core/api.models';
 import { IconName } from '../icon/icon.component';
 
 export type HelpSection =
-  'quickstart' | 'basics' | 'market' | 'resources' | 'facilities' | 'events';
+  'quickstart' | 'basics' | 'market' | 'resources' | 'facilities' | 'upgrades' | 'events';
 
 export interface HelpTerm {
   id: string;
@@ -20,6 +20,7 @@ export const HELP_SECTIONS: { id: HelpSection; label: string; icon: IconName }[]
   { id: 'market', label: 'Market', icon: 'coin' },
   { id: 'resources', label: 'Resources', icon: 'warehouse' },
   { id: 'facilities', label: 'Facilities', icon: 'factory' },
+  { id: 'upgrades', label: 'Upgrades', icon: 'upgrade' },
   { id: 'events', label: 'Events', icon: 'event' },
 ];
 
@@ -161,7 +162,7 @@ export const HELP_TERMS: HelpTerm[] = [
     section: 'resources',
     term: 'Ice',
     definition:
-      'Ice melts. Whatever the day’s production does not use is gone at the end of the day, so only buy the ice you will use. The header shows how much will melt.',
+      'Ice melts. Whatever the day’s production does not use is gone at the end of the day, so only buy the ice you will use. The header shows how much will melt. A freezer upgrade keeps some for one more night.',
   },
   {
     id: 'lemonade',
@@ -228,6 +229,30 @@ export const HELP_TERMS: HelpTerm[] = [
     term: 'The projection',
     definition:
       'The header previews the next end of day: how much lemonade will be made, how much ice will melt, and what is limiting production.',
+  },
+  {
+    id: 'upgrades',
+    icon: 'upgrade',
+    section: 'upgrades',
+    term: 'Upgrades',
+    definition:
+      'One-time purchases that change a rule: they cannot be sold and are not counted in your net worth. Some have a small daily upkeep, paid with your buildings’. Open them from the Upgrades link. Later eras unlock more.',
+  },
+  {
+    id: 'freezer',
+    icon: 'warehouse',
+    section: 'upgrades',
+    term: 'Freezer',
+    definition:
+      'Keeps fresh ice for one extra night: 20 cases with a chest freezer, 150 with a walk-in, 1,200 with a cold storage wing. The oldest ice is used first, and ice that is still left after the next day’s production melts. The header shows how much is kept and how much will melt.',
+  },
+  {
+    id: 'forecast',
+    icon: 'calendar',
+    section: 'upgrades',
+    term: 'Forecast',
+    definition:
+      'A weather radio shows tomorrow’s weather event, and the almanac shows every market event three days ahead. The forecast is exact: it is the event that will actually start, not a guess.',
   },
   {
     id: 'events',

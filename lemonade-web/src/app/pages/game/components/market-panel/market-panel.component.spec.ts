@@ -294,4 +294,49 @@ describe('MarketPanelComponent', () => {
       expect(row('sugar').querySelector<HTMLElement>('.stock')!.offsetHeight).toBe(empty);
     });
   });
+
+  describe('upgrades', () => {
+    it('shows the 7-day average only when the game sends one', () => {
+      expect(row('sugar').querySelector('.avg')).toBeNull();
+      const resources = newGameView().resources;
+      resources[1] = { ...resources[1], movingAverage: 12 };
+      fixture.componentRef.setInput('resources', resources);
+      fixture.detectChanges();
+      expect(row('sugar').querySelector('.avg')!.textContent).toContain('7-day avg $12');
+    });
+
+    it('has no alert inputs without the upgrade', () => {
+      expect(el.querySelector('.alert-set')).toBeNull();
+    });
+
+    it('marks an input row in words when its ask is at or under the alert level', () => {
+      fixture.componentRef.setInput('alertsOn', true);
+      fixture.componentRef.setInput('alerts', { sugar: 11, lemon: 5, lemonade: 200 });
+      fixture.detectChanges();
+      expect(row('sugar').querySelector('.alert-hit')!.textContent).toContain(
+        'Alert: ask is $11, at or under $11',
+      );
+      expect(row('lemon').querySelector('.alert-hit')).toBeNull();
+      expect(row('lemonade').querySelector('.alert-hit')).toBeNull();
+      fixture.componentRef.setInput('alerts', { lemonade: 80 });
+      fixture.detectChanges();
+      expect(row('lemonade').querySelector('.alert-hit')!.textContent).toContain('bid is $90');
+    });
+
+    it('emits the level typed, and null when it is cleared', () => {
+      fixture.componentRef.setInput('alertsOn', true);
+      fixture.detectChanges();
+      const seen: { resource: string; level: number | null }[] = [];
+      fixture.componentInstance.alertChange.subscribe((c) => seen.push(c));
+      const input = row('sugar').querySelector<HTMLInputElement>('.alert-set input')!;
+      input.value = '9';
+      input.dispatchEvent(new Event('change'));
+      input.value = '';
+      input.dispatchEvent(new Event('change'));
+      expect(seen).toEqual([
+        { resource: 'sugar', level: 9 },
+        { resource: 'sugar', level: null },
+      ]);
+    });
+  });
 });

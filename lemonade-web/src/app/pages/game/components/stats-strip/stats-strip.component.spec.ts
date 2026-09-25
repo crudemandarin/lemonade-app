@@ -15,6 +15,7 @@ describe('StatsStripComponent', () => {
     fixture.componentRef.setInput('projection', {
       lemonadeToProduce: 8,
       iceToMelt: 3,
+      iceKept: 0,
       limitedBy: 'sugar',
     });
     fixture.detectChanges();
@@ -66,18 +67,29 @@ describe('StatsStripComponent', () => {
     });
 
     it('words production and space limits', () => {
-      set({ lemonadeToProduce: 10, iceToMelt: 0, limitedBy: 'production' });
+      set({ lemonadeToProduce: 10, iceToMelt: 0, iceKept: 0, limitedBy: 'production' });
       expect(el.querySelector('.projection')!.getAttribute('title')).toBe(
         'Limited by production capacity',
       );
-      set({ lemonadeToProduce: 2, iceToMelt: 0, limitedBy: 'space' });
+      set({ lemonadeToProduce: 2, iceToMelt: 0, iceKept: 0, limitedBy: 'space' });
       expect(el.querySelector('.projection')!.getAttribute('title')).toBe(
         'Limited by lemonade storage space',
       );
     });
 
+    it('says how much ice the freezer keeps, in the text and the aria-label', () => {
+      fixture.componentRef.setInput('iceKeepCases', 20);
+      set({ lemonadeToProduce: 8, iceToMelt: 3, iceKept: 12, limitedBy: 'sugar' });
+      expect(text()).toContain('12 ice kept in the freezer');
+      expect(text()).toContain('3 ice will melt');
+      expect(text()).toContain('Freezer: keeps up to 20 ice');
+      expect(el.querySelector('.projection')!.getAttribute('aria-label')).toContain(
+        '12 ice kept in the freezer, 3 ice will melt',
+      );
+    });
+
     it('hides the ice figure when none will melt', () => {
-      set({ lemonadeToProduce: 5, iceToMelt: 0, limitedBy: '' });
+      set({ lemonadeToProduce: 5, iceToMelt: 0, iceKept: 0, limitedBy: '' });
       expect(text()).toContain('Makes 5 lemonade');
       expect(text()).not.toContain('melt');
     });
