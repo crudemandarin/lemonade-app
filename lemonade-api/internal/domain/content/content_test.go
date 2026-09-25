@@ -162,6 +162,9 @@ func checkEffect(t *testing.T, key string, e EffectDef, commodities, recipes, cl
 		}
 	default:
 		bad("unknown kind")
+	}
+}
+
 func TestTerritoriesAreValid(t *testing.T) {
 	seen := map[string]bool{}
 	for i, d := range Territories {

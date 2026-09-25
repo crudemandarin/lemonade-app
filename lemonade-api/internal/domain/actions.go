@@ -60,7 +60,7 @@ func Expand(g *Game, cfg Config, kind FacilityType, resource Resource) error {
 
 	switch kind {
 	case Warehouse:
-		if g.WarehouseQty[resource] >= cfg.MaxQuantity {
+		if g.WarehouseQty[resource] >= buildingCap(*g, cfg) {
 			return ErrMaxQuantity
 		}
 		cost := warehouseTier(cfg, g.WarehouseLevel).BuildCost
@@ -71,7 +71,7 @@ func Expand(g *Game, cfg Config, kind FacilityType, resource Resource) error {
 		g.WarehouseQty[resource]++
 		g.recordFacility(PointExpand, kind, resource, 1, cost)
 	case Production:
-		if g.ProductionQty >= cfg.MaxQuantity {
+		if g.ProductionQty >= buildingCap(*g, cfg) {
 			return ErrMaxQuantity
 		}
 		cost := productionTier(cfg, g.ProductionLevel).BuildCost
@@ -95,7 +95,7 @@ func Upgrade(g *Game, cfg Config, kind FacilityType) error {
 
 	switch kind {
 	case Warehouse:
-		if g.WarehouseLevel >= cfg.MaxLevel {
+		if g.WarehouseLevel >= levelCap(*g, cfg) {
 			return ErrMaxLevel
 		}
 		total := warehouseTier(cfg, g.WarehouseLevel).UpgradeCost * warehouseBuildings(*g)
@@ -106,7 +106,7 @@ func Upgrade(g *Game, cfg Config, kind FacilityType) error {
 		g.WarehouseLevel++
 		g.recordFacility(PointUpgrade, kind, "", 0, total)
 	case Production:
-		if g.ProductionLevel >= cfg.MaxLevel {
+		if g.ProductionLevel >= levelCap(*g, cfg) {
 			return ErrMaxLevel
 		}
 		total := productionTier(cfg, g.ProductionLevel).UpgradeCost * g.ProductionQty

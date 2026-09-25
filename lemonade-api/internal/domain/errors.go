@@ -2,6 +2,9 @@ package domain
 
 import "errors"
 
+// errorsNew keeps the empire errors terse.
+var errorsNew = errors.New
+
 // Sentinel errors returned by mutating domain functions. The API layer maps
 // each to a stable error code and HTTP status (SPEC rule 23).
 var (

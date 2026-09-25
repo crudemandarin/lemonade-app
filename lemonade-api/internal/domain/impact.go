@@ -10,12 +10,12 @@ import "math"
 func snapUp(x float64) int   { return int(math.Ceil(snap(x))) }
 func snapDown(x float64) int { return int(math.Floor(snap(x))) }
 
-// freeDepth is how many cases of r the player's market absorbs at the plain price: the
-// level-1 FreeDepth times the multiplier for the warehouse level. Warehouse level is the
-// interim stand-in for "a bigger business reaches more customers"; territories will
-// replace it here and no call site changes.
+// freeDepth is how many cases of r the player's market absorbs at the plain price: their
+// reach, summed over the territories they hold (empire.go). In the Neighborhood at its
+// 40% start that is the phase 0 depth, the level-1 FreeDepth times the warehouse level's
+// multiplier, so a game that never enters a territory plays as it always did.
 func freeDepth(g Game, cfg Config, r Resource) int {
-	return depthWithUpgrades(g, cfg, r, FreeDepthAtLevel(cfg, r, g.WarehouseLevel))
+	return depthWithUpgrades(g, cfg, r, reach(g, cfg, r))
 }
 
 // FreeDepthAtLevel is the free depth of r at a given warehouse level, for previewing what

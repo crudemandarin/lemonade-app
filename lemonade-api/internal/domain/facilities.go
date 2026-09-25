@@ -43,9 +43,9 @@ func ProductionUpkeep(g Game, cfg Config) int {
 	return facilityUpkeepAfterDiscount(g, cfg, "production", g.ProductionQty*productionTier(cfg, g.ProductionLevel).Upkeep)
 }
 
-// TotalUpkeep is the daily upkeep across both facility types, plus upgrades.
+// TotalUpkeep is the daily upkeep across both facility types, the hubs and upgrades.
 func TotalUpkeep(g Game, cfg Config) int {
-	return WarehouseUpkeep(g, cfg) + ProductionUpkeep(g, cfg) + UpgradeUpkeep(g, cfg)
+	return WarehouseUpkeep(g, cfg) + ProductionUpkeep(g, cfg) + HubUpkeep(g, cfg) + UpgradeUpkeep(g, cfg)
 }
 
 // ResaleValue is what one building of the given tier sells for.

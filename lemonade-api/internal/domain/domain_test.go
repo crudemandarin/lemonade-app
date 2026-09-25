@@ -232,8 +232,8 @@ func TestUpgradeCostTable(t *testing.T) {
 		tiers []Tier
 		want  []int
 	}{
-		"warehouse":  {cfg.WarehouseTiers, []int{155, 200, 400, 0}},
-		"production": {cfg.ProductionTiers, []int{780, 1000, 2000, 0}},
+		"warehouse":  {cfg.WarehouseTiers, []int{155, 200, 400, 900, 2000, 4500, 0}},
+		"production": {cfg.ProductionTiers, []int{780, 1000, 2000, 4500, 9900, 21600, 0}},
 	} {
 		for i, want := range tc.want {
 			if got := tc.tiers[i].UpgradeCost; got != want {

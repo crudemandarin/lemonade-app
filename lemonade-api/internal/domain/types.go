@@ -52,6 +52,11 @@ type Game struct {
 	// PriceLog is one point per day, for the price chart; see pricelog.go.
 	PriceLog []PricePoint
 
+	// Territories and Rivals are the empire (see empire.go). Nil on games saved before
+	// territories existed; SeedEmpire fills them in.
+	Territories map[string]TerritoryState
+	Rivals      map[string]RivalState
+
 	// Timeline and Stats record how the game went; see timeline.go.
 	Timeline []TimelinePoint
 	Stats    Stats
@@ -166,6 +171,19 @@ func (g Game) Clone() Game {
 	for i, p := range g.PriceLog {
 		p.Events = append([]string(nil), p.Events...)
 		c.PriceLog[i] = p
+	}
+
+	if g.Territories != nil {
+		c.Territories = make(map[string]TerritoryState, len(g.Territories))
+		for k, v := range g.Territories {
+			c.Territories[k] = v
+		}
+	}
+	if g.Rivals != nil {
+		c.Rivals = make(map[string]RivalState, len(g.Rivals))
+		for k, v := range g.Rivals {
+			c.Rivals[k] = v
+		}
 	}
 
 	c.Events = nil

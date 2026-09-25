@@ -36,6 +36,7 @@ func NewGame(cfg Config, seed int64) Game {
 		Carry:           make(map[string]float64),
 		Events:          nil,
 	}
+	SeedEmpire(&g, cfg)
 	g.record(TimelinePoint{Day: 1, Kind: PointStart})
 	g.logPrices(cfg)
 	return g
