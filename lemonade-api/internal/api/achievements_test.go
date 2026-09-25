@@ -250,3 +250,81 @@ func TestBackfillGrantsWhatStoredRunsProveOnceOnly(t *testing.T) {
 		t.Fatal("the backfill is not idempotent")
 	}
 }
+
+// day100Game puts a player's game at day 99 with plenty of cash, so one more end day
+// arrives at day 100.
+func (e *testEnv) atDay99(user string, capital int) {
+	e.setGame(user, func(g *domain.Game) { g.Day, g.Capital = 99, capital })
+}
+
+func TestDay100BoardRanksTheNetWorthOnArrival(t *testing.T) {
+	e := newEnv(t)
+	for _, u := range []string{"ann12", "bob34", "cat56"} {
+		e.login(u)
+	}
+	// ann and bob reach day 100, ann richer; cat gives up early; bob then drops later.
+	e.atDay99("ann12", 90000)
+	e.atDay99("bob34", 50000)
+	for _, u := range []string{"ann12", "bob34"} {
+		if rec := e.do("POST", "/api/game/end-day", u, nil); rec.Code != 200 {
+			t.Fatal(rec.Body)
+		}
+	}
+	e.giveUpAfterBuying("cat56", 0)
+	e.setGame("bob34", func(g *domain.Game) { g.Capital = 1 }) // ruined after day 100: his snapshot stays
+	e.do("POST", "/api/game/give-up", "bob34", nil)
+	e.do("POST", "/api/game/give-up", "ann12", nil)
+
+	board := decode[scoresDTO](t, e.do("GET", "/api/scores?board=day_100", "cat56", nil))
+	if board.Board != "day_100" || len(board.Rows) != 2 {
+		t.Fatalf("day-100 board = %+v", board)
+	}
+	if board.Rows[0].Username != "ann12" || board.Rows[1].Username != "bob34" || board.Rows[0].Days != 100 {
+		t.Fatalf("rows = %+v", board.Rows)
+	}
+	if board.Rows[0].Score <= board.Rows[1].Score || board.Rows[1].Score < 50000 {
+		t.Fatalf("scores = %d, %d", board.Rows[0].Score, board.Rows[1].Score)
+	}
+	if board.Me != nil {
+		t.Fatalf("cat never reached day 100, so has no row: %+v", board.Me)
+	}
+
+	all := decode[scoresDTO](t, e.do("GET", "/api/scores", "cat56", nil))
+	if all.Board != "all_time" || len(all.Rows) != 3 {
+		t.Fatalf("all-time board = %+v", all)
+	}
+	e.wantError(e.do("GET", "/api/scores?board=weekly", "cat56", nil), http.StatusBadRequest, "invalid_board")
+}
+
+func TestTheSnapshotIsTakenExactlyOnce(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+	e.atDay99("joe12", 200000)
+	if e.storedGame("joe12").NetWorthDay100 != nil {
+		t.Fatal("setup: no snapshot yet")
+	}
+	e.do("POST", "/api/game/end-day", "joe12", nil)
+	first := e.storedGame("joe12").NetWorthDay100
+	if first == nil {
+		t.Fatal("no snapshot on arriving at day 100")
+	}
+	// Getting richer or ending more days never replaces it.
+	e.setGame("joe12", func(g *domain.Game) { g.Capital += 500000 })
+	e.do("POST", "/api/game/end-day", "joe12", nil)
+	if got := e.storedGame("joe12").NetWorthDay100; got == nil || *got != *first {
+		t.Fatalf("snapshot changed: %v -> %v", *first, got)
+	}
+}
+
+func TestRunsEndingBeforeDay100AreLeftOffTheBoard(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+	e.giveUpAfterBuying("joe12", 0)
+	board := decode[scoresDTO](t, e.do("GET", "/api/scores?board=day_100", "joe12", nil))
+	if len(board.Rows) != 0 || board.Me != nil {
+		t.Fatalf("board = %+v", board)
+	}
+	if rows := decode[scoresDTO](t, e.do("GET", "/api/scores", "joe12", nil)).Rows; len(rows) != 1 {
+		t.Fatalf("all-time still lists the run: %+v", rows)
+	}
+}

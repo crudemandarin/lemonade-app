@@ -480,6 +480,8 @@ func (h *Game) endDay(c *gin.Context) {
 		}
 		// Goal facts are recorded after EndDay, not inside it, so the rules never see them.
 		domain.RecordDayFacts(before, g, h.cfg, report)
+		// The day-100 board's snapshot, taken once, on arriving at that day.
+		domain.RecordMilestones(g, h.cfg)
 		effects := domain.Effects{Report: &report}
 		if report.Bankrupt {
 			// Same transaction as the status change: no bankrupt game without its record.

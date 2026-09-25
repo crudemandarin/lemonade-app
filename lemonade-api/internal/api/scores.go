@@ -39,7 +39,10 @@ type scoreRowDTO struct {
 }
 
 type scoresDTO struct {
-	Rows []scoreRowDTO `json:"rows"`
+	// Board is the board these rows belong to: all_time or day_100. On day_100 a row's
+	// score is the net worth on arriving at day 100, and its days is always 100.
+	Board string        `json:"board"`
+	Rows  []scoreRowDTO `json:"rows"`
 	// Me is the caller's own best row and rank, even when it is below the rows shown; null with no finished run.
 	Me *scoreRowDTO `json:"me"`
 }
@@ -89,17 +92,23 @@ func (h *Game) scores(c *gin.Context) {
 		limit = min(max(n, 1), maxScoreLimit)
 	}
 
+	board := store.Board(c.DefaultQuery("board", string(store.BoardAllTime)))
+	if !board.Valid() {
+		abort(c, http.StatusBadRequest, "invalid_board", "Board must be all_time or day_100.")
+		return
+	}
+
 	ctx, me := c.Request.Context(), currentUser(c).ID
-	rows, err := h.repo.TopScores(ctx, limit)
+	rows, err := h.repo.TopBoard(ctx, board, limit)
 	if err != nil {
 		abortErr(c, err)
 		return
 	}
-	out := scoresDTO{Rows: make([]scoreRowDTO, 0, len(rows))}
+	out := scoresDTO{Board: string(board), Rows: make([]scoreRowDTO, 0, len(rows))}
 	for _, r := range rows {
 		out.Rows = append(out.Rows, toScoreRow(r, me))
 	}
-	best, err := h.repo.BestScore(ctx, me)
+	best, err := h.repo.BestOnBoard(ctx, board, me)
 	if err != nil {
 		abortErr(c, err)
 		return
