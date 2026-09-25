@@ -87,13 +87,25 @@
 
         <span class="trade buy" role="cell">
           <button type="button" [disabled]="!canBuy(row)" class="btn" (click)="onBuy(row)">
-            Buy {{ row.ask | money }}
+            @if (buyPreview(row); as p) {
+              @if (p.qty > 0) {
+                Buy {{ p.qty }} · {{ p.total | money }}
+              } @else {
+                Buy {{ row.ask | money }}
+              }
+            }
           </button>
         </span>
 
         <span class="trade sell" role="cell">
           <button type="button" [disabled]="!canSell(row)" class="btn" (click)="onSell(row)">
-            Sell {{ row.bid | money }}
+            @if (sellPreview(row); as p) {
+              @if (p.qty > 0) {
+                Sell {{ p.qty }} · {{ p.total | money }}
+              } @else {
+                Sell {{ row.bid | money }}
+              }
+            }
           </button>
         </span>
       </div>

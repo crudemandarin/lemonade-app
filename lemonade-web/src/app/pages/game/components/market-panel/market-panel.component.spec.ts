@@ -27,9 +27,41 @@ describe('MarketPanelComponent', () => {
     expect(row('cup').textContent).toContain('Cups');
   });
 
-  it('shows the ask on Buy and the bid on Sell', () => {
-    expect(row('lemon').querySelector('.buy button')!.textContent).toContain('Buy $22');
-    expect(row('lemon').querySelector('.sell button')!.textContent).toContain('Sell $18');
+  const label = (resource: string, side: 'buy' | 'sell') =>
+    row(resource).querySelector(`.${side} button`)!.textContent!.replace(/\s+/g, ' ').trim();
+
+  it('prices the buy and sell buttons for the selected amount', () => {
+    // Sugar: ask $11, bid $9, empty warehouse with room for 10, $1,000 in cash.
+    expect(label('sugar', 'buy')).toBe('Buy 10 · $110');
+    pick('50');
+    // Only 10 fit, so that is what the button offers and prices.
+    expect(label('sugar', 'buy')).toBe('Buy 10 · $110');
+    // Lemon holds 4 of 10 (ask $22, bid $18): 6 fit, 4 can be sold.
+    expect(label('lemon', 'buy')).toBe('Buy 6 · $132');
+    expect(label('lemon', 'sell')).toBe('Sell 4 · $72');
+  });
+
+  it('shows the unit price when nothing can be traded', () => {
+    expect(label('sugar', 'sell')).toBe('Sell $9'); // no stock
+    fixture.componentRef.setInput('capital', 5);
+    fixture.detectChanges();
+    expect(label('sugar', 'buy')).toBe('Buy $11'); // cannot afford one
+  });
+
+  it('cuts the buy down to what cash allows', () => {
+    fixture.componentRef.setInput('capital', 40);
+    fixture.detectChanges();
+    expect(label('sugar', 'buy')).toBe('Buy 3 · $33');
+  });
+
+  it('follows the amount, including All', () => {
+    const resources = newGameView().resources;
+    resources[0] = { ...resources[0], stock: 10 };
+    fixture.componentRef.setInput('resources', resources);
+    fixture.detectChanges();
+    pick('all');
+    expect(label('lemon', 'sell')).toBe('Sell 10 · $180');
+    expect(label('sugar', 'buy')).toBe('Buy 10 · $110');
   });
 
   it('shows a trend arrow against yesterday', () => {

@@ -77,6 +77,27 @@ export class MarketPanelComponent {
     this.sell.emit(this.request(row));
   }
 
+  private wanted(): number {
+    const amount = this.amount();
+    return amount === 'all' ? ALL_QTY : Number(amount);
+  }
+
+  /**
+   * Cases a Buy would trade, and what they cost: the selected amount, cut down to what
+   * cash and warehouse space allow (the server applies the same limits with `clamp`).
+   * Only for the button label; the server decides the real trade.
+   */
+  protected buyPreview(row: ResourceView): { qty: number; total: number } {
+    const affordable = Math.floor(this.capital() / row.ask);
+    const qty = Math.max(0, Math.min(this.wanted(), affordable, row.capacity - row.stock));
+    return { qty, total: qty * row.ask };
+  }
+
+  protected sellPreview(row: ResourceView): { qty: number; total: number } {
+    const qty = Math.min(this.wanted(), row.stock);
+    return { qty, total: qty * row.bid };
+  }
+
   protected canBuy(row: ResourceView): boolean {
     return !this.disabled() && row.stock < row.capacity && this.capital() >= row.ask;
   }
