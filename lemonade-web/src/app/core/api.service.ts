@@ -23,12 +23,21 @@ export class ApiService {
     return this.http.post<GameView>(`${API_URL}/game/new`, {});
   }
 
-  buy(resource: Resource, qty: number): Observable<GameView> {
-    return this.http.post<GameView>(`${API_URL}/game/buy`, { resource, qty });
+  /** With `clamp`, the server trades as many as it can up to `qty` instead of failing. */
+  buy(resource: Resource, qty: number, clamp = false): Observable<GameView> {
+    return this.http.post<GameView>(`${API_URL}/game/buy`, {
+      resource,
+      qty,
+      ...(clamp && { clamp }),
+    });
   }
 
-  sell(resource: Resource, qty: number): Observable<GameView> {
-    return this.http.post<GameView>(`${API_URL}/game/sell`, { resource, qty });
+  sell(resource: Resource, qty: number, clamp = false): Observable<GameView> {
+    return this.http.post<GameView>(`${API_URL}/game/sell`, {
+      resource,
+      qty,
+      ...(clamp && { clamp }),
+    });
   }
 
   expandWarehouse(resource: Resource): Observable<GameView> {

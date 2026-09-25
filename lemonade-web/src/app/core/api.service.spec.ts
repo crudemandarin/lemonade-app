@@ -32,6 +32,20 @@ describe('ApiService', () => {
       { resource: 'lemonade', qty: 2 },
     ],
     [
+      'clamped buy',
+      () => api.buy('lemon', 100, true),
+      'POST',
+      '/api/game/buy',
+      { resource: 'lemon', qty: 100, clamp: true },
+    ],
+    [
+      'clamped sell',
+      () => api.sell('lemon', 100, true),
+      'POST',
+      '/api/game/sell',
+      { resource: 'lemon', qty: 100, clamp: true },
+    ],
+    [
       'expandWarehouse',
       () => api.expandWarehouse('ice'),
       'POST',

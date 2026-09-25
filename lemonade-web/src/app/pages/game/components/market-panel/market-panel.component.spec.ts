@@ -1,17 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { newGameView } from '../../../../core/testing/fixtures';
-import { MarketPanelComponent, TradeRequest } from './market-panel.component';
+import { ALL_QTY, MarketPanelComponent, TradeRequest } from './market-panel.component';
 
 describe('MarketPanelComponent', () => {
   let fixture: ComponentFixture<MarketPanelComponent>;
   let el: HTMLElement;
 
   beforeEach(() => {
+    localStorage.removeItem('lemonade.tradeAmount');
     fixture = TestBed.createComponent(MarketPanelComponent);
     const resources = newGameView().resources;
     resources[0] = { ...resources[0], stock: 4, previousPrice: 18 };
     fixture.componentRef.setInput('resources', resources);
+    fixture.componentRef.setInput('capital', 1000);
     fixture.detectChanges();
     el = fixture.nativeElement;
   });
@@ -34,24 +36,80 @@ describe('MarketPanelComponent', () => {
     expect(row('sugar').querySelector('.trend.up, .trend.down')).toBeNull();
   });
 
-  it('emits buy with the entered quantity', () => {
-    const emitted: TradeRequest[] = [];
-    fixture.componentInstance.buy.subscribe((t) => emitted.push(t));
+  const radios = () => Array.from(el.querySelectorAll<HTMLInputElement>('input[type=radio]'));
+  const pick = (value: string) => {
+    radios()
+      .find((r) => r.value === value)!
+      .click();
+    fixture.detectChanges();
+  };
 
-    const input = row('ice').querySelector<HTMLInputElement>('.buy input')!;
-    input.value = '3';
-    row('ice').querySelector<HTMLButtonElement>('.buy button')!.click();
-
-    expect(emitted).toEqual([{ resource: 'ice', qty: 3 }]);
+  it('offers 10, 50, 100 and All in a radio group, defaulting to 10', () => {
+    expect(el.querySelector('[role=radiogroup]')).not.toBeNull();
+    expect(radios().map((r) => r.value)).toEqual(['10', '50', '100', 'all']);
+    expect(radios().find((r) => r.checked)!.value).toBe('10');
   });
 
-  it('emits sell with the entered quantity', () => {
-    const emitted: TradeRequest[] = [];
-    fixture.componentInstance.sell.subscribe((t) => emitted.push(t));
+  it('buys and sells the selected amount with clamp', () => {
+    const bought: TradeRequest[] = [];
+    const sold: TradeRequest[] = [];
+    fixture.componentInstance.buy.subscribe((t) => bought.push(t));
+    fixture.componentInstance.sell.subscribe((t) => sold.push(t));
 
-    row('lemonade').querySelector<HTMLButtonElement>('.sell button')!.click();
+    row('lemon').querySelector<HTMLButtonElement>('.buy button')!.click();
+    pick('50');
+    row('lemon').querySelector<HTMLButtonElement>('.sell button')!.click();
+    pick('all');
+    row('lemon').querySelector<HTMLButtonElement>('.buy button')!.click();
 
-    expect(emitted).toEqual([{ resource: 'lemonade', qty: 1 }]);
+    expect(bought).toEqual([
+      { resource: 'lemon', qty: 10, clamp: true },
+      { resource: 'lemon', qty: ALL_QTY, clamp: true },
+    ]);
+    expect(sold).toEqual([{ resource: 'lemon', qty: 50, clamp: true }]);
+  });
+
+  it('remembers the selection', () => {
+    pick('100');
+    expect(localStorage.getItem('lemonade.tradeAmount')).toBe('100');
+
+    const again = TestBed.createComponent(MarketPanelComponent);
+    again.componentRef.setInput('resources', newGameView().resources);
+    again.componentRef.setInput('capital', 1000);
+    again.detectChanges();
+    const checked = again.nativeElement.querySelector(
+      'input[type=radio]:checked',
+    ) as HTMLInputElement;
+    expect(checked.value).toBe('100');
+  });
+
+  it('ignores a junk stored value', () => {
+    localStorage.setItem('lemonade.tradeAmount', 'lots');
+    const again = TestBed.createComponent(MarketPanelComponent);
+    again.componentRef.setInput('resources', newGameView().resources);
+    again.componentRef.setInput('capital', 1000);
+    again.detectChanges();
+    const checked = again.nativeElement.querySelector(
+      'input[type=radio]:checked',
+    ) as HTMLInputElement;
+    expect(checked.value).toBe('10');
+  });
+
+  it('disables a row button when the action is impossible', () => {
+    // lemon: stock 4 (can sell, can buy); the others have no stock to sell.
+    expect(row('lemon').querySelector<HTMLButtonElement>('.sell button')!.disabled).toBeFalse();
+    expect(row('sugar').querySelector<HTMLButtonElement>('.sell button')!.disabled).toBeTrue();
+
+    fixture.componentRef.setInput('capital', 5);
+    fixture.detectChanges();
+    expect(row('lemon').querySelector<HTMLButtonElement>('.buy button')!.disabled).toBeTrue();
+
+    const full = newGameView().resources;
+    full[1] = { ...full[1], stock: full[1].capacity };
+    fixture.componentRef.setInput('capital', 1000);
+    fixture.componentRef.setInput('resources', full);
+    fixture.detectChanges();
+    expect(row('sugar').querySelector<HTMLButtonElement>('.buy button')!.disabled).toBeTrue();
   });
 
   it('disables every buy and sell button when disabled', () => {

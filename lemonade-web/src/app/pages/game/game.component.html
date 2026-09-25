@@ -35,9 +35,10 @@
 
       <app-market-panel
         [resources]="game.resources"
+        [capital]="game.capital"
         [disabled]="!online()"
-        (buy)="store.buy($event.resource, $event.qty)"
-        (sell)="store.sell($event.resource, $event.qty)"
+        (buy)="store.buy($event.resource, $event.qty, $event.clamp)"
+        (sell)="store.sell($event.resource, $event.qty, $event.clamp)"
       />
 
       <app-card title="Game timeline">

@@ -128,3 +128,8 @@ Deviations from DESIGN.md and real tradeoffs made during the build. Newest last.
 - **Why:** the preview cannot drift from the real end of day, and a property test (500 random games) checks it against `EndDay` on the same state.
 - **Choices:** on a tie the input or storage space is named, not production (it is the thing a player can act on); `limitedBy` is empty only when there is no production capacity. The UI hides the ice figure when 0.
 
+## 23. Bulk trades: a shared amount selector and `clamp` (slice 9d)
+- **Did:** the market panel has one selector (10, 50, 100, All; default 10, remembered in `localStorage`) and each row has only Buy and Sell using it. Buy and sell requests take an optional `clamp`. Clamped buy trades `min(qty, affordable at ask, free space)`; clamped sell trades `min(qty, stock)`; if that is 0 the usual error for the binding limit is returned (cash before space). "All" is sent as `qty` 1,000,000 with `clamp`, so the server does the maths. Without `clamp` nothing changes.
+- **Why:** the user wanted fast bulk trading without per-row number inputs. Doing the limit in the domain keeps the UI from computing outcomes, and avoids a read-then-write race.
+- **Choices:** every UI trade now sends `clamp: true`, so "Buy 100" with room for 40 buys 40 rather than erroring. Row buttons are disabled when the action is impossible (no stock, cannot afford one case, warehouse full). The response is still just the game view; the number actually traded is not returned (the change shows in stock and capital).
+

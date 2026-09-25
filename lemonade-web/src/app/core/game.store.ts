@@ -54,12 +54,12 @@ export class GameStore {
     return this.update(this.api.newGame());
   }
 
-  buy(resource: Resource, qty: number): Promise<void> {
-    return this.update(this.api.buy(resource, qty));
+  buy(resource: Resource, qty: number, clamp = false): Promise<void> {
+    return this.update(this.api.buy(resource, qty, clamp));
   }
 
-  sell(resource: Resource, qty: number): Promise<void> {
-    return this.update(this.api.sell(resource, qty));
+  sell(resource: Resource, qty: number, clamp = false): Promise<void> {
+    return this.update(this.api.sell(resource, qty, clamp));
   }
 
   expandWarehouse(resource: Resource): Promise<void> {

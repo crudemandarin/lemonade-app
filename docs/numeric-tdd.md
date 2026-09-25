@@ -183,7 +183,7 @@ JSON, camelCase. The contract is `lemonade-web/src/app/core/api.models.ts`.
 |---|---|
 | `POST /api/login {username}` | create-or-get user (+ new game; username 5–40 ASCII chars, case-insensitive); returns `{id, username}` |
 | `GET /api/game` · `POST /api/game/new` | view · fresh game |
-| `POST /api/game/buy \| sell {resource, qty}` | trade at ask · bid |
+| `POST /api/game/buy \| sell {resource, qty, clamp?}` | trade at ask · bid; with `clamp`, trades as many as cash, space or stock allow (up to `qty`) instead of failing |
 | `POST /api/game/facilities/warehouse/expand {resource}` · `.../production/expand` | add one building |
 | `POST /api/game/facilities/{warehouse\|production}/upgrade` | upgrade whole type |
 | `POST /api/game/end-day` | `{report, game}` |
@@ -349,4 +349,4 @@ Shows a warning when capital ends at $0 but the game continues.
 |                       [ New game (primary) ]                           |
 ```
 
-**Component map:** `nav-bar` (sign in/out) · `stats-strip` (day, capital, upkeep; end day) · `events-banner` · `market-panel` (buy/sell) · `facilities-panel` (expandWarehouse, expandProduction, upgrade) · `day-report-modal` · `game-over` · `offline-banner`. Open UX: signed-in users are not auto-redirected from `/`; mobile stacks each market row as a card.
+**Component map:** `nav-bar` (sign in/out) · `stats-strip` (day, capital, upkeep, end-of-day projection; end day) · `events-banner` · `market-panel` (shared trade amount: 10/50/100/All, then Buy and Sell per row) · `facilities-panel` (expandWarehouse, expandProduction, upgrade) · `day-report-modal` · `game-over` · `offline-banner`. Open UX: signed-in users are not auto-redirected from `/`; mobile stacks each market row as a card.

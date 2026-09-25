@@ -62,6 +62,14 @@ describe('GameStore', () => {
     expect(store.game()?.capital).toBe(956);
   });
 
+  it('passes clamp through to the API', async () => {
+    const done = store.sell('lemon', 50, true);
+    const req = http.expectOne('/api/game/sell');
+    expect(req.request.body).toEqual({ resource: 'lemon', qty: 50, clamp: true });
+    req.flush(newGameView());
+    await done;
+  });
+
   it('a failed mutation keeps the game and shows the server message', async () => {
     const load = store.load();
     http.expectOne('/api/game').flush(newGameView());

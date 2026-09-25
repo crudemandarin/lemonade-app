@@ -1,4 +1,20 @@
 <app-card title="Market and inventory">
+  <fieldset class="amounts" role="radiogroup">
+    <legend>Buy or sell amount</legend>
+    @for (a of amounts; track a) {
+      <label [class.selected]="amount() === a">
+        <input
+          type="radio"
+          name="trade-amount"
+          [value]="a"
+          [checked]="amount() === a"
+          (change)="select(a)"
+        />
+        <span>{{ a === 'all' ? 'All' : a }}</span>
+      </label>
+    }
+  </fieldset>
+
   <div class="table" role="table" aria-label="Market and inventory">
     <div class="head" role="row">
       <span role="columnheader">Resource</span>
@@ -56,39 +72,13 @@
         </span>
 
         <span class="trade buy" role="cell">
-          <input
-            #buyQty
-            class="input qty"
-            type="number"
-            min="1"
-            value="1"
-            [attr.aria-label]="'Cases of ' + labels[row.resource] + ' to buy'"
-          />
-          <button
-            type="button"
-            [disabled]="disabled()"
-            class="btn"
-            (click)="buy.emit({ resource: row.resource, qty: qty(buyQty) })"
-          >
+          <button type="button" [disabled]="!canBuy(row)" class="btn" (click)="onBuy(row)">
             Buy {{ row.ask | money }}
           </button>
         </span>
 
         <span class="trade sell" role="cell">
-          <input
-            #sellQty
-            class="input qty"
-            type="number"
-            min="1"
-            value="1"
-            [attr.aria-label]="'Cases of ' + labels[row.resource] + ' to sell'"
-          />
-          <button
-            type="button"
-            [disabled]="disabled()"
-            class="btn"
-            (click)="sell.emit({ resource: row.resource, qty: qty(sellQty) })"
-          >
+          <button type="button" [disabled]="!canSell(row)" class="btn" (click)="onSell(row)">
             Sell {{ row.bid | money }}
           </button>
         </span>
