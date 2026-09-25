@@ -103,6 +103,11 @@ tr.me {
   }
 }
 
+.score-cell a {
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+
 .you,
 .best {
   color: var(--accent-strong);

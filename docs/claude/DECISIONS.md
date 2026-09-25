@@ -166,3 +166,9 @@ Deviations from DESIGN.md and real tradeoffs made during the build. Newest last.
 - **"Game time" means game days**, not wall-clock time: there is no real-time tick, so the list is simply one entry per ended day.
 - **Old saves:** history starts when the update deployed; the drawer's empty state says days played before then are not kept.
 
+## 30. Scores: one row per player, owner-only run detail (slice 13)
+- **Did:** `GET /api/scores` ranks each player's best finished run by score, an earlier finish winning a tie, with the caller's own row and rank returned separately so it shows even far down the board. `GET /api/runs` lists the caller's runs with the best flagged, and `GET /api/runs/:runId` returns one run in full (stats, timeline, price log, report index) for its owner only. The boards are computed in one SQL statement (`DISTINCT ON (user_id)` plus `ROW_NUMBER`); the in-memory fake ranks the same way, and one contract test runs against both. Only finished runs appear.
+- **Owner only:** a global board row shows no run ID and cannot be opened. Letting players read each other's runs is a privacy and scope change, not made here. Usernames are public on the board and login is username-only, so this is documented as a known limitation.
+- **Difficulty and rival are cut:** the board has no difficulty filter, no `rivalResult`, and no difficulty parameter. `runs.difficulty` still exists with its default, so a filter could be added later. The score is final net worth alone (decision 27), so the run detail shows cash and "stock and buildings" rather than a per-day weight.
+- **UI:** `/scores` has Global and Mine tabs; a personal-record row opens `/runs/:id` with the totals, all three charts and the day stepper (extracted from the past-days drawer and shared). The game page shows "Best: $X on day N", and the result screen says "New personal best" when the finished run is the player's best run.
+

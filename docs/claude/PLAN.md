@@ -66,6 +66,10 @@ Time estimates are rough and cumulative.
   - [x] 11b: give up
   - [x] 11c: past day reports
 
+- [x] **Slice 13: Scores (see `HANDOFF-B-scores.md`; difficulty and rival are cut)**
+  - [x] 13a: personal record history and run detail (`/runs/:id`)
+  - [x] 13b: global board (`/scores`), "Best" on the game page, "New personal best" on the result screen
+
 ## Hold points
 - **≈2:30 elapsed:** first Reviewer pass (see kickoff prompt 3). Fix only SPEC gaps and bugs.
 - **≈3:30 elapsed:** second Reviewer pass plus fresh-clone check; then walkthrough prep.

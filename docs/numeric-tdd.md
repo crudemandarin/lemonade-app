@@ -181,7 +181,7 @@ Two more tables hold what must outlive a game row. `day_reports(run_id, day, pay
 
 JSON, camelCase. The contract is `lemonade-web/src/app/core/api.models.ts`.
 
-- `X-Username` header on all game routes (intentionally not secure). Unknown or missing → 401, and the UI then clears the session.
+- `X-Username` header on all game routes (intentionally not secure; usernames are also public on the global score board, so anyone who types a name can act as that player). Unknown or missing → 401, and the UI then clears the session.
 - Errors: `{"error": "<code>", "message": "..."}`. Status 400 for `invalid_*` codes; 409 for `run_active`, `insufficient_funds`, `insufficient_stock`, `capacity_exceeded`, `max_level`, `max_quantity`, `game_over`.
 
 | Route | Purpose |
@@ -192,6 +192,8 @@ JSON, camelCase. The contract is `lemonade-web/src/app/core/api.models.ts`.
 | `POST /api/game/facilities/warehouse/expand {resource}` · `.../production/expand` | add one building |
 | `POST /api/game/facilities/{warehouse\|production}/upgrade` | upgrade whole type |
 | `GET /api/game/reports[?runId=]` · `GET /api/game/reports/{day}[?runId=]` | ended days of the current run (or of a finished run of the same player): a light list, or one full report; another player's run is a 404 |
+| `GET /api/scores[?limit=]` | global board: one row per player (their best finished run), best first, an earlier finish wins a tie; `limit` 1 to 100 (default 20), 400 `invalid_limit` if not a number. Also returns `me`, the caller's own row and rank even below the rows shown |
+| `GET /api/runs` · `GET /api/runs/{runId}` | the caller's finished runs, newest first with the best flagged; one run in full (score, stats, timeline, price log, report index). Another player's run, an unfinished run and an unknown one are all a 404 |
 | `POST /api/game/new` | start a fresh run; 409 `run_active` unless the last one is over (bankrupt or given up) |
 | `POST /api/game/give-up` | end the run (`status: gave_up`) and record it; the score is the net worth at that moment |
 | `POST /api/game/facilities/warehouse/sell {resource}` · `.../production/sell` | sell one building back at `ResaleRate` of its build cost; 409 `min_facility` or `stock_exceeds_capacity` |
