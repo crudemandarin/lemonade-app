@@ -24,6 +24,24 @@ func identityContract(t *testing.T, repo Repository, prefix string) {
 		t.Fatalf("FindUserByUID before create: %v", err)
 	}
 
+	// A username alone identifies only an account that has not been secured with Google.
+	if _, err := repo.FindGuestUser(ctx, prefix+"alice"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("FindGuestUser before create: %v", err)
+	}
+	guest, err := repo.CreateUserWithGame(ctx, prefix+"guest", game)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := repo.FindGuestUser(ctx, prefix+"guest"); err != nil || got != guest {
+		t.Fatalf("FindGuestUser(guest) = %+v, %v", got, err)
+	}
+	if _, err := repo.ClaimUser(ctx, prefix+"guest", prefix+"-uid-g", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.FindGuestUser(ctx, prefix+"guest"); !errors.Is(err, ErrAlreadyClaimed) {
+		t.Fatalf("FindGuestUser after securing: %v, want ErrAlreadyClaimed", err)
+	}
+
 	// A new profile links the UID and creates the game.
 	a, err := repo.CreateProfile(ctx, prefix+"alice", prefix+"-uid-a", "Alice@Example.com", game)
 	if err != nil || a.Username != prefix+"alice" {
@@ -42,6 +60,9 @@ func identityContract(t *testing.T, repo Repository, prefix string) {
 	}
 	if _, err := repo.CreateProfile(ctx, prefix+"other", prefix+"-uid-a", "", game); !errors.Is(err, ErrAlreadyLinked) {
 		t.Fatalf("uid already linked: %v", err)
+	}
+	if _, err := repo.FindGuestUser(ctx, prefix+"alice"); !errors.Is(err, ErrAlreadyClaimed) {
+		t.Fatalf("a Google-created profile is secured from the start: %v", err)
 	}
 	if _, err := repo.FindUser(ctx, prefix+"other"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("failed profile left a user behind: %v", err)

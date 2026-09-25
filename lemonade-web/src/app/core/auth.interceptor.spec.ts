@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { authInterceptor } from './auth.interceptor';
+import { SessionService, USERNAME_KEY } from './session.service';
 import { FakeAuthPort, provideFakeAuth } from './testing/fake-auth';
 
 describe('authInterceptor', () => {
@@ -12,6 +13,7 @@ describe('authInterceptor', () => {
 
   beforeEach(() => {
     port = new FakeAuthPort();
+    port.user = { uid: 'u1' };
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([authInterceptor])),
@@ -23,7 +25,10 @@ describe('authInterceptor', () => {
     mock = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => mock.verify());
+  afterEach(() => {
+    mock.verify();
+    localStorage.removeItem(USERNAME_KEY);
+  });
 
   // The interceptor waits for the token promise before sending.
   const tick = () => new Promise((resolve) => setTimeout(resolve));
@@ -33,6 +38,39 @@ describe('authInterceptor', () => {
     http.get('/api/game').subscribe();
     await tick();
     expect(mock.expectOne('/api/game').request.headers.get('Authorization')).toBe('Bearer token-1');
+  });
+
+  describe('as a guest', () => {
+    beforeEach(() => {
+      port.user = null;
+      TestBed.inject(SessionService).signIn('lemonjoe');
+    });
+
+    it('sends X-Username and no token', async () => {
+      http.get('/api/game').subscribe();
+      await tick();
+      const req = mock.expectOne('/api/game').request;
+      expect(req.headers.get('X-Username')).toBe('lemonjoe');
+      expect(req.headers.has('Authorization')).toBeFalse();
+      expect(port.tokenRequests).toEqual([]);
+    });
+
+    it('does not retry a 401', async () => {
+      let status = 0;
+      http.get('/api/game').subscribe({ error: (e) => (status = e.status) });
+      await tick();
+      mock.expectOne('/api/game').flush({}, unauthorized);
+      expect(status).toBe(401);
+    });
+  });
+
+  it('prefers the token to a stored guest name once signed in with Google', async () => {
+    TestBed.inject(SessionService).signIn('lemonjoe');
+    http.get('/api/game').subscribe();
+    await tick();
+    const req = mock.expectOne('/api/game').request;
+    expect(req.headers.get('Authorization')).toBe('Bearer token-1');
+    expect(req.headers.has('X-Username')).toBeFalse();
   });
 
   it('leaves other URLs alone', async () => {

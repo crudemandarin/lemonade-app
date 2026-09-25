@@ -1,28 +1,44 @@
 import { TestBed } from '@angular/core/testing';
 
-import { LEGACY_USERNAME_KEY, SessionService } from './session.service';
+import { SessionService, USERNAME_KEY } from './session.service';
 
 describe('SessionService', () => {
-  afterEach(() => localStorage.removeItem(LEGACY_USERNAME_KEY));
+  beforeEach(() => localStorage.removeItem(USERNAME_KEY));
+  afterEach(() => localStorage.removeItem(USERNAME_KEY));
 
-  it('starts signed out', () => {
-    expect(TestBed.inject(SessionService).username()).toBeNull();
+  it('starts signed out when nothing is stored', () => {
+    const session = TestBed.inject(SessionService);
+    expect(session.username()).toBeNull();
+    expect(session.secured()).toBeFalse();
   });
 
-  it('holds the username in memory only', () => {
+  it('restores a guest from a stored username', () => {
+    localStorage.setItem(USERNAME_KEY, 'lemonjoe');
+    const session = TestBed.inject(SessionService);
+    expect(session.username()).toBe('lemonjoe');
+    expect(session.secured()).toBeFalse();
+  });
+
+  it('remembers a guest and forgets them on sign out', () => {
     const session = TestBed.inject(SessionService);
 
     session.signIn('lemonjoe');
     expect(session.username()).toBe('lemonjoe');
-    expect(localStorage.getItem(LEGACY_USERNAME_KEY)).toBeNull();
+    expect(localStorage.getItem(USERNAME_KEY)).toBe('lemonjoe');
 
     session.signOut();
     expect(session.username()).toBeNull();
+    expect(localStorage.getItem(USERNAME_KEY)).toBeNull();
   });
 
-  it('ignores and clears the old localStorage username', () => {
-    localStorage.setItem(LEGACY_USERNAME_KEY, 'lemonjoe');
-    expect(TestBed.inject(SessionService).username()).toBeNull();
-    expect(localStorage.getItem(LEGACY_USERNAME_KEY)).toBeNull();
+  it('keeps a secured account in memory only, and drops the guest name', () => {
+    localStorage.setItem(USERNAME_KEY, 'lemonjoe');
+    const session = TestBed.inject(SessionService);
+
+    session.signInSecured('lemonjoe');
+
+    expect(session.username()).toBe('lemonjoe');
+    expect(session.secured()).toBeTrue();
+    expect(localStorage.getItem(USERNAME_KEY)).toBeNull();
   });
 });

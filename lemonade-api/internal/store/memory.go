@@ -63,6 +63,19 @@ func (m *Memory) CreateUserWithGame(_ context.Context, username string, game dom
 	return u, nil
 }
 
+func (m *Memory) FindGuestUser(_ context.Context, username string) (domain.User, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[username]
+	switch {
+	case !ok:
+		return domain.User{}, ErrNotFound
+	case m.linked[u.ID]:
+		return domain.User{}, ErrAlreadyClaimed
+	}
+	return u, nil
+}
+
 func (m *Memory) FindUserByUID(_ context.Context, uid string) (domain.User, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

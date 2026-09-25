@@ -1,10 +1,11 @@
 import { Routes } from '@angular/router';
 
-import { authGuard, onboardingGuard, signedOutGuard } from './core/auth.guard';
+import { authGuard, guestGuard, onboardingGuard, signedOutGuard } from './core/auth.guard';
 import { GameComponent } from './pages/game/game.component';
 import { HomeComponent } from './pages/home/home.component';
 import { RunComponent } from './pages/run/run.component';
 import { ScoresComponent } from './pages/scores/scores.component';
+import { SecureComponent } from './pages/secure/secure.component';
 import { SigninComponent } from './pages/signin/signin.component';
 import { UsernameComponent } from './pages/username/username.component';
 
@@ -21,6 +22,12 @@ export const routes: Routes = [
     component: UsernameComponent,
     canActivate: [onboardingGuard],
     title: 'Choose a username · Lemonade Tycoon',
+  },
+  {
+    path: 'secure',
+    component: SecureComponent,
+    canActivate: [guestGuard],
+    title: 'Secure your account · Lemonade Tycoon',
   },
   { path: 'game', component: GameComponent, canActivate: [authGuard], title: 'Lemonade Tycoon' },
   {

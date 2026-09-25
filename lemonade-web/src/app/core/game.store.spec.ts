@@ -29,6 +29,28 @@ describe('GameStore', () => {
     session.signOut();
   });
 
+  it('signIn plays as a guest on a username alone and resolves true', async () => {
+    const done = store.signIn('lemonjoe');
+    http.expectOne('/api/login').flush({ id: 1, username: 'lemonjoe' });
+
+    expect(await done).toBeTrue();
+    expect(session.username()).toBe('lemonjoe');
+  });
+
+  it('signIn failure sets the error and stays signed out', async () => {
+    const done = store.signIn('lemonjoe');
+    http
+      .expectOne('/api/login')
+      .flush(
+        { error: 'account_secured', message: 'This username is protected.' },
+        { status: 409, statusText: '' },
+      );
+
+    expect(await done).toBeFalse();
+    expect(store.error()).toBe('This username is protected.');
+    expect(session.username()).toBeNull();
+  });
+
   it('load stores the game view', async () => {
     const done = store.load();
     http.expectOne('/api/game').flush(newGameView());

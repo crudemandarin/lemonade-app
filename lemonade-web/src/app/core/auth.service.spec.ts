@@ -2,8 +2,15 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 
-import { AuthService, IS_STANDALONE, READY_TIMEOUT_MS, apiErrorCode } from './auth.service';
-import { SessionService } from './session.service';
+import {
+  AuthService,
+  IS_STANDALONE,
+  LINKING_KEY,
+  READY_TIMEOUT_MS,
+  apiErrorCode,
+} from './auth.service';
+import { FirebaseConfigService } from './firebase-config';
+import { SessionService, USERNAME_KEY } from './session.service';
 import { FakeAuthPort, provideFakeAuth } from './testing/fake-auth';
 
 const profileRequired = {
@@ -30,7 +37,11 @@ describe('AuthService', () => {
     return TestBed.inject(AuthService);
   }
 
-  afterEach(() => http?.verify());
+  afterEach(() => {
+    http?.verify();
+    localStorage.removeItem(USERNAME_KEY);
+    sessionStorage.removeItem(LINKING_KEY);
+  });
 
   it('is not ready until the stored session has been checked', async () => {
     const auth = setup((p) => (p.holdFirstEvent = true));
@@ -177,6 +188,121 @@ describe('AuthService', () => {
     expect(await auth.getIdToken(true)).toBe('token-2');
     expect(port.tokenRequests).toEqual([false, true]);
     expect(JSON.stringify(localStorage)).not.toContain('token-');
+  });
+
+  describe('guests', () => {
+    it('keeps a stored guest when Firebase reports nobody signed in', async () => {
+      localStorage.setItem(USERNAME_KEY, 'lemonjoe');
+      const auth = setup();
+      await auth.whenReady();
+
+      expect(auth.firebaseUser()).toBeNull();
+      expect(auth.profile()).toEqual({ username: 'lemonjoe' });
+      expect(auth.secured()).toBeFalse();
+    });
+
+    it('signs a guest in with a username alone', async () => {
+      const auth = setup();
+      const done = auth.guestSignIn('lemonjoe');
+      const req = http.expectOne('/api/login');
+      expect(req.request.body).toEqual({ username: 'lemonjoe' });
+      req.flush({ id: 1, username: 'lemonjoe' });
+      await done;
+
+      expect(auth.profile()).toEqual({ username: 'lemonjoe' });
+      expect(localStorage.getItem(USERNAME_KEY)).toBe('lemonjoe');
+    });
+
+    it('rejects a protected username with account_secured and signs nobody in', async () => {
+      const auth = setup();
+      const done = auth.guestSignIn('lemonjoe');
+      http
+        .expectOne('/api/login')
+        .flush({ error: 'account_secured', message: 'x' }, { status: 409, statusText: '' });
+
+      await expectAsync(done).toBeRejected();
+      expect(auth.profile()).toBeNull();
+    });
+
+    it('signOut forgets the guest too', async () => {
+      localStorage.setItem(USERNAME_KEY, 'lemonjoe');
+      const auth = setup();
+      await auth.signOut();
+      expect(auth.profile()).toBeNull();
+      expect(localStorage.getItem(USERNAME_KEY)).toBeNull();
+    });
+
+    it('googleAvailable follows whether Firebase is configured', () => {
+      const auth = setup();
+      expect(auth.googleAvailable).toBeFalse();
+      TestBed.inject(FirebaseConfigService).config = {
+        apiKey: 'k',
+        authDomain: 'a',
+        projectId: 'p',
+        appId: 'i',
+      };
+      expect(auth.googleAvailable).toBeTrue();
+    });
+  });
+
+  describe('linkGoogle (securing a guest account)', () => {
+    beforeEach(() => localStorage.setItem(USERNAME_KEY, 'lemonjoe'));
+
+    it('signs in with Google and links the guest username', async () => {
+      const auth = setup();
+      const done = auth.linkGoogle();
+      await new Promise((resolve) => setTimeout(resolve));
+      const req = http.expectOne('/api/me/claim');
+      expect(req.request.body).toEqual({ username: 'lemonjoe' });
+      req.flush({ id: 1, username: 'lemonjoe' });
+      await done;
+
+      expect(auth.secured()).toBeTrue();
+      expect(auth.profile()).toEqual({ username: 'lemonjoe' });
+      expect(localStorage.getItem(USERNAME_KEY)).toBeNull();
+      expect(sessionStorage.getItem(LINKING_KEY)).toBeNull();
+    });
+
+    it('stays a guest, signed out of Google, when the link fails', async () => {
+      const auth = setup();
+      const done = auth.linkGoogle();
+      await new Promise((resolve) => setTimeout(resolve));
+      http
+        .expectOne('/api/me/claim')
+        .flush({ error: 'already_linked', message: 'x' }, { status: 409, statusText: '' });
+
+      await expectAsync(done).toBeRejected();
+      expect(auth.secured()).toBeFalse();
+      expect(auth.linkError()).toBe('already_linked');
+      expect(port.signOutCalls).toBe(1);
+      expect(localStorage.getItem(USERNAME_KEY)).toBe('lemonjoe');
+    });
+
+    it('does nothing when the popup is closed', async () => {
+      const auth = setup((p) => (p.popupError = { code: 'auth/popup-closed-by-user' }));
+      await auth.linkGoogle();
+      expect(auth.secured()).toBeFalse();
+      expect(sessionStorage.getItem(LINKING_KEY)).toBeNull();
+    });
+
+    it('rethrows a sign-in failure and stays a guest', async () => {
+      const auth = setup((p) => (p.popupError = { code: 'auth/network-request-failed' }));
+      await expectAsync(auth.linkGoogle()).toBeRejected();
+      expect(auth.secured()).toBeFalse();
+    });
+
+    it('finishes the link after a redirect sign-in returns', async () => {
+      sessionStorage.setItem(LINKING_KEY, '1');
+      const auth = setup((p) => (p.user = { uid: 'u1' }));
+      await auth.whenReady();
+
+      const req = http.expectOne('/api/me/claim');
+      expect(req.request.body).toEqual({ username: 'lemonjoe' });
+      req.flush({ id: 1, username: 'lemonjoe' });
+      await new Promise((resolve) => setTimeout(resolve));
+
+      expect(auth.secured()).toBeTrue();
+    });
   });
 
   it('apiErrorCode reads the API error code', () => {

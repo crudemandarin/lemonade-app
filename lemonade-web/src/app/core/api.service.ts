@@ -22,6 +22,11 @@ const API_URL = '/api';
 export class ApiService {
   private readonly http = inject(HttpClient);
 
+  /** Username-only play: creates or resumes a guest. 409 `account_secured` if the name is protected. */
+  login(username: string): Observable<User> {
+    return this.http.post<User>(`${API_URL}/login`, { username });
+  }
+
   /** The signed-in account's public profile; 403 `profile_required` when it has none yet. */
   me(): Observable<User> {
     return this.http.get<User>(`${API_URL}/me`);

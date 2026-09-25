@@ -3,37 +3,8 @@ package auth
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 )
-
-func TestConfigValidate(t *testing.T) {
-	cases := []struct {
-		name    string
-		cfg     Config
-		wantErr string // substring; empty means valid
-	}{
-		{"firebase with project", Config{Mode: ModeFirebase, FirebaseProjectID: "demo"}, ""},
-		{"firebase is the default mode", Config{FirebaseProjectID: "demo"}, ""},
-		{"firebase without project", Config{Mode: ModeFirebase}, "FIREBASE_PROJECT_ID"},
-		{"dev locally", Config{Mode: ModeDev}, ""},
-		{"dev on Cloud Run is refused", Config{Mode: ModeDev, OnCloudRun: true}, "AUTH_MODE=dev"},
-		{"dev in production is refused", Config{Mode: ModeDev, AppEnv: "production"}, "AUTH_MODE=dev"},
-		{"dev in Production, any case, is refused", Config{Mode: ModeDev, AppEnv: "Production"}, "AUTH_MODE=dev"},
-		{"unknown mode", Config{Mode: "both", FirebaseProjectID: "demo"}, "AUTH_MODE"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.cfg.Validate()
-			switch {
-			case tc.wantErr == "" && err != nil:
-				t.Fatalf("unexpected error: %v", err)
-			case tc.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tc.wantErr)):
-				t.Fatalf("error = %v, want it to mention %q", err, tc.wantErr)
-			}
-		})
-	}
-}
 
 func TestIdentityAcceptable(t *testing.T) {
 	ok := Identity{UID: "u1", Email: "a@b.c", EmailVerified: true, Provider: "google.com"}

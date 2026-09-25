@@ -44,8 +44,7 @@ type Game struct {
 	cfg     domain.Config
 	newSeed func() int64
 
-	verifier auth.TokenVerifier // nil: no bearer token is accepted
-	devAuth  bool               // also accept X-Username and mount /api/login
+	verifier auth.TokenVerifier // nil: Google sign-in is off, no bearer token is accepted
 	claims   *claimLimiter
 }
 
@@ -82,9 +81,7 @@ func NewGame(repo store.Repository, cfg domain.Config, newSeed func() int64, opt
 // Register mounts the game routes under /api.
 func (h *Game) Register(router gin.IRouter) {
 	api := router.Group("/api")
-	if h.devAuth {
-		api.POST("/login", h.login)
-	}
+	api.POST("/login", h.login)
 
 	me := api.Group("/me", h.requireIdentity)
 	me.GET("", h.me)
@@ -114,6 +111,8 @@ func currentUser(c *gin.Context) domain.User {
 	return c.MustGet(userKey).(domain.User)
 }
 
+// login starts or resumes a username-only (guest) player. A username that has been
+// secured with Google cannot be logged into this way: it needs the token.
 func (h *Game) login(c *gin.Context) {
 	var req struct {
 		Username string `json:"username"`
@@ -129,9 +128,13 @@ func (h *Game) login(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	user, err := h.repo.FindUser(ctx, username)
+	user, err := h.repo.FindGuestUser(ctx, username)
 	if errors.Is(err, store.ErrNotFound) {
 		user, err = h.repo.CreateUserWithGame(ctx, username, h.freshGame())
+	}
+	if errors.Is(err, store.ErrAlreadyClaimed) {
+		abort(c, http.StatusConflict, "account_secured", "This username is protected. Sign in with Google to play it.")
+		return
 	}
 	if err != nil {
 		abortErr(c, err)

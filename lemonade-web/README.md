@@ -15,13 +15,14 @@ The app calls `/api/...` on its own origin. The dev server (`proxy.conf.json`) a
 src/app/
   core/            API contract (api.models.ts), ApiService, GameStore (signals),
                    AuthService (Firebase SDK behind FirebaseAuthPort), SessionService
-                   (username, memory only), bearer-token and 401/403 interceptors,
+                   (guest name in localStorage; secured names in memory), bearer-token and 401/403 interceptors,
                    route guards, firebase-config (runtime), testing/{fixtures,fake-auth}.ts
   shared/          nav-bar, card, icon, money pipe, offline-banner, price-sparkline,
                    timeline-charts (capital/stock history), event-backdrop (CSS scenes)
   pages/home/      landing page ("Play game" / "Continue game")
-  pages/signin/    "Continue with Google"
-  pages/username/  first sign-in: choose a username, or link an existing one
+  pages/signin/    username-only play ("Continue"), with optional "Sign in with Google"
+  pages/username/  first Google sign-in: choose a username, or link an existing one
+  pages/secure/    optional: link Google to the current guest username
   pages/game/      dashboard + game over; presentational components in components/:
                    stats-strip, events-banner, market-panel, facilities-panel,
                    day-report-modal, game-over
@@ -30,7 +31,7 @@ ngsw-config.json   PWA service worker: caches the app shell, never /api
 design-preview/    standalone event-backdrop preview (node design-preview/build.mjs)
 ```
 
-Routes: `/` home, `/signin`, `/signin/username` (signed in, no player yet), `/game`, `/scores`, `/runs/:id` (guarded: signed out goes to `/signin`, no username yet goes to `/signin/username`).
+Routes: `/` home, `/signin`, `/signin/username` (Google account with no player yet), `/secure` (guests only), `/game`, `/scores`, `/runs/:id` (guarded: nobody signed in goes to `/signin`; a Google account with no username goes to `/signin/username`).
 
 Firebase settings are not built in: the app fetches `/config/firebase-config.json` at startup (`src/config/` for `ng serve`, rendered by nginx from `FIREBASE_*` env vars in the image). It is deliberately outside `/assets` so the service worker never caches it; `npm run build && npm run check:ngsw` verifies that.
 

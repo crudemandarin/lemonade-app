@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 
 import { unauthorizedInterceptor } from './unauthorized.interceptor';
+import { SessionService, USERNAME_KEY } from './session.service';
 import { FakeAuthPort, provideFakeAuth, signInForTest } from './testing/fake-auth';
 
 describe('unauthorizedInterceptor', () => {
@@ -28,7 +29,10 @@ describe('unauthorizedInterceptor', () => {
     signInForTest('lemonjoe');
   });
 
-  afterEach(() => mock.verify());
+  afterEach(() => {
+    mock.verify();
+    localStorage.removeItem(USERNAME_KEY);
+  });
 
   function fail(status: number, body: object) {
     http.get('/api/game').subscribe({ error: () => undefined });
@@ -40,6 +44,14 @@ describe('unauthorizedInterceptor', () => {
 
     expect(port.signOutCalls).toBe(1);
     expect(navigate).toHaveBeenCalledWith('/signin');
+  });
+
+  it('forgets a guest name that was secured elsewhere, without touching Google, and says why', () => {
+    fail(401, { error: 'account_secured', message: 'x' });
+
+    expect(TestBed.inject(SessionService).username()).toBeNull();
+    expect(port.signOutCalls).toBe(0);
+    expect(navigate).toHaveBeenCalledWith('/signin?reason=secured');
   });
 
   it('sends a player with no username to onboarding on 403 profile_required, staying signed in', () => {

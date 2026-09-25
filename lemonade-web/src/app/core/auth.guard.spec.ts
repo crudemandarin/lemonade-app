@@ -9,7 +9,8 @@ import {
   provideRouter,
 } from '@angular/router';
 
-import { authGuard, onboardingGuard, signedOutGuard } from './auth.guard';
+import { authGuard, guestGuard, onboardingGuard, signedOutGuard } from './auth.guard';
+import { SessionService, USERNAME_KEY } from './session.service';
 import { FakeAuthPort, provideFakeAuth } from './testing/fake-auth';
 
 describe('route guards', () => {
@@ -31,7 +32,12 @@ describe('route guards', () => {
     router = TestBed.inject(Router);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    localStorage.removeItem(USERNAME_KEY);
+  });
+
+  const asGuest = () => TestBed.inject(SessionService).signIn('lemonjoe');
 
   /** Runs a guard and answers /api/me if it asks (profile: a username, 'none' or 'error'). */
   async function run(guard: CanActivateFn, profile?: string): Promise<boolean | string> {
@@ -78,6 +84,11 @@ describe('route guards', () => {
       expect(await run(authGuard, 'lemonjoe')).toBeTrue();
     });
 
+    it('lets a guest with a stored username through', async () => {
+      asGuest();
+      expect(await run(authGuard)).toBeTrue();
+    });
+
     it('sends a signed-in account with no profile to choose a username', async () => {
       port.user = { uid: 'u1' };
       expect(await run(authGuard, 'none')).toBe('/signin/username');
@@ -99,6 +110,11 @@ describe('route guards', () => {
       expect(await run(signedOutGuard, 'lemonjoe')).toBe('/game');
     });
 
+    it('sends a guest straight to the game', async () => {
+      asGuest();
+      expect(await run(signedOutGuard)).toBe('/game');
+    });
+
     it('sends a signed-in account with no profile to onboarding', async () => {
       port.user = { uid: 'u1' };
       expect(await run(signedOutGuard, 'none')).toBe('/signin/username');
@@ -118,6 +134,23 @@ describe('route guards', () => {
     it('skips onboarding for a player who already has a profile', async () => {
       port.user = { uid: 'u1' };
       expect(await run(onboardingGuard, 'lemonjoe')).toBe('/game');
+    });
+  });
+
+  describe('guestGuard', () => {
+    it('shows the secure page to a guest', async () => {
+      asGuest();
+      expect(await run(guestGuard)).toBeTrue();
+    });
+
+    it('sends a signed-out visitor to sign in', async () => {
+      expect(await run(guestGuard)).toBe('/signin');
+    });
+
+    it('has nothing to offer an account that is already secured', async () => {
+      port.user = { uid: 'u1' };
+      TestBed.inject(SessionService).signInSecured('lemonjoe');
+      expect(await run(guestGuard)).toBe('/game');
     });
   });
 });

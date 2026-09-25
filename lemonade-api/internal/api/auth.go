@@ -32,13 +32,6 @@ func WithVerifier(v auth.TokenVerifier) Option {
 	return func(h *Game) { h.verifier = v }
 }
 
-// WithDevAuth turns on the dev bypass: requests may identify themselves with the old
-// X-Username header, and POST /api/login exists. main refuses this in production
-// (auth.Config.Validate).
-func WithDevAuth() Option {
-	return func(h *Game) { h.devAuth = true }
-}
-
 // WithClock replaces the clock used by the claim rate limiter (for tests).
 func WithClock(now func() time.Time) Option {
 	return func(h *Game) { h.claims = newClaimLimiter(now) }
@@ -86,12 +79,18 @@ func currentIdentity(c *gin.Context) auth.Identity {
 	return c.MustGet(identityKey).(auth.Identity)
 }
 
-// requireUser resolves the caller to a player. In dev mode the X-Username header
-// still works; otherwise a verified token's UID is mapped to a user row, and a valid
-// token with no row gets 403 profile_required so the app can send them to onboarding.
+// requireUser resolves the caller to a player, two ways:
+//
+//   - A Google sign-in: a verified token's UID is mapped to a user row. A valid token with
+//     no row gets 403 profile_required, so the app can send them to onboarding.
+//   - A guest: the X-Username header alone (SPEC rule 22), for accounts nobody has secured
+//     with Google. It is not secure by design; linking Google is what secures a name.
+//
+// A request carrying an Authorization header is always judged by the token, never by
+// falling back to the header.
 func (h *Game) requireUser(c *gin.Context) {
-	if h.devAuth && c.GetHeader(usernameHeader) != "" {
-		h.requireDevUser(c)
+	if c.GetHeader("Authorization") == "" && c.GetHeader(usernameHeader) != "" {
+		h.requireGuest(c)
 		return
 	}
 	if !h.verifyIdentity(c) {
@@ -110,20 +109,23 @@ func (h *Game) requireUser(c *gin.Context) {
 	c.Next()
 }
 
-// requireDevUser is the old identification by X-Username (SPEC rule 22), kept for
-// dev mode only.
-func (h *Game) requireDevUser(c *gin.Context) {
+// requireGuest identifies a username-only player. A secured account is refused: whoever
+// types the name is no longer enough.
+func (h *Game) requireGuest(c *gin.Context) {
 	username, ok := normalizeUsername(c.GetHeader(usernameHeader))
 	if !ok {
 		abort(c, http.StatusUnauthorized, "unauthorized", "Sign in first: the X-Username header is required.")
 		return
 	}
-	user, err := h.repo.FindUser(c.Request.Context(), username)
-	if errors.Is(err, store.ErrNotFound) {
+	user, err := h.repo.FindGuestUser(c.Request.Context(), username)
+	switch {
+	case errors.Is(err, store.ErrNotFound):
 		abort(c, http.StatusUnauthorized, "unauthorized", "Unknown user. Sign in first.")
 		return
-	}
-	if err != nil {
+	case errors.Is(err, store.ErrAlreadyClaimed):
+		abort(c, http.StatusUnauthorized, "account_secured", "This username is protected. Sign in with Google to play it.")
+		return
+	case err != nil:
 		abortErr(c, err)
 		return
 	}

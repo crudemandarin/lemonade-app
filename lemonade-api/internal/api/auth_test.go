@@ -123,49 +123,105 @@ func TestBearerSchemeIsCaseInsensitive(t *testing.T) {
 	}
 }
 
-func TestDevHeaderIsRefusedInFirebaseMode(t *testing.T) {
+// guest sends a request identified only by a username, as before Google sign-in.
+func (e *authEnv) guest(method, path, username string, body any) *httptest.ResponseRecorder {
+	e.t.Helper()
+	var buf bytes.Buffer
+	if body != nil {
+		if err := json.NewEncoder(&buf).Encode(body); err != nil {
+			e.t.Fatal(err)
+		}
+	}
+	req := httptest.NewRequest(method, path, &buf)
+	req.Header.Set("Content-Type", "application/json")
+	if username != "" {
+		req.Header.Set("X-Username", username)
+	}
+	rec := httptest.NewRecorder()
+	e.router.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestGuestsPlayWithJustAUsername(t *testing.T) {
 	e := newAuthEnv(t)
-	e.createProfile("tok-a", "alice")
+	rec := e.guest("POST", "/api/login", "", map[string]string{"username": " Guesty "})
+	if rec.Code != 200 || decode[userDTO](t, rec).Username != "guesty" {
+		t.Fatalf("login: %d %s", rec.Code, rec.Body)
+	}
+	// Logging in again resumes the same player.
+	if again := decode[userDTO](t, e.guest("POST", "/api/login", "", map[string]string{"username": "guesty"})); again.ID != decode[userDTO](t, rec).ID {
+		t.Fatalf("second login made a new player: %+v", again)
+	}
+	if rec := e.guest("GET", "/api/game", "guesty", nil); rec.Code != 200 {
+		t.Fatalf("guest game: %d %s", rec.Code, rec.Body)
+	}
+	e.wantError(e.guest("GET", "/api/game", "", nil), 401, "unauthorized")
+	e.wantError(e.guest("GET", "/api/game", "nobody", nil), 401, "unauthorized")
+}
+
+func TestLinkingGoogleSecuresTheAccount(t *testing.T) {
+	e := newAuthEnv(t)
+	e.guest("POST", "/api/login", "", map[string]string{"username": "guesty"})
+	e.guest("POST", "/api/game/end-day", "guesty", nil)
+
+	rec := e.do("POST", "/api/me/claim", "Bearer tok-a", map[string]string{"username": "guesty"})
+	if rec.Code != 200 {
+		t.Fatalf("link: %d %s", rec.Code, rec.Body)
+	}
+	// Progress carried over, and the token now identifies the player.
+	if v := decode[gameViewDTO](t, e.do("GET", "/api/game", "Bearer tok-a", nil)); v.Day != 2 {
+		t.Fatalf("day = %d, want 2", v.Day)
+	}
+	// The bare username no longer works: no game, and no logging in as them either.
+	e.wantError(e.guest("GET", "/api/game", "guesty", nil), 401, "account_secured")
+	e.wantError(e.guest("POST", "/api/game/end-day", "guesty", nil), 401, "account_secured")
+	e.wantError(e.guest("POST", "/api/login", "", map[string]string{"username": "guesty"}), 409, "account_secured")
+	// A profile created through Google is secured from the start.
+	e.createProfile("tok-b", "bob")
+	e.wantError(e.guest("GET", "/api/game", "bob", nil), 401, "account_secured")
+}
+
+func TestABearerTokenIsNeverIgnored(t *testing.T) {
+	e := newAuthEnv(t)
+	e.guest("POST", "/api/login", "", map[string]string{"username": "guesty"})
+	// A bad token does not fall back to a username header that also came along.
 	req := httptest.NewRequest("GET", "/api/game", nil)
-	req.Header.Set("X-Username", "alice")
+	req.Header.Set("Authorization", "Bearer nope")
+	req.Header.Set("X-Username", "guesty")
 	rec := httptest.NewRecorder()
 	e.router.ServeHTTP(rec, req)
 	e.wantError(rec, 401, "unauthorized")
-	// And /api/login does not exist at all.
-	if rec := e.do("POST", "/api/login", "", map[string]string{"username": "alice"}); rec.Code != http.StatusNotFound {
-		t.Fatalf("/api/login status = %d, want 404", rec.Code)
-	}
-}
-
-func TestDevModeKeepsUsernameHeaderAndLogin(t *testing.T) {
-	e := newAuthEnv(t, WithDevAuth())
-	if rec := e.do("POST", "/api/login", "", map[string]string{"username": "devuser"}); rec.Code != 200 {
-		t.Fatalf("login: %d %s", rec.Code, rec.Body)
-	}
-	req := httptest.NewRequest("GET", "/api/game", nil)
-	req.Header.Set("X-Username", "devuser")
-	rec := httptest.NewRecorder()
+	// A good token wins over the header.
+	req = httptest.NewRequest("GET", "/api/game", nil)
+	req.Header.Set("Authorization", "Bearer tok-b")
+	req.Header.Set("X-Username", "guesty")
+	rec = httptest.NewRecorder()
 	e.router.ServeHTTP(rec, req)
-	if rec.Code != 200 {
-		t.Fatalf("X-Username in dev mode: %d %s", rec.Code, rec.Body)
-	}
-	// A bearer token still works in dev mode.
-	e.createProfile("tok-a", "alice")
-	if rec := e.do("GET", "/api/game", "Bearer tok-a", nil); rec.Code != 200 {
-		t.Fatalf("bearer in dev mode: %d", rec.Code)
-	}
+	e.wantError(rec, 403, "profile_required")
 }
 
-func TestNoVerifierMeansNobodyGetsIn(t *testing.T) {
+func TestWithoutFirebaseGuestsStillPlay(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	NewGame(store.NewMemory(), domain.DefaultConfig(), nil).Register(r)
-	req := httptest.NewRequest("GET", "/api/game", nil)
-	req.Header.Set("Authorization", "Bearer tok-a")
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
-	if rec.Code != 401 {
-		t.Fatalf("status = %d, want 401", rec.Code)
+	do := func(method, path string, hdr map[string]string, body string) int {
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		for k, v := range hdr {
+			req.Header.Set(k, v)
+		}
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if code := do("POST", "/api/login", nil, `{"username":"guesty"}`); code != 200 {
+		t.Fatalf("login = %d", code)
+	}
+	if code := do("GET", "/api/game", map[string]string{"X-Username": "guesty"}, ""); code != 200 {
+		t.Fatalf("game = %d", code)
+	}
+	if code := do("GET", "/api/game", map[string]string{"Authorization": "Bearer tok-a"}, ""); code != 401 {
+		t.Fatalf("a bearer token with no verifier = %d, want 401", code)
 	}
 }
 

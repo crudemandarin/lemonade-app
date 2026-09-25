@@ -59,6 +59,11 @@ type Repository interface {
 	// CreateUserWithGame creates a user and their first game atomically.
 	CreateUserWithGame(ctx context.Context, username string, game domain.Game) (domain.User, error)
 
+	// FindGuestUser returns the user a bare username identifies: ErrNotFound if there is
+	// none, ErrAlreadyClaimed if the account is secured with Google (then only a token
+	// identifies it). Username-only play is for accounts nobody has secured.
+	FindGuestUser(ctx context.Context, username string) (domain.User, error)
+
 	// FindUserByUID returns the user linked to this Firebase UID, or ErrNotFound.
 	// An empty uid never matches (legacy users have none).
 	FindUserByUID(ctx context.Context, uid string) (domain.User, error)

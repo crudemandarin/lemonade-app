@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 )
 
@@ -43,43 +42,6 @@ func (id Identity) Acceptable() error {
 // TokenVerifier turns a bearer token into an Identity.
 type TokenVerifier interface {
 	Verify(ctx context.Context, idToken string) (Identity, error)
-}
-
-// Mode selects how requests are authenticated.
-type Mode string
-
-const (
-	// ModeFirebase (the default) accepts Firebase ID tokens only.
-	ModeFirebase Mode = "firebase"
-	// ModeDev also accepts the old X-Username header and keeps POST /api/login,
-	// for fast local loops and tests. Refused in production.
-	ModeDev Mode = "dev"
-)
-
-// Config is the auth part of the process environment.
-type Config struct {
-	Mode              Mode
-	FirebaseProjectID string
-	AppEnv            string // APP_ENV
-	OnCloudRun        bool   // K_SERVICE is set
-}
-
-// Validate refuses configurations that would be unsafe or unusable. Startup must
-// fail on error.
-func (c Config) Validate() error {
-	switch c.Mode {
-	case "", ModeFirebase:
-		if c.FirebaseProjectID == "" {
-			return errors.New("AUTH_MODE=firebase needs FIREBASE_PROJECT_ID")
-		}
-	case ModeDev:
-		if c.OnCloudRun || strings.EqualFold(c.AppEnv, "production") {
-			return errors.New("AUTH_MODE=dev is refused in production (Cloud Run or APP_ENV=production)")
-		}
-	default:
-		return fmt.Errorf("AUTH_MODE must be %q or %q, got %q", ModeFirebase, ModeDev, c.Mode)
-	}
-	return nil
 }
 
 // Fake is a TokenVerifier for tests: tokens are registered up front.

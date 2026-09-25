@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, firstValueFrom } from 'rxjs';
+import { Observable, firstValueFrom, from } from 'rxjs';
 
 import { apiErrorMessage } from './api-error';
 import { DayReport, FacilityType, GameView, ReportSummary, Resource } from './api.models';
@@ -27,6 +27,16 @@ export class GameStore {
   readonly error = this._error.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly isBankrupt = computed(() => this._game()?.status === 'bankrupt');
+
+  /** Username-only play. Resolves false, with `error` set, when it fails (for example a protected name). */
+  async signIn(username: string): Promise<boolean> {
+    const signedIn = await this.run(from(this.auth.guestSignIn(username)));
+    if (signedIn === undefined) {
+      return false;
+    }
+    this._game.set(null);
+    return true;
+  }
 
   /** Signs out of Firebase and forgets everything held for this player. */
   signOut(): void {

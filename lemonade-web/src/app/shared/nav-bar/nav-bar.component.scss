@@ -38,11 +38,28 @@
   font-weight: 500;
 }
 
+.secured {
+  padding: 0 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
 a.btn {
   text-decoration: none;
 }
 
+.wide-only {
+  display: inline;
+}
+
 @media (max-width: 480px) {
+  .wide-only,
+  .user app-icon {
+    display: none;
+  }
+
   .nav {
     gap: 0.5rem;
     padding: 0 0.75rem;
@@ -55,6 +72,16 @@ a.btn {
 
   .user {
     min-width: 0;
+  }
+
+  .secure-link,
+  .secured {
+    padding-inline: 0.5rem;
+  }
+
+  /* Signed in, the account controls need the room: keep the logo, drop the wordmark. */
+  .signed-in .brand-text {
+    display: none;
   }
 
   .name {

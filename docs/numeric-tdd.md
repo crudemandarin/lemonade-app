@@ -1,6 +1,6 @@
 # Technical Design: Lemonade Tycoon
 
-Turn-based lemonade business game. One loop: a **day**. Score = capital. Angular frontend, Gin (Go) backend, PostgreSQL. Sign in with Google (Firebase Auth), installable PWA.
+Turn-based lemonade business game. One loop: a **day**. Score = capital. Angular frontend, Gin (Go) backend, PostgreSQL. Username-only play with optional Google sign-in (Firebase Auth) to secure an account, installable PWA.
 
 Sources: `docs/claude/` (SPEC, DESIGN, PLAN, DECISIONS, UX-MOCKS). Where they conflict, DECISIONS and the UX addendum win.
 
@@ -20,7 +20,7 @@ Sources: `docs/claude/` (SPEC, DESIGN, PLAN, DECISIONS, UX-MOCKS). Where they co
 ## 1. Scope
 
 **In**
-- Sign in with Google, buy/sell of five resources at market bid/ask, expanding and upgrading two facility types
+- Username login (Google optional, to secure it), buy/sell of five resources at market bid/ask, expanding and upgrading two facility types
 - End day with a report, bankruptcy, seeded price walk plus random events
 - PWA shell (no offline play)
 - README that installs, runs, and tests from a fresh clone (with the tuning knobs)
@@ -185,15 +185,15 @@ Two more tables hold what must outlive a game row. `day_reports(run_id, day, pay
 
 JSON, camelCase. The contract is `lemonade-web/src/app/core/api.models.ts`.
 
-- `Authorization: Bearer <Firebase ID token>` on all game, score and run routes. The API verifies signature, issuer, audience and expiry (Admin SDK, no per-request network call), requires provider `google.com` and a verified email, and maps the UID to a user. Missing or invalid → 401 `unauthorized` (the UI refreshes the token once, then signs out); valid token with no player → 403 `profile_required` (the UI goes to onboarding). `AUTH_MODE=dev` also accepts `X-Username` and mounts `POST /api/login`; startup fails if it is set on Cloud Run or `APP_ENV=production`, or if `AUTH_MODE=firebase` has no `FIREBASE_PROJECT_ID`.
+- Two ways to identify the caller on game, score and run routes. **Guest:** `X-Username`, accepted only for accounts with no Firebase UID (unknown or missing → 401 `unauthorized`; a secured account → 401 `account_secured`, and the UI forgets the name and points at Google sign-in). **Google:** `Authorization: Bearer <Firebase ID token>`; the API verifies signature, issuer, audience and expiry (Admin SDK, no per-request network call), requires provider `google.com` and a verified email, and maps the UID to a user. A request with an Authorization header is judged by the token alone. Invalid → 401 `unauthorized` (the UI refreshes the token once, then signs out); valid token with no player → 403 `profile_required` (the UI goes to onboarding). Google is off when `FIREBASE_PROJECT_ID` is unset.
 - Errors: `{"error": "<code>", "message": "..."}`. Status 400 for `invalid_*` codes; 409 for `run_active`, `insufficient_funds`, `insufficient_stock`, `capacity_exceeded`, `max_level`, `max_quantity`, `game_over`.
 
 | Route | Purpose |
 |---|---|
 | `GET /api/me` | the caller's `{id, username}`, or 403 `profile_required` |
 | `POST /api/me/username {username}` | create the player and their first game (3–40 ASCII chars, case-insensitive); 409 `username_taken`, `already_linked` |
-| `POST /api/me/claim {username}` | link an existing legacy username (conditional update, so two racing claims cannot both win); 404 `unknown_username`, 409 `already_claimed`, `already_linked`, 429 `rate_limited` (5 per 10 minutes per UID, in memory) |
-| `POST /api/login {username}` | **dev mode only**: create-or-get user |
+| `POST /api/me/claim {username}` | secure an existing username by linking the caller's Google account (also how a guest secures theirs) (conditional update, so two racing claims cannot both win); 404 `unknown_username`, 409 `already_claimed`, `already_linked`, 429 `rate_limited` (5 per 10 minutes per UID, in memory) |
+| `POST /api/login {username}` | guest login: create-or-get user (+ new game); 409 `account_secured` if the name is secured with Google |
 | `GET /api/game` · `POST /api/game/new` | view · fresh game |
 | `POST /api/game/buy \| sell {resource, qty, clamp?}` | trade at ask · bid; with `clamp`, trades as many as cash, space or stock allow (up to `qty`) instead of failing |
 | `POST /api/game/facilities/warehouse/expand {resource}` · `.../production/expand` | add one building |
@@ -239,7 +239,7 @@ The view is display-ready (tier names, bid/ask, capacities, costs, `upgrade: nul
 | Whole dollars | No cents handling | Bulk-sized prices |
 | Shared level per type | Simple upgrades | No Barn-for-lemons; upgrade cost grows with expansion |
 | Liquidation grace | A player can't sit at $0 holding stock | Harsher than "any inventory survives" |
-| Google sign-in (Firebase) | Real accounts, no passwords to store | Needs a Firebase project; legacy names are claimed first come, first served |
+| Optional Google sign-in (Firebase) | Guests start with just a name; Google secures an account without passwords to store | Guest names are open to anyone until secured; securing is first come, first served |
 | PWA shell only | No stale-state bugs | No offline play |
 
 Open question: the brief mentioned three facility types but named two. They are modeled as two; a third is another type with its own level and tiers.
@@ -330,13 +330,23 @@ Signed in:  | [logo] Lemonade Tycoon                       (user) lemonjoe [Log 
 |                   [ Play game (primary) ]  [ Sign in ]                 |
 ```
 
-**Sign in** (one button; Google popup, or redirect in an installed PWA; then `/game`, or onboarding for a new account)
+**Sign in** (username form is primary; Google is the quieter option, hidden when Firebase is not configured)
 ```
-|                    Sign in                                             |
-|                    [ Continue with Google (primary) ]                 |
+|                    Username                                            |
+|                    [ lemonjoe                    ]                     |
+|                    [ Continue (primary)          ]                     |
+|                    New name? We'll start a game for it.                |
+|                    Protected your username with Google?                |
+|                    [ Sign in with Google ]                             |
 ```
 
-**Choose a username** (`/signin/username`; "I already have a username" switches to linking an old one)
+**Secure your account** (`/secure`, guests only; the nav shows "Secure account" to a guest and a "Secured" badge once linked)
+```
+|                    Right now anyone who types lemonjoe can play as you.|
+|                    [ Link Google account (primary) ]   Not now        |
+```
+
+**Choose a username** (`/signin/username`, for a new Google account; "I already have a username" links an existing one)
 ```
 |                    Choose a username                                   |
 |                    [ lemonjoe                    ]                     |

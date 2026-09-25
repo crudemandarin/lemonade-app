@@ -34,7 +34,7 @@ In Cloud Run, `web`'s nginx proxies `/api/*` to the `api` service URL (the `API_
 
 ## Sign in with Google (Firebase Auth)
 
-Players sign in with Google through Firebase Authentication; the API verifies the Firebase ID token on every request. Terraform enables the two APIs and passes the settings to Cloud Run, but a few Firebase steps cannot be done cleanly in Terraform. **Do them once per GCP project, in this order, before merging the change to `main`** (the deploy action ships `api` and `web` together, and the new `api` refuses the old username header):
+Signing in with Google is **optional**: everyone can play on a username alone, and Google (through Firebase Authentication) is how a player secures an account. Without any of this setup the app still works for guests and simply hides the Google buttons. To turn Google on, Terraform enables the two APIs and passes the settings to Cloud Run, but a few Firebase steps cannot be done cleanly in Terraform. **Do them once per GCP project, in this order:**
 
 1. **Add Firebase to the project.** Firebase console → Add project → choose the existing GCP project (`lemonade-app-dev` by default). Skip Google Analytics.
 2. **Register a web app.** Project settings → Your apps → Add app → Web. Note `apiKey` and `appId` from the config snippet (public identifiers, not secrets).
@@ -53,14 +53,14 @@ Players sign in with Google through Firebase Authentication; the API verifies th
    firebase_app_id  = "1:1234567890:web:abc123"
    ```
 
-8. `./deploy/scripts/bootstrap.sh` (enables `identitytoolkit.googleapis.com` and `firebase.googleapis.com`, sets `AUTH_MODE=firebase` and `FIREBASE_PROJECT_ID` on `api`, and the `FIREBASE_*` variables on `web`). No service-account key file is needed: `api` only verifies tokens against Google's public keys.
+8. `./deploy/scripts/bootstrap.sh` (enables `identitytoolkit.googleapis.com` and `firebase.googleapis.com`, sets `FIREBASE_PROJECT_ID` on `api`, and the `FIREBASE_*` variables on `web`). No service-account key file is needed: `api` only verifies tokens against Google's public keys.
 
 How it fits together:
 
 - `web`'s nginx renders `/config/firebase-config.json` from the `FIREBASE_*` environment variables at request time (`Cache-Control: no-store`), so one image works in any project. `authDomain` is the web host itself (unless overridden), and nginx proxies `/__/auth/` and `/__/firebase/` to `<project>.firebaseapp.com`, which keeps redirect sign-in (used in the installed PWA) same-origin.
-- `api` starts only if `AUTH_MODE=firebase` has a `FIREBASE_PROJECT_ID`, and refuses `AUTH_MODE=dev` on Cloud Run, so the `X-Username` bypass cannot be switched on in production.
-- **Cutover:** after the deploy, old username-only clients get 401 and land on the sign-in page. Existing players sign in with Google once and choose "I already have a username" to link their old account, keeping runs and scores. First come, first served: see Known limitations in the root README.
-- **Smoke test after deploy:** sign in with a real Google account on the real domain, choose a username, play a day, reload, sign out, and repeat inside the installed PWA (desktop Chrome).
+- `api` verifies Firebase tokens when `FIREBASE_PROJECT_ID` is set; unset, it runs guests-only.
+- **Rollout:** nothing breaks for existing players. Username play keeps working; a player who wants a protected account opens "Secure account" and links Google. Until then their name is open to anyone who types it (see Known limitations in the root README).
+- **Smoke test after deploy:** sign in with a real Google account on the real domain, play as a guest, use Secure account to link Google, reload, log out, confirm the bare username is refused and Google signs you back in, and repeat inside the installed PWA (desktop Chrome).
 
 ## Custom domains
 

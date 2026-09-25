@@ -76,10 +76,11 @@ Time estimates are rough and cumulative.
   - [ ] Phase 3: retune; Phase 4: UX, docs, verification
   - Phase 2 (perishable lemonade) is out of scope by decision.
 
-- [ ] **Slice 15: Sign in with Google (see `HANDOFF-AUTH.md`; DECISIONS 34)**
-  - [x] 15a: backend: token verifier, `AUTH_MODE` guard, `/api/me` profile and claim endpoints, store methods
+- [ ] **Slice 15: Sign in with Google (see `HANDOFF-AUTH.md`; DECISIONS 34, 35)**
+  - [x] 15a: backend: token verifier, `/api/me` profile and claim endpoints, store methods
   - [x] 15b: frontend: Firebase auth service, bearer interceptor, guards, sign-in and username pages, runtime config
   - [x] 15c: infra (APIs, env vars), emulator in Compose, docs
+  - [x] 15d: Google made optional: username-only play stays, linking Google secures an account (DECISIONS 35)
   - [ ] Real-Google smoke test on the deployed domain and in the installed PWA (needs the Firebase console runbook in `deploy/README.md`)
 
 ## Hold points

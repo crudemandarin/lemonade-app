@@ -19,26 +19,16 @@ func main() {
 		log.Fatalf("init secrets: %v", err)
 	}
 
-	authCfg := auth.Config{
-		Mode:              auth.Mode(secrets.AuthMode),
-		FirebaseProjectID: secrets.FirebaseProjectID,
-		AppEnv:            secrets.AppEnv,
-		OnCloudRun:        secrets.OnCloudRun,
-	}
-	if err := authCfg.Validate(); err != nil {
-		log.Fatalf("auth config: %v", err)
-	}
+	// Google sign-in is optional: without a Firebase project only username play works.
 	var opts []api.Option
-	if authCfg.Mode == auth.ModeDev {
-		log.Print("WARNING: AUTH_MODE=dev, the X-Username header is accepted. Never use this in production.")
-		opts = append(opts, api.WithDevAuth())
-	}
-	if authCfg.FirebaseProjectID != "" {
-		verifier, err := auth.NewFirebase(context.Background(), authCfg.FirebaseProjectID)
+	if secrets.FirebaseProjectID != "" {
+		verifier, err := auth.NewFirebase(context.Background(), secrets.FirebaseProjectID)
 		if err != nil {
 			log.Fatalf("init firebase auth: %v", err)
 		}
 		opts = append(opts, api.WithVerifier(verifier))
+	} else {
+		log.Print("FIREBASE_PROJECT_ID is not set: Google sign-in is off, players can only use a username")
 	}
 
 	db := &libraries.Database{}

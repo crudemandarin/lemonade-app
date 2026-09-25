@@ -1,6 +1,11 @@
 <app-event-backdrop [events]="events()" />
 <header class="top">
-  <app-nav-bar [username]="username()" (logOut)="logOut()" />
+  <app-nav-bar
+    [username]="username()"
+    [secured]="auth.secured()"
+    [canSecure]="auth.googleAvailable"
+    (logOut)="logOut()"
+  />
   <app-offline-banner />
 </header>
 <main class="page">

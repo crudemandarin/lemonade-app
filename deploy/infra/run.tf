@@ -57,12 +57,8 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "TZ"
         value = "America/Denver"
       }
-      # Verify Firebase ID tokens for this project. The api refuses to start with
-      # AUTH_MODE=dev on Cloud Run, so the X-Username bypass cannot be enabled here.
-      env {
-        name  = "AUTH_MODE"
-        value = "firebase"
-      }
+      # Optional Google sign-in: verify Firebase ID tokens for this project. Without it players
+      # could still play on a username alone.
       env {
         name  = "FIREBASE_PROJECT_ID"
         value = var.project_id

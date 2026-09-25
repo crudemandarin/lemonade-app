@@ -27,7 +27,7 @@ func newEnv(t *testing.T) *testEnv {
 	repo := store.NewMemory()
 	cfg := domain.DefaultConfig()
 	router := gin.New()
-	NewGame(repo, cfg, func() int64 { return 42 }, WithDevAuth()).Register(router)
+	NewGame(repo, cfg, func() int64 { return 42 }).Register(router)
 	return &testEnv{t: t, router: router, repo: repo, cfg: cfg}
 }
 

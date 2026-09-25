@@ -188,6 +188,21 @@ func (p *Postgres) CreateUserWithGame(ctx context.Context, username string, game
 	return user, err
 }
 
+func (p *Postgres) FindGuestUser(ctx context.Context, username string) (domain.User, error) {
+	var row userRow
+	err := p.db.WithContext(ctx).Where("username = ?", username).First(&row).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.User{}, ErrNotFound
+	}
+	if err != nil {
+		return domain.User{}, err
+	}
+	if row.FirebaseUID != nil {
+		return domain.User{}, ErrAlreadyClaimed
+	}
+	return domain.User{ID: row.ID, Username: row.Username}, nil
+}
+
 func (p *Postgres) FindUserByUID(ctx context.Context, uid string) (domain.User, error) {
 	if uid == "" {
 		return domain.User{}, ErrNotFound
