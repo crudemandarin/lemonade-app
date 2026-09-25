@@ -1,6 +1,6 @@
 <app-card title="Market and inventory">
   <fieldset class="amounts" role="radiogroup">
-    <legend>Buy or sell amount <app-help-link term="bulk" label="the buy or sell amount" /></legend>
+    <legend>Buy / Sell <app-help-link term="bulk" label="the buy or sell amount" /></legend>
     @for (a of amounts; track a) {
       <label [class.selected]="amount() === a">
         <input
