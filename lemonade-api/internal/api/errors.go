@@ -19,6 +19,11 @@ func abort(c *gin.Context, status int, code, message string) {
 
 // abortErr maps a domain or store error to a status, code, and user-facing message.
 func abortErr(c *gin.Context, err error) {
+	var refuses *domain.RivalRefusesError
+	if errors.As(err, &refuses) {
+		abort(c, http.StatusConflict, "rival_refuses", fmt.Sprintf("This rival refuses a friendly buyout until you hold %.0f%% of its territory. A hostile takeover costs more.", refuses.NeedShare))
+		return
+	}
 	switch {
 	case errors.Is(err, domain.ErrInvalidQuantity):
 		abort(c, http.StatusBadRequest, "invalid_quantity", "Quantity must be a positive whole number.")
@@ -48,6 +53,18 @@ func abortErr(c *gin.Context, err error) {
 		abort(c, http.StatusConflict, "upgrade_locked", lockMessage(err))
 	case errors.Is(err, domain.ErrMaxLevel):
 		abort(c, http.StatusConflict, "max_level", "Already at the maximum level.")
+	case errors.Is(err, domain.ErrTerritoryLocked), errors.Is(err, domain.ErrNotEntered):
+		abort(c, http.StatusConflict, "territory_locked", "Enter the previous territory first.")
+	case errors.Is(err, domain.ErrAlreadyEntered):
+		abort(c, http.StatusConflict, "already_entered", "You are already in this territory.")
+	case errors.Is(err, domain.ErrUnknownTerritory), errors.Is(err, domain.ErrUnknownRival):
+		abort(c, http.StatusNotFound, "not_found", "No such territory or rival.")
+	case errors.Is(err, domain.ErrRivalGone):
+		abort(c, http.StatusConflict, "rival_gone", "That rival is no longer in business.")
+	case errors.Is(err, domain.ErrInvalidCampaign):
+		abort(c, http.StatusBadRequest, "invalid_campaign", "Unknown campaign level.")
+	case errors.Is(err, domain.ErrCampaignRunning):
+		abort(c, http.StatusConflict, "campaign_running", "A campaign is already running there.")
 	case errors.Is(err, store.ErrNotFound):
 		abort(c, http.StatusNotFound, "not_found", "No game found for this user.")
 	default:

@@ -30,6 +30,8 @@ type resourceViewDTO struct {
 	// BuyImpactPercent and SellImpactPercent are how far the next case is from the plain quote.
 	BuyImpactPercent  int `json:"buyImpactPercent"`
 	SellImpactPercent int `json:"sellImpactPercent"`
+	// Reach is the depth the market gives this product from every territory held.
+	Reach int `json:"reach"`
 	// Trade prices the bulk-bar amounts (1, 10, 50, 100, all) with impact, clamped to cash, space and stock.
 	Trade tradeLadderDTO `json:"trade"`
 	// AvgCost is the average paid per case held (for lemonade, the cost to make one); 0 when none.
@@ -264,6 +266,11 @@ type gameViewDTO struct {
 	Features     []string      `json:"features"`
 	IceKeepCases int           `json:"iceKeepCases"`
 	Forecast     []forecastDTO `json:"forecast"`
+	// Era is the highest territory entered (1 to 5); NextGoal is what to work toward next
+	// (null when there is nothing left). The heavy detail is GET /api/game/empire.
+	Era      int      `json:"era"`
+	EraName  string   `json:"eraName"`
+	NextGoal *goalDTO `json:"nextGoal"`
 }
 
 type forecastDTO struct {
@@ -356,6 +363,7 @@ type projectionDTO struct {
 }
 
 func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
+	domain.SeedEmpire(&g, cfg)
 	quotes := domain.Quotes(g, cfg)
 
 	resources := make([]resourceViewDTO, 0, len(cfg.Commodities))
@@ -374,6 +382,7 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 			SellDepthLeft:     domain.FreeDepthLeft(g, cfg, r, g.SellPressure[r]),
 			BuyImpactPercent:  impactPercent(domain.MarginalAsk(g, cfg, r), q.Ask),
 			SellImpactPercent: -impactPercent(domain.MarginalBid(g, cfg, r), q.Bid),
+			Reach:             domain.Reach(g, cfg, r),
 			Trade:             toTradeLadder(g, cfg, r),
 			History:           append([]int{}, m.History...),
 			AvgCost:           domain.AvgCost(g, r),
@@ -405,6 +414,9 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 		Features:     append([]string{}, domain.Features(g, cfg)...),
 		IceKeepCases: domain.IceKeep(g, cfg),
 		Forecast:     toForecastDTOs(domain.Forecast(g, cfg)),
+		Era:          domain.Era(g, cfg),
+		EraName:      domain.EraName(g, cfg),
+		NextGoal:     toGoal(g, cfg),
 	}
 }
 
@@ -517,15 +529,15 @@ func toWarehouseView(g domain.Game, cfg domain.Config) warehouseViewDTO {
 	return warehouseViewDTO{
 		TierName:           tier.Name,
 		Level:              g.WarehouseLevel,
-		MaxLevel:           cfg.MaxLevel,
+		MaxLevel:           domain.LevelCap(g, cfg),
 		Buildings:          buildings,
-		MaxCount:           cfg.MaxQuantity,
+		MaxCount:           domain.BuildingCap(g, cfg),
 		SizePerBuilding:    tier.Size,
 		ExpandCost:         tier.BuildCost,
 		UpkeepPerDay:       domain.WarehouseUpkeep(g, cfg),
-		Upgrade:            upgradeOption(cfg.WarehouseTiers, g.WarehouseLevel, cfg.MaxLevel, buildings),
-		MarketDepth:        domain.FreeDepthAtLevel(cfg, domain.Lemonade, g.WarehouseLevel),
-		UpgradeMarketDepth: upgradeDepth(cfg, g.WarehouseLevel),
+		Upgrade:            upgradeOption(cfg.WarehouseTiers, g.WarehouseLevel, domain.LevelCap(g, cfg), buildings),
+		MarketDepth:        domain.Reach(g, cfg, domain.Lemonade),
+		UpgradeMarketDepth: upgradeDepth(g, cfg),
 		Resources:          resources,
 	}
 }
@@ -535,23 +547,23 @@ func toProductionView(g domain.Game, cfg domain.Config) productionViewDTO {
 	return productionViewDTO{
 		TierName:        tier.Name,
 		Level:           g.ProductionLevel,
-		MaxLevel:        cfg.MaxLevel,
+		MaxLevel:        domain.LevelCap(g, cfg),
 		Buildings:       g.ProductionQty,
-		MaxCount:        cfg.MaxQuantity,
+		MaxCount:        domain.BuildingCap(g, cfg),
 		SizePerBuilding: tier.Size,
 		ExpandCost:      tier.BuildCost,
 		UpkeepPerDay:    domain.ProductionUpkeep(g, cfg),
-		Upgrade:         upgradeOption(cfg.ProductionTiers, g.ProductionLevel, cfg.MaxLevel, g.ProductionQty),
+		Upgrade:         upgradeOption(cfg.ProductionTiers, g.ProductionLevel, domain.LevelCap(g, cfg), g.ProductionQty),
 		RatePerDay:      domain.ProductionCapacity(g, cfg),
 		saleDTO:         toSale(g, cfg, domain.Production, ""),
 	}
 }
 
-func upgradeDepth(cfg domain.Config, level int) int {
-	if level >= cfg.MaxLevel {
+func upgradeDepth(g domain.Game, cfg domain.Config) int {
+	if g.WarehouseLevel >= domain.LevelCap(g, cfg) {
 		return 0
 	}
-	return domain.FreeDepthAtLevel(cfg, domain.Lemonade, level+1)
+	return domain.ReachAtLevel(g, cfg, domain.Lemonade, g.WarehouseLevel+1)
 }
 
 // upgradeOption describes the next level, or nil at max level.

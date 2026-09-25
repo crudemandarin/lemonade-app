@@ -248,3 +248,64 @@ func AcquisitionValue(g Game, cfg Config) int {
 	}
 	return int(cfg.ResaleRate * float64(paid))
 }
+
+// Reach is the free depth of r from every territory held: what the market panel and the
+// empire strip call the player's reach.
+func Reach(g Game, cfg Config, r Resource) int { return reach(g, cfg, r) }
+
+// ReachAtLevel is Reach if the warehouses were at the given level, to preview an upgrade.
+func ReachAtLevel(g Game, cfg Config, r Resource, level int) int {
+	g.WarehouseLevel = level
+	return reach(g, cfg, r)
+}
+
+// LevelCap is the highest facility tier the player may reach now (see levelCap).
+func LevelCap(g Game, cfg Config) int { return levelCap(g, cfg) }
+
+// BuildingCap is how many buildings of each type the player may own (see buildingCap).
+func BuildingCap(g Game, cfg Config) int { return buildingCap(g, cfg) }
+
+// Goal is the next thing to work toward, for the game page's empire strip.
+type Goal struct {
+	// Kind is "enter" (a territory), "buyout" (the cheapest rival left), or "" (done).
+	Kind string
+	Key  string
+	Name string
+	Cost int
+}
+
+// NextGoal is the next territory to enter, or once all are entered, the cheapest rival
+// still standing.
+func NextGoal(g Game, cfg Config) Goal {
+	for _, d := range cfg.Territories {
+		if !g.Territories[d.Key].Entered {
+			return Goal{Kind: "enter", Key: d.Key, Name: d.Name, Cost: d.EntryCost}
+		}
+	}
+	best := Goal{}
+	for _, d := range cfg.Rivals {
+		r, ok := g.Rivals[d.Key]
+		if !ok || r.Status != RivalActive {
+			continue
+		}
+		if price, _ := BuyoutPrice(g, cfg, d.Key, false); best.Kind == "" || price < best.Cost {
+			best = Goal{Kind: "buyout", Key: d.Key, Name: d.Name, Cost: price}
+		}
+	}
+	return best
+}
+
+// EraName is the name of the highest territory entered.
+func EraName(g Game, cfg Config) string {
+	name := cfg.Territories[0].Name
+	for _, d := range cfg.Territories {
+		if g.Territories[d.Key].Entered {
+			name = d.Name
+		}
+	}
+	return name
+}
+
+// TelegraphVisibleDays is how far ahead the player sees a rival's announced move: one
+// day, more with the rival intel upgrade.
+func TelegraphVisibleDays(g Game, cfg Config) int { return 1 }
