@@ -32,11 +32,11 @@ describe('EventsBannerComponent', () => {
     );
   });
 
-  it('says "1 more day" for the last day and keeps the description as a tooltip', () => {
+  it('says today is the last day, and keeps the description as a tooltip', () => {
     const el = render([{ ...heatWave, multipliers: { lemonade: 1.35 }, daysLeft: 1 }]);
     const line = el.querySelector('.event')!;
-    expect(line.textContent).toContain('for 1 more day');
-    expect(line.textContent).not.toContain('1 more days');
+    expect(line.textContent).toContain('lemonade x1.35, today is the last day');
+    expect(line.textContent).not.toContain('more day');
     expect(line.getAttribute('title')).toBe('Scorching days.');
   });
 
