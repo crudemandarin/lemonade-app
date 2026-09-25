@@ -23,6 +23,8 @@ import (
 //	storage_bonus_pct    Capacity
 //	shelf_life_days      ExtraShelfLife     (read by perishables, Products B)
 //	make                 makeInputs         (start of production)
+//	presence_bonus       presenceBonus      (share contest, rivals.go)
+//	hub_upkeep_discount  HubUpkeep          (empire.go)
 //	unlock, qol          HasUnlock, HasFeature
 
 // effectsOf returns the effects of one kind carried by owned upgrades, in table order.

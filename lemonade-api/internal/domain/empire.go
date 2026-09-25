@@ -234,7 +234,8 @@ func HubUpkeep(g Game, cfg Config) int {
 		}
 	}
 	discount := math.Min(cfg.HubSynergy*float64(max(entered-1, 0)), cfg.HubSynergyMax)
-	return int(math.Round(float64(total) * (1 - discount)))
+	upgrades := math.Min(sumEffects(g, cfg, content.EffHubUpkeepDiscount, ""), 100) / 100
+	return int(math.Round(float64(total) * (1 - discount) * (1 - upgrades)))
 }
 
 // AcquisitionValue is what acquired rivals count for in net worth: ResaleRate times
@@ -308,4 +309,9 @@ func EraName(g Game, cfg Config) string {
 
 // TelegraphVisibleDays is how far ahead the player sees a rival's announced move: one
 // day, more with the rival intel upgrade.
-func TelegraphVisibleDays(g Game, cfg Config) int { return 1 }
+func TelegraphVisibleDays(g Game, cfg Config) int {
+	if HasUnlock(g, cfg, "rival_intel") {
+		return 2
+	}
+	return 1
+}

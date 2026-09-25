@@ -49,6 +49,11 @@ const (
 	EffShelfLife = "shelf_life_days"
 	// EffMake: each night, top up commodity Target by up to Value cases, at Aux dollars a case.
 	EffMake = "make"
+	// EffPresenceBonus: Value percent points more presence in territory Target (a
+	// territory key, or "all") in the share contest with rivals. Owned by Empire.
+	EffPresenceBonus = "presence_bonus"
+	// EffHubUpkeepDiscount: distribution hub upkeep is Value percent lower.
+	EffHubUpkeepDiscount = "hub_upkeep_discount"
 	// EffUnlock: unlocks feature or recipe Target for other systems to check.
 	EffUnlock = "unlock"
 	// EffQoL: turns on a convenience feature (Target) in the app or the day report.
@@ -87,9 +92,8 @@ type UpgradeDef struct {
 	Text string
 }
 
-// Upgrades is the table (late game content catalog, section E). Territory upgrades
-// (signs, billboards, delivery fleet, rival intel) are added by the Empire track,
-// managers by Upgrades stage B.
+// Upgrades is the table (late game content catalog, section E). Managers come with
+// Upgrades stage B.
 var Upgrades = []UpgradeDef{
 	// Freshness and storage
 	{Key: "freezer_1", Name: "Chest freezer", Category: UpFreshness, Cost: 1200, Upkeep: 5, Requires: Requires{Era: 1},
@@ -123,7 +127,23 @@ var Upgrades = []UpgradeDef{
 	{Key: "mascot", Name: "Mascot: Lemmy the Lemon", Category: UpBrand, Cost: 20000, Requires: Requires{Era: 2},
 		Effects: []EffectDef{{Kind: EffEventDamp, Target: "holiday", Value: 1.5}}, Text: "Holidays lift lemonade prices half as much again."},
 
+	// Territory brand (Empire): presence in the share contest with rivals.
+	{Key: "roadside_sign", Name: "Roadside sign", Category: UpBrand, Cost: 800, Requires: Requires{Era: 1},
+		Effects: []EffectDef{{Kind: EffPresenceBonus, Target: "neighborhood", Value: 5}}, Text: "+5% presence in the Neighborhood."},
+	{Key: "billboard", Name: "Billboard", Category: UpBrand, Cost: 12000, Upkeep: 10, Requires: Requires{Era: 2},
+		Effects: []EffectDef{{Kind: EffPresenceBonus, Target: "city", Value: 10}}, Text: "+10% presence in Citrus City."},
+	{Key: "radio_spot", Name: "Radio jingle", Category: UpBrand, Cost: 90000, Upkeep: 80, Requires: Requires{Era: 3},
+		Effects: []EffectDef{{Kind: EffPresenceBonus, Target: "region", Value: 10}, {Kind: EffDepthBonusPct, Target: "lemonade", Value: 5}},
+		Text:    "+10% presence in the Sunbelt Region, and lemonade sells 5% deeper everywhere."},
+	{Key: "tv_campaign", Name: "TV campaign", Category: UpBrand, Cost: 800000, Upkeep: 600, Requires: Requires{Era: 4},
+		Effects: []EffectDef{{Kind: EffPresenceBonus, Target: "nation", Value: 10}}, Text: "+10% presence in the Nation."},
+	{Key: "global_brand", Name: "Global brand", Category: UpBrand, Cost: 6000000, Upkeep: 3000, Requires: Requires{Era: 5},
+		Effects: []EffectDef{{Kind: EffPresenceBonus, Target: "all", Value: 10}, {Kind: EffUnlock, Target: "global_leader"}},
+		Text:    "+10% presence everywhere, and the Global leader goal opens."},
+
 	// Intelligence
+	{Key: "rival_intel", Name: "Rival intel", Category: UpIntel, Cost: 50000, Upkeep: 40, Requires: Requires{Era: 3},
+		Effects: []EffectDef{{Kind: EffUnlock, Target: "rival_intel"}}, Text: "See rivals' moves 2 days ahead."},
 	{Key: "weather_radio", Name: "Weather radio", Category: UpIntel, Cost: 1000, Requires: Requires{Era: 1},
 		Effects: []EffectDef{{Kind: EffForecast, Target: "weather", Value: 1}}, Text: "See tomorrow's weather event a day ahead."},
 	{Key: "farmers_almanac", Name: "Farmer's almanac", Category: UpIntel, Cost: 8000, Requires: Requires{Era: 2},
@@ -145,7 +165,12 @@ var Upgrades = []UpgradeDef{
 	{Key: "insurance", Name: "Business insurance", Category: UpResilience, Cost: 80000, Upkeep: 150, Requires: Requires{Era: 3},
 		Effects: []EffectDef{{Kind: EffEventFloor, Value: 0.9}}, Text: "A bad event never cuts a product price below 90%."},
 
+	{Key: "pr_team", Name: "PR team", Category: UpResilience, Cost: 400000, Upkeep: 250, Requires: Requires{Era: 4},
+		Effects: []EffectDef{{Kind: EffUnlock, Target: "pr_team"}}, Text: "Rival price wars last half as long."},
+
 	// Supply
+	{Key: "delivery_fleet", Name: "Delivery fleet", Category: UpSupply, Cost: 150000, Upkeep: 120, Requires: Requires{Era: 3},
+		Effects: []EffectDef{{Kind: EffHubUpkeepDiscount, Value: 25}}, Text: "Distribution hub upkeep 25% lower."},
 	{Key: "supplier_contract_1", Name: "Supplier contract", Category: UpSupply, Cost: 10000, Requires: Requires{Era: 2},
 		Effects: []EffectDef{{Kind: EffInputDiscountPct, Value: 3}}, Text: "Input prices 3% lower."},
 	{Key: "supplier_contract_2", Name: "Bulk supplier network", Category: UpSupply, Cost: 100000, Requires: Requires{Era: 3, Upgrades: []string{"supplier_contract_1"}},

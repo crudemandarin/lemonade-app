@@ -156,6 +156,18 @@ func checkEffect(t *testing.T, key string, e EffectDef, commodities, recipes, cl
 		if !commodities[e.Target] || e.Value <= 0 || e.Aux < 1 {
 			bad("needs a commodity, cases and a unit cost")
 		}
+	case EffPresenceBonus:
+		known := e.Target == "all"
+		for _, d := range Territories {
+			known = known || d.Key == e.Target
+		}
+		if !known || e.Value <= 0 || e.Value > 50 {
+			bad("needs a territory (or all) and a value up to 50")
+		}
+	case EffHubUpkeepDiscount:
+		if e.Value <= 0 || e.Value >= 100 {
+			bad("needs a value under 100")
+		}
 	case EffUnlock, EffQoL:
 		if e.Target == "" {
 			bad("needs a target")

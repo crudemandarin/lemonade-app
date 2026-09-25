@@ -48,9 +48,11 @@ func presence(g Game, cfg Config, territory string) float64 {
 	return p
 }
 
-// presenceBonus is the brand presence from upgrades. The upgrade framework adds its
-// PresenceBonus effect here; until then it is zero.
-func presenceBonus(g Game, cfg Config, territory string) float64 { return 0 }
+// presenceBonus is the brand presence from upgrades (signs, billboards and the like):
+// the presence_bonus effects that name the territory or "all", as a fraction.
+func presenceBonus(g Game, cfg Config, territory string) float64 {
+	return (sumEffects(g, cfg, content.EffPresenceBonus, territory) + sumEffects(g, cfg, content.EffPresenceBonus, "all")) / 100
+}
 
 // rivalStrength is one rival's pull, by personality, raised while it campaigns.
 func rivalStrength(cfg Config, def content.RivalDef, r RivalState) float64 {
@@ -363,8 +365,13 @@ func fireRivalEvents(g *Game, cfg Config) {
 	}
 }
 
-// priceWarDays is how long a price war lasts; upgrades (the PR team) shorten it.
-func priceWarDays(g Game, cfg Config) int { return cfg.PriceWarDays }
+// priceWarDays is how long a price war lasts: half as long with the PR team.
+func priceWarDays(g Game, cfg Config) int {
+	if HasUnlock(g, cfg, "pr_team") {
+		return max(1, cfg.PriceWarDays/2)
+	}
+	return cfg.PriceWarDays
+}
 
 // supplyFactor scales the depth of an input for the integrated rivals that control
 // it: less while they are active, restored (or better) once the player buys them.
