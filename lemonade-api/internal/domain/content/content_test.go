@@ -162,5 +162,52 @@ func checkEffect(t *testing.T, key string, e EffectDef, commodities, recipes, cl
 		}
 	default:
 		bad("unknown kind")
+func TestTerritoriesAreValid(t *testing.T) {
+	seen := map[string]bool{}
+	for i, d := range Territories {
+		if seen[d.Key] || d.Key == "" || d.Name == "" {
+			t.Errorf("territory %d: needs a unique key and a name", i)
+		}
+		seen[d.Key] = true
+		if d.Era != i+1 {
+			t.Errorf("%s: era %d, want %d (the ladder is in order)", d.Key, d.Era, i+1)
+		}
+		if d.Depth < 1 || d.EntryShare <= 0 || d.EntryShare >= 100 || d.EntryCost < 0 || d.HubUpkeep < 0 || d.BuildingCap < 0 {
+			t.Errorf("%s: numbers out of range: %+v", d.Key, d)
+		}
+	}
+	if Territories[0].EntryCost != 0 || Territories[0].EntryShare != 40 {
+		t.Error("the Neighborhood must start entered at 40%")
+	}
+}
+
+func TestRivalsAreValid(t *testing.T) {
+	terr := map[string]TerritoryDef{}
+	for _, d := range Territories {
+		terr[d.Key] = d
+	}
+	personalities := map[string]bool{Passive: true, Aggressive: true, Premium: true, Opportunist: true, Integrated: true}
+	seen := map[string]bool{}
+	total := map[string]float64{}
+	for _, r := range Rivals {
+		if seen[r.Key] || r.Key == "" || r.Name == "" {
+			t.Errorf("rival %q: needs a unique key and a name", r.Key)
+		}
+		seen[r.Key] = true
+		if _, ok := terr[r.Territory]; !ok {
+			t.Errorf("%s: unknown territory %q", r.Key, r.Territory)
+		}
+		if !personalities[r.Personality] {
+			t.Errorf("%s: unknown personality %q", r.Key, r.Personality)
+		}
+		if r.Share <= 0 || r.Buyout < 1 || r.FriendlyPremium < 0 || r.RefuseBelowShare < 0 || r.RefuseBelowShare > 100 {
+			t.Errorf("%s: numbers out of range: %+v", r.Key, r)
+		}
+		total[r.Territory] += r.Share
+	}
+	for key, d := range terr {
+		if got := total[key] + d.EntryShare; got != 100 {
+			t.Errorf("%s: player entry share plus rival shares is %v, want 100", key, got)
+		}
 	}
 }
