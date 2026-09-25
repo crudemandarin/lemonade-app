@@ -42,7 +42,8 @@
 }
 
 .m-expand,
-.m-upgrade {
+.m-upgrade,
+.m-facility-sold {
   fill: var(--accent);
   stroke: var(--text);
   stroke-width: 1.5;
@@ -183,6 +184,110 @@ svg {
     &:hover {
       background: var(--hover);
     }
+  }
+}
+
+.price-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+
+// Segmented $ / % control.
+.mode {
+  display: inline-flex;
+
+  button {
+    min-height: 2rem;
+    padding: 0 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.75rem;
+    cursor: pointer;
+
+    &:first-child {
+      border-radius: 999px 0 0 999px;
+    }
+
+    &:last-child {
+      margin-left: -1px;
+      border-radius: 0 999px 999px 0;
+    }
+
+    &[aria-pressed='true'] {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent-strong);
+      font-weight: 600;
+      position: relative;
+    }
+  }
+}
+
+// Days with a market event: a neutral tint, named on hover, so no colour carries meaning.
+.event-band {
+  fill: var(--text);
+  fill-opacity: 0.1;
+  pointer-events: none;
+}
+
+.range {
+  display: inline-flex;
+
+  button {
+    min-height: 2rem;
+    padding: 0 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.75rem;
+    cursor: pointer;
+
+    &:first-child {
+      border-radius: 999px 0 0 999px;
+    }
+
+    &:last-child {
+      border-radius: 0 999px 999px 0;
+    }
+
+    & + button {
+      margin-left: -1px;
+    }
+
+    &[aria-pressed='true'] {
+      position: relative;
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      font-weight: 600;
+    }
+  }
+}
+
+.legend-band {
+  fill: var(--text);
+  fill-opacity: 0.18;
+}
+
+.event-line {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.price-table {
+  margin-top: 1rem;
+
+  caption {
+    padding: 0.375rem 0.625rem;
+    text-align: left;
+    color: var(--text-muted);
+    font-weight: 500;
   }
 }
 

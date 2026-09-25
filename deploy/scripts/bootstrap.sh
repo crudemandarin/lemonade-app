@@ -6,7 +6,7 @@
 # For routine redeploys, use deploy.sh instead.
 #
 # Usage: ./deploy/scripts/bootstrap.sh
-# Env:   PROJECT_ID (default lemonade-app-509618), REGION (default us-central1)
+# Env:   PROJECT_ID (default lemonade-app-dev), REGION (default us-central1)
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 

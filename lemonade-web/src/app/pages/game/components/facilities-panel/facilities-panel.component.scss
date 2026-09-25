@@ -122,17 +122,24 @@
   }
 }
 
+.row-actions {
+  display: flex;
+  gap: 0.375rem;
+}
+
 @media (max-width: 720px) {
   .facility {
     padding: 0.75rem;
   }
 
-  // Name and count on the first line, capacity and the expand button below.
+  // Name and count on the first line, then the capacity, then the buttons across the full
+  // width (late-game labels like "Expand $2,000" are too wide to sit beside the capacity).
   .resources li {
     grid-template-columns: 1fr auto;
     grid-template-areas:
       'name count'
-      'cap btn';
+      'cap cap'
+      'btn btn';
     row-gap: 0.375rem;
 
     .name {
@@ -148,8 +155,13 @@
       grid-area: cap;
     }
 
-    .btn {
+    .row-actions {
       grid-area: btn;
+
+      .btn {
+        flex: 1 1 0;
+        min-width: 0;
+      }
     }
   }
 }

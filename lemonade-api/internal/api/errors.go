@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -33,6 +34,18 @@ func abortErr(c *gin.Context, err error) {
 		abort(c, http.StatusConflict, "max_quantity", "Already at the maximum number of buildings.")
 	case errors.Is(err, domain.ErrInvalidFacility):
 		abort(c, http.StatusBadRequest, "invalid_facility_type", "Facility type must be warehouse or production.")
+	case errors.Is(err, domain.ErrMinFacility):
+		abort(c, http.StatusConflict, "min_facility", "You must keep at least one building of each kind.")
+	case errors.Is(err, domain.ErrStockExceedsCapacity):
+		var excess *domain.StockExceedsCapacityError
+		errors.As(err, &excess)
+		abort(c, http.StatusConflict, "stock_exceeds_capacity", fmt.Sprintf("Sell %d %s first: the remaining warehouses cannot hold your stock.", excess.Excess, plural(excess.Excess, "case", "cases")))
+	case errors.Is(err, domain.ErrUnknownUpgrade):
+		abort(c, http.StatusNotFound, "unknown_upgrade", "No such upgrade.")
+	case errors.Is(err, domain.ErrUpgradeOwned):
+		abort(c, http.StatusConflict, "upgrade_owned", "You already own this upgrade.")
+	case errors.Is(err, domain.ErrUpgradeLocked):
+		abort(c, http.StatusConflict, "upgrade_locked", lockMessage(err))
 	case errors.Is(err, domain.ErrMaxLevel):
 		abort(c, http.StatusConflict, "max_level", "Already at the maximum level.")
 	case errors.Is(err, store.ErrNotFound):
@@ -41,4 +54,11 @@ func abortErr(c *gin.Context, err error) {
 		log.Printf("internal error: %v", err)
 		abort(c, http.StatusInternalServerError, "internal", "Something went wrong.")
 	}
+}
+
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }

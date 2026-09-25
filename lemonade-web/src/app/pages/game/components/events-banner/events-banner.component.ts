@@ -1,14 +1,15 @@
 import { Component, input } from '@angular/core';
 
 import { GameEvent, Resource } from '../../../../core/api.models';
-import { RESOURCE_LABELS } from '../../../../core/resources';
+import { resourceLabel } from '../../../../core/resources';
+import { HelpLinkComponent } from '../../../../shared/help/help-link.component';
 import { IconComponent } from '../../../../shared/icon/icon.component';
 
 /** Active market events, e.g. "Heat wave: lemonade x1.4 and ice x1.3 for 2 more days". */
 @Component({
   selector: 'app-events-banner',
   standalone: true,
-  imports: [IconComponent],
+  imports: [HelpLinkComponent, IconComponent],
   templateUrl: './events-banner.component.html',
   styleUrl: './events-banner.component.scss',
 })
@@ -17,9 +18,11 @@ export class EventsBannerComponent {
 
   protected summary(event: GameEvent): string {
     const effects = (Object.entries(event.multipliers) as [Resource, number][])
-      .map(([resource, m]) => `${RESOURCE_LABELS[resource].toLowerCase()} x${m}`)
+      .map(([resource, m]) => `${resourceLabel(resource).toLowerCase()} x${m}`)
       .join(' and ');
-    const days = event.daysLeft === 1 ? '1 more day' : `${event.daysLeft} more days`;
-    return `${event.name}: ${effects} for ${days}`;
+    if (event.daysLeft === 1) {
+      return `${event.name}: ${effects}, today is the last day`;
+    }
+    return `${event.name}: ${effects} for ${event.daysLeft} more days`;
   }
 }

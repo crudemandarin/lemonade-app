@@ -9,12 +9,17 @@
 }
 
 @if (store.game(); as game) {
-  @if (game.status === 'bankrupt') {
+  @if (game.status !== 'active') {
     <app-game-over
+      [status]="game.status"
+      [netWorth]="game.netWorth"
+      [newBest]="game.best?.runId === game.runId"
       [day]="game.day"
       [capital]="game.capital"
       [stats]="game.stats"
       [timeline]="game.timeline"
+      [priceLog]="game.priceLog"
+      [basePrices]="game.basePrices"
       [disabled]="!online()"
       (newGame)="store.newGame()"
     />
@@ -24,9 +29,20 @@
         [day]="game.day"
         [capital]="game.capital"
         [upkeepPerDay]="game.upkeepPerDay"
+        [netWorth]="game.netWorth.total"
+        [projection]="game.projection"
         [disabled]="store.loading() || !online()"
         (endDay)="store.endDay()"
       />
+
+      <div class="page-tools">
+        @if (game.best; as best) {
+          <span class="best-chip">Best: {{ best.score | money }} on day {{ best.days }}</span>
+        }
+        <button type="button" class="btn btn-ghost past-days" (click)="openPastDays()">
+          Past days
+        </button>
+      </div>
 
       @if (game.events.length) {
         <app-events-banner [events]="game.events" />
@@ -34,13 +50,33 @@
 
       <app-market-panel
         [resources]="game.resources"
+        [capital]="game.capital"
         [disabled]="!online()"
-        (buy)="store.buy($event.resource, $event.qty)"
-        (sell)="store.sell($event.resource, $event.qty)"
+        (buy)="store.buy($event.resource, $event.qty, $event.clamp)"
+        (sell)="store.sell($event.resource, $event.qty, $event.clamp)"
       />
 
       <app-card title="Game timeline">
-        <app-timeline-charts [points]="game.timeline" />
+        <button
+          cardActions
+          type="button"
+          class="btn btn-ghost timeline-toggle"
+          aria-controls="timeline-body"
+          [attr.aria-expanded]="timelineOpen()"
+          (click)="toggleTimeline()"
+        >
+          {{ timelineOpen() ? 'Hide' : 'Show' }}
+        </button>
+        @if (timelineOpen()) {
+          <div id="timeline-body">
+            <app-timeline-charts
+              [points]="game.timeline"
+              [priceLog]="game.priceLog"
+              [basePrices]="game.basePrices"
+              [commodities]="game.commodities"
+            />
+          </div>
+        }
       </app-card>
 
       <app-facilities-panel
@@ -50,11 +86,48 @@
         (expandWarehouse)="store.expandWarehouse($event)"
         (expandProduction)="store.expandProduction()"
         (upgrade)="store.upgrade($event)"
+        (sellFacility)="store.sellFacility($event.type, $event.resource)"
       />
+
+      <div class="give-up">
+        <button
+          type="button"
+          class="btn btn-ghost"
+          [disabled]="store.loading() || !online()"
+          (click)="confirmingGiveUp.set(true)"
+        >
+          Give up
+        </button>
+      </div>
     </div>
   }
 } @else if (store.loading()) {
   <p class="status">Loading your game…</p>
+}
+
+@if (pastOpen()) {
+  <app-past-days-drawer
+    [days]="pastDays()"
+    [selected]="pastSelected()"
+    [report]="pastReport()"
+    [failed]="pastFailed()"
+    (selectDay)="selectPastDay($event)"
+    (closed)="pastOpen.set(false)"
+  />
+}
+
+@if (confirmingGiveUp() && store.game(); as game) {
+  <app-confirm-dialog
+    [title]="'Give up on day ' + game.day + '?'"
+    [message]="
+      'Your run ends now. Your score is your net worth today, ' +
+      (game.netWorth.total | money) +
+      ', and you can start a new game afterwards.'
+    "
+    confirmLabel="Give up"
+    (confirmed)="giveUp()"
+    (cancelled)="confirmingGiveUp.set(false)"
+  />
 }
 
 @if (store.report(); as report) {

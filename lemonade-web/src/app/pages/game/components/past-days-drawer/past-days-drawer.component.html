@@ -1,0 +1,23 @@
+<div class="backdrop fade-in">
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="past-days-title">
+    <header>
+      <h2 id="past-days-title">Past days</h2>
+      <button
+        type="button"
+        class="icon-btn close"
+        aria-label="Close past days"
+        (click)="closed.emit()"
+      >
+        <app-icon name="x" />
+      </button>
+    </header>
+
+    <app-report-stepper
+      [days]="days()"
+      [selected]="selected()"
+      [report]="report()"
+      [failed]="failed()"
+      (selectDay)="selectDay.emit($event)"
+    />
+  </aside>
+</div>

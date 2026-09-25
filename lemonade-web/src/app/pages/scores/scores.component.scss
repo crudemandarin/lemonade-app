@@ -1,0 +1,209 @@
+:host {
+  display: grid;
+  gap: 1rem;
+  max-width: 44rem;
+  margin: 0 auto;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.tabs {
+  display: inline-flex;
+  justify-self: start;
+
+  button {
+    min-height: 2.25rem;
+    padding: 0 1.25rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.875rem;
+    cursor: pointer;
+
+    &:first-child {
+      border-radius: 999px 0 0 999px;
+    }
+
+    &:last-child {
+      margin-left: -1px;
+      border-radius: 0 999px 999px 0;
+    }
+
+    &[aria-selected='true'] {
+      position: relative;
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      font-weight: 600;
+    }
+  }
+}
+
+.boards {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+
+  // The pressed board is marked by a border and weight, not by colour alone.
+  button[aria-pressed='true'] {
+    border-color: var(--accent-strong);
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    font-weight: 700;
+  }
+}
+
+.lede {
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+
+  .retry {
+    margin-left: 0.5rem;
+  }
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+th,
+td {
+  padding: 0.625rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+thead th {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+tbody th {
+  font-weight: 500;
+}
+
+.rank {
+  width: 3.5rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+// The player's own row: tinted and marked with text ("you", "Personal best"), not colour alone.
+tr.me {
+  background: var(--accent-soft);
+
+  th,
+  td {
+    font-weight: 600;
+  }
+}
+
+.score-cell a {
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+
+.you,
+.best {
+  color: var(--accent-strong);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.best {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+}
+
+.gap td {
+  padding: 0;
+  color: var(--text-muted);
+  text-align: center;
+  border-bottom: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+// Phones: each row becomes a small card of labelled lines, so nothing scrolls sideways.
+@media (max-width: 480px) {
+  thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  table,
+  tbody {
+    display: block;
+  }
+
+  tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.125rem 0.75rem;
+    padding: 0.625rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th,
+  td {
+    padding: 0;
+    border: 0;
+  }
+
+  td[data-label]::before {
+    content: attr(data-label) ' ';
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 400;
+  }
+
+  .num {
+    text-align: left;
+  }
+
+  .rank {
+    width: auto;
+  }
+
+  .player {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+
+  .gap {
+    display: block;
+    padding: 0;
+  }
+}

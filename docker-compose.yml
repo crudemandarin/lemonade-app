@@ -29,6 +29,9 @@ services:
       DB_NAME: ${DB_NAME}
       DB_PORT: 5432
       TZ: America/Denver
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-demo-lemonade}
+      # Set only for local development; the emulator runs under the "auth" profile.
+      FIREBASE_AUTH_EMULATOR_HOST: ${COMPOSE_FIREBASE_AUTH_EMULATOR_HOST:-auth-emulator:9099}
     ports:
       - "8080:8080"
 
@@ -37,8 +40,28 @@ services:
     container_name: lemonade-web
     depends_on:
       - api
+    environment:
+      # Local sign-in against the emulator (docker compose --profile auth up -d).
+      FIREBASE_API_KEY: fake-api-key
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-demo-lemonade}
+      FIREBASE_APP_ID: 1:000000000000:web:local
+      FIREBASE_USE_EMULATOR: "true"
+      FIREBASE_EMULATOR_URL: http://localhost:9099
     ports:
       - "4200:80"
+
+  # Firebase Auth Emulator for local sign-in: docker compose --profile auth up -d
+  auth-emulator:
+    profiles: ["auth"]
+    image: node:20-slim
+    container_name: lemonade-auth-emulator
+    working_dir: /app
+    command: npx --yes firebase-tools@13 emulators:start --only auth --project demo-lemonade
+    volumes:
+      - ./firebase.json:/app/firebase.json:ro
+    ports:
+      - "9099:9099"
+      - "4000:4000"
 
 volumes:
   lemonade-db-data:

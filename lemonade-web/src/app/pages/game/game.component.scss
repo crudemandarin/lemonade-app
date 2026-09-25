@@ -8,6 +8,33 @@
   gap: 1rem;
 }
 
+.best-chip {
+  margin-right: auto;
+  align-self: center;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.page-tools {
+  display: flex;
+  flex-wrap: wrap; // a long best-score chip drops onto its own line instead of widening the page
+  justify-content: flex-end;
+  gap: 0.25rem 0.75rem;
+  margin-bottom: -0.5rem;
+}
+
+// Quiet and at the very end: giving up is never the obvious next click.
+.give-up {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 1rem;
+
+  .btn {
+    color: var(--red);
+  }
+}
+
 .alert {
   display: flex;
   align-items: center;

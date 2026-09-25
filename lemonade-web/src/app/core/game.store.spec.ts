@@ -3,17 +3,21 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { GameStore } from './game.store';
+import { FakeAuthPort, provideFakeAuth } from './testing/fake-auth';
 import { SessionService } from './session.service';
-import { dayReport, newGameView } from './testing/fixtures';
+import { ToastService } from './toast.service';
+import { dayReport, newGameView, upgradesResponse } from './testing/fixtures';
 
 describe('GameStore', () => {
   let store: GameStore;
   let http: HttpTestingController;
   let session: SessionService;
+  let port: FakeAuthPort;
 
   beforeEach(() => {
+    port = new FakeAuthPort();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideFakeAuth(port)],
     });
     store = TestBed.inject(GameStore);
     http = TestBed.inject(HttpTestingController);
@@ -26,7 +30,7 @@ describe('GameStore', () => {
     session.signOut();
   });
 
-  it('signIn logs in, stores the username, and resolves true', async () => {
+  it('signIn plays as a guest on a username alone and resolves true', async () => {
     const done = store.signIn('lemonjoe');
     http.expectOne('/api/login').flush({ id: 1, username: 'lemonjoe' });
 
@@ -35,14 +39,35 @@ describe('GameStore', () => {
   });
 
   it('signIn failure sets the error and stays signed out', async () => {
-    const done = store.signIn('x');
+    const done = store.signIn('lemonjoe');
     http
       .expectOne('/api/login')
-      .flush({ error: 'invalid_username', message: 'Bad name' }, { status: 400, statusText: '' });
+      .flush(
+        { error: 'account_secured', message: 'This username is protected.' },
+        { status: 409, statusText: '' },
+      );
 
     expect(await done).toBeFalse();
-    expect(store.error()).toBe('Bad name');
+    expect(store.error()).toBe('This username is protected.');
     expect(session.username()).toBeNull();
+  });
+
+  it('upgradeList reads the upgrades without touching the game state', async () => {
+    const done = store.upgradeList();
+    http.expectOne('/api/game/upgrades').flush(upgradesResponse());
+
+    expect((await done).upgrades.length).toBe(3);
+    expect(store.game()).toBeNull();
+  });
+
+  it('buyUpgrade posts the key and stores the new view', async () => {
+    const done = store.buyUpgrade('order_book');
+    const req = http.expectOne('/api/game/upgrades/order_book/buy');
+    expect(req.request.method).toBe('POST');
+    req.flush(newGameView({ capital: 500, features: ['repeat_trades'] }));
+    await done;
+
+    expect(store.game()?.features).toEqual(['repeat_trades']);
   });
 
   it('load stores the game view', async () => {
@@ -60,6 +85,14 @@ describe('GameStore', () => {
     await done;
 
     expect(store.game()?.capital).toBe(956);
+  });
+
+  it('passes clamp through to the API', async () => {
+    const done = store.sell('lemon', 50, true);
+    const req = http.expectOne('/api/game/sell');
+    expect(req.request.body).toEqual({ resource: 'lemon', qty: 50, clamp: true });
+    req.flush(newGameView());
+    await done;
   });
 
   it('a failed mutation keeps the game and shows the server message', async () => {
@@ -116,13 +149,14 @@ describe('GameStore', () => {
     expect(store.isBankrupt()).toBeTrue();
   });
 
-  it('signOut clears the session and the game', async () => {
+  it('signOut signs out of Firebase and clears the session and the game', async () => {
     session.signIn('lemonjoe');
     const done = store.load();
     http.expectOne('/api/game').flush(newGameView());
     await done;
 
     store.signOut();
+    expect(port.signOutCalls).toBe(1);
     expect(session.username()).toBeNull();
     expect(store.game()).toBeNull();
   });
@@ -188,5 +222,33 @@ describe('GameStore', () => {
     expect(store.error()).toBe('Boom');
     store.clearError();
     expect(store.error()).toBeNull();
+  });
+
+  it('toasts each achievement a mutation unlocked, once', async () => {
+    const toasts = TestBed.inject(ToastService);
+    const done = store.buy('lemon', 1);
+    http
+      .expectOne('/api/game/buy')
+      .flush(newGameView({ unlocked: [{ key: 'first_expand', name: 'Growing', tier: 'bronze' }] }));
+    await done;
+
+    expect(toasts.toasts().map((t) => t.text)).toEqual(['Achievement unlocked: Growing']);
+
+    const load = store.load();
+    http.expectOne('/api/game').flush(newGameView());
+    await load;
+    expect(toasts.toasts().length).toBe(1);
+  });
+
+  it('toasts the achievements an end of day unlocked', async () => {
+    const toasts = TestBed.inject(ToastService);
+    const done = store.endDay();
+    http.expectOne('/api/game/end-day').flush({
+      report: dayReport(),
+      game: newGameView({ unlocked: [{ key: 'day_7', name: 'First week', tier: 'bronze' }] }),
+    });
+    await done;
+
+    expect(toasts.toasts().map((t) => t.text)).toEqual(['Achievement unlocked: First week']);
   });
 });

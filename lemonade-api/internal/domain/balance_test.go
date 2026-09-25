@@ -25,6 +25,18 @@ type simResult struct {
 	maxedDay  int    // first day everything is at max level and max count
 }
 
+// The cash cushion a careful owner keeps before reinvesting: days of the new upkeep plus a
+// share of a full batch. Above level 1 a bad stretch costs far more, so the cushion is
+// longer (2 days at level 1, 6 above; late game phase 0 found 2 bankrupted one careful
+// player in five once upgrades paid off).
+func reserveFor(g Game, cfg Config) int {
+	days := 2
+	if g.ProductionLevel > 1 {
+		days = 6
+	}
+	return days*TotalUpkeep(g, cfg) + unitCost(g, cfg)*ProductionCapacity(g, cfg)*3/10
+}
+
 func unitCost(g Game, cfg Config) int {
 	q := Quotes(g, cfg)
 	return q[Lemon].Ask + q[Sugar].Ask + q[Ice].Ask + q[Cup].Ask
@@ -72,6 +84,11 @@ func owner(cfg Config, seed int64, days int, p player) simResult {
 		if uc := unitCost(g, cfg); uc > 0 && g.Capital/uc < n {
 			n = g.Capital / uc
 		}
+		// A careful player stops where the market stops paying: no batch case that loses money.
+		capacityBinds := true
+		if best := profitableBatch(g, cfg, n, 0); best < n {
+			n, capacityBinds = best, false
+		}
 		forgetIce := mrng.Float64() < p.forgetIce
 		for _, in := range Inputs {
 			if in == Ice && forgetIce {
@@ -89,7 +106,7 @@ func owner(cfg Config, seed int64, days int, p player) simResult {
 			}
 			gc := g.Clone()
 			apply(&gc)
-			need := 2*TotalUpkeep(gc, cfg) + unitCost(gc, cfg)*ProductionCapacity(gc, cfg)*3/10
+			need := reserveFor(gc, cfg)
 			return g.Capital-cost >= need
 		}
 		doExpand := func(x *Game) {
@@ -102,7 +119,7 @@ func owner(cfg Config, seed int64, days int, p player) simResult {
 			_ = Upgrade(x, cfg, Production)
 			_ = Upgrade(x, cfg, Warehouse)
 		}
-		for {
+		for capacityBinds { // only add capacity when capacity is what limits profit
 			pl, wl := g.ProductionLevel, g.WarehouseLevel
 			canExpand := g.ProductionQty < cfg.MaxQuantity
 			for _, r := range Resources {
@@ -153,7 +170,7 @@ func owner(cfg Config, seed int64, days int, p player) simResult {
 				res.maxedDay = d
 			}
 		}
-		if _, err := EndDay(&g, cfg); err != nil {
+		if _, err := simEndDay(&g, cfg); err != nil {
 			break
 		}
 		if g.Status == StatusBankrupt {
@@ -186,7 +203,7 @@ func careless(cfg Config, seed int64, days int) simResult {
 				}
 			}
 		}
-		if _, err := EndDay(&g, cfg); err != nil {
+		if _, err := simEndDay(&g, cfg); err != nil {
 			break
 		}
 		if g.Status == StatusBankrupt {
@@ -203,7 +220,7 @@ func idle(cfg Config, seed int64, days int) simResult {
 	res := simResult{}
 	for d := 1; d <= days; d++ {
 		res.capital = append(res.capital, g.Capital)
-		if _, err := EndDay(&g, cfg); err != nil {
+		if _, err := simEndDay(&g, cfg); err != nil {
 			break
 		}
 		if g.Status == StatusBankrupt {
@@ -235,7 +252,7 @@ func report(name string, cfg Config, bot func(Config, int64, int) simResult, day
 	var bankrupt, full, up, l2, l3, l4, maxed []int
 	for s := int64(1); s <= int64(seeds); s++ {
 		r := bot(cfg, s, days)
-		for _, d := range []int{5, 10, 15, 20, 30, 45, 60} {
+		for _, d := range []int{5, 10, 15, 20, 30, 45, 60, 90} {
 			if d <= len(r.capital) {
 				at[d] = append(at[d], r.capital[d-1])
 			}
@@ -268,7 +285,7 @@ func report(name string, cfg Config, bot func(Config, int64, int) simResult, day
 	}
 	fmt.Printf("%-9s bankrupt %3d%% (median day %d) | maxed L1 by day %d (%d%% did) | 1st upgrade day %d | capital median:", name,
 		100*len(bankrupt)/seeds, median(bankrupt), median(full), 100*len(full)/seeds, median(up))
-	for _, d := range []int{5, 10, 15, 20, 30, 45, 60} {
+	for _, d := range []int{5, 10, 15, 20, 30, 45, 60, 90} {
 		fmt.Printf(" d%d=$%d", d, median(at[d]))
 	}
 	fmt.Println()
@@ -279,12 +296,48 @@ func TestBalanceReport(t *testing.T) {
 		t.Skip("set BALANCE_REPORT=1 to print the balance report")
 	}
 	cfg := DefaultConfig()
-	report("grower", cfg, grower, 90, 200)
+	report("grower", cfg, grower, 120, 200)
 	report("sloppy", cfg, sloppy, 45, 200)
 	report("careless", cfg, careless, 60, 200)
 	report("idle", cfg, idle, 100, 50)
+	fmt.Println("--- exploit bots (balance handoff) ---")
+	report("spammer", cfg, spammer, 120, 200)
+	report("thresholder", cfg, thresholder, 120, 200)
+	report("strict-thr", cfg, thresholderStrict, 120, 200)
+	report("hoarder", cfg, hoarder, 120, 200)
+	report("opportunist", cfg, opportunist, 120, 200)
+	exploitSummary(cfg, 200)
 	avg, neg, thin, p5, p50, p95 := marginStats(cfg, 300, 200)
 	fmt.Printf("margin per lemonade (bid - input asks): avg $%.1f | median $%d | p5 $%d p95 $%d | unprofitable %.1f%% of days | under $10: %.1f%%\n", avg, p50, p5, p95, neg, thin)
+}
+
+// exploitSummary prints the numbers the balance targets are stated in: how often the
+// max-volume spammer fails by day 90, and how the skilled bots compare with it.
+func exploitSummary(cfg Config, seeds int) {
+	poor, spammerWins := 0, 0
+	var ratio []int // thresholder / spammer day-60 capital, in percent
+	for s := int64(1); s <= int64(seeds); s++ {
+		sp, th := spammer(cfg, s, 90), thresholder(cfg, s, 90)
+		if sp.bankrupt > 0 || capAt(sp, 90) < 1000 {
+			poor++
+		}
+		a, b := capAt(sp, 60), capAt(th, 60)
+		if a > b {
+			spammerWins++
+		}
+		if a > 0 {
+			ratio = append(ratio, 100*b/a)
+		}
+	}
+	beat := 0
+	for s := int64(1); s <= int64(seeds); s++ {
+		if capAt(spammer(cfg, s, 90), 60) > capAt(opportunist(cfg, s, 90), 60) {
+			beat++
+		}
+	}
+	fmt.Printf("spammer beats opportunist at day 60: %d%% of seeds\n", 100*beat/seeds)
+	fmt.Printf("spammer bankrupt or under $1000 at day 90: %d%% of seeds | spammer beats thresholder at day 60: %d%% | thresholder/spammer day-60 capital, median: %d%%\n",
+		100*poor/seeds, 100*spammerWins/seeds, median(ratio))
 }
 
 // marginStats samples the market alone (idle player) and reports how often one

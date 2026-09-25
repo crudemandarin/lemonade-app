@@ -1,0 +1,180 @@
+<h1>Scores</h1>
+
+<div class="tabs" role="tablist" aria-label="Score boards">
+  <button
+    type="button"
+    role="tab"
+    id="tab-global"
+    aria-controls="panel-global"
+    [attr.aria-selected]="tab() === 'global'"
+    (click)="select('global')"
+  >
+    Global
+  </button>
+  <button
+    type="button"
+    role="tab"
+    id="tab-mine"
+    aria-controls="panel-mine"
+    [attr.aria-selected]="tab() === 'mine'"
+    (click)="select('mine')"
+  >
+    Mine
+  </button>
+</div>
+
+@if (tab() === 'global') {
+  <app-card [title]="board() === 'day_100' ? 'Best net worth by day 100' : 'Global high scores'">
+    <div role="tabpanel" id="panel-global" aria-labelledby="tab-global">
+      <div class="boards" role="group" aria-label="Board">
+        <button
+          type="button"
+          class="btn btn-sm board-all"
+          [attr.aria-pressed]="board() === 'all_time'"
+          (click)="selectBoard('all_time')"
+        >
+          All time
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm board-100"
+          [attr.aria-pressed]="board() === 'day_100'"
+          (click)="selectBoard('day_100')"
+        >
+          By day 100
+        </button>
+      </div>
+      @if (board() === 'day_100') {
+        <p class="lede">
+          Each player's best net worth on arriving at day 100, so a long run competes fairly with a
+          short one.
+        </p>
+      } @else {
+        <p class="lede">Each player's best finished run, by final net worth.</p>
+      }
+      @switch (globalState()) {
+        @case ('loading') {
+          <p class="note">Loading scores…</p>
+        }
+        @case ('error') {
+          <p class="note" role="alert">
+            Couldn't load the scores.
+            <button type="button" class="btn btn-sm retry" (click)="loadGlobal()">Try again</button>
+          </p>
+        }
+        @default {
+          @if (rows().length === 0) {
+            @if (board() === 'day_100') {
+              <p class="note empty">
+                No run has reached day 100 yet. Runs finished before this board existed did not
+                record it, so they are not listed.
+              </p>
+            } @else {
+              <p class="note empty">No finished runs yet. Finish a run to take the first spot.</p>
+            }
+          } @else {
+            <table>
+              <caption class="visually-hidden">
+                Global high scores
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col" class="rank">Rank</th>
+                  <th scope="col">Player</th>
+                  <th scope="col" class="num">
+                    {{ board() === 'day_100' ? 'Net worth' : 'Score' }}
+                  </th>
+                  <th scope="col" class="num">Days</th>
+                  <th scope="col" class="num">Achievements</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of rows(); track r.rank) {
+                  <tr [class.me]="r.isMe" [attr.aria-current]="r.isMe ? 'true' : null">
+                    <td class="rank" data-label="Rank">{{ r.rank }}</td>
+                    <th scope="row" class="player">
+                      {{ r.username }}
+                      @if (r.isMe) {
+                        <span class="you"> (you)</span>
+                      }
+                    </th>
+                    <td class="num" data-label="Score">{{ r.score | money }}</td>
+                    <td class="num" data-label="Days">Day {{ r.days }}</td>
+                    <td class="num" data-label="Achievements">{{ r.achievements }}</td>
+                  </tr>
+                }
+                @if (meBelow(); as me) {
+                  <tr class="gap" aria-hidden="true">
+                    <td colspan="5">…</td>
+                  </tr>
+                  <tr class="me" aria-current="true">
+                    <td class="rank" data-label="Rank">{{ me.rank }}</td>
+                    <th scope="row" class="player">
+                      {{ me.username }}<span class="you"> (you)</span>
+                    </th>
+                    <td class="num" data-label="Score">{{ me.score | money }}</td>
+                    <td class="num" data-label="Days">Day {{ me.days }}</td>
+                    <td class="num" data-label="Achievements">{{ me.achievements }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        }
+      }
+    </div>
+  </app-card>
+} @else {
+  <app-card title="My runs">
+    <div role="tabpanel" id="panel-mine" aria-labelledby="tab-mine">
+      <p class="lede">Every run you have finished, newest first. Open one to see how it went.</p>
+      @switch (mineState()) {
+        @case ('loading') {
+          <p class="note">Loading your runs…</p>
+        }
+        @case ('error') {
+          <p class="note" role="alert">
+            Couldn't load your runs.
+            <button type="button" class="btn btn-sm retry" (click)="loadMine()">Try again</button>
+          </p>
+        }
+        @default {
+          @if (runs().length === 0) {
+            <p class="note empty">
+              No finished runs yet. Your runs show up here once you go bankrupt or give up.
+            </p>
+          } @else {
+            <table>
+              <caption class="visually-hidden">
+                My finished runs
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col" class="num">Score</th>
+                  <th scope="col" class="num">Days</th>
+                  <th scope="col">How it ended</th>
+                  <th scope="col">Finished</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (run of runs(); track run.runId) {
+                  <tr [class.me]="run.isBest">
+                    <td class="num score-cell" data-label="Score">
+                      <a [routerLink]="['/runs', run.runId]">{{ run.score | money }}</a>
+                      @if (run.isBest) {
+                        <span class="best">Personal best</span>
+                      }
+                    </td>
+                    <td class="num" data-label="Days">Day {{ run.days }}</td>
+                    <td data-label="How it ended">{{ ending(run) }}</td>
+                    <td data-label="Finished">{{ run.createdAt | date: 'mediumDate' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        }
+      }
+    </div>
+  </app-card>
+}

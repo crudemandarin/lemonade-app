@@ -3,55 +3,7 @@
     @if (report(); as r) {
       <h2 id="day-report-title">Day {{ r.day }} report</h2>
 
-      <dl>
-        <dt>Lemonade produced</dt>
-        <dd>+{{ r.produced }}</dd>
-
-        <dt>Ice melted</dt>
-        <dd>{{ r.iceMelted }} cases</dd>
-
-        <dt>Upkeep paid</dt>
-        <dd>{{ -r.upkeepPaid | money }}</dd>
-
-        @if (r.forcedSaleCases > 0) {
-          <dt>Stock sold to cover upkeep</dt>
-          <dd>
-            {{ r.forcedSaleCases }} {{ r.forcedSaleCases === 1 ? 'case' : 'cases' }} (+{{
-              r.forcedSaleProceeds | money
-            }})
-          </dd>
-        }
-
-        @if (lemonadePrice(); as p) {
-          <dt>Lemonade price</dt>
-          <dd>{{ p.before | money }} → {{ p.after | money }}</dd>
-        }
-
-        @for (e of r.newEvents; track e.key) {
-          <dt>New event</dt>
-          <dd>{{ e.name }}</dd>
-        }
-
-        @for (e of r.expiredEvents; track e.key) {
-          <dt>Event ended</dt>
-          <dd>{{ e.name }}</dd>
-        }
-      </dl>
-
-      <dl class="total">
-        <dt>Capital</dt>
-        <dd>{{ r.capitalBefore | money }} → {{ r.capitalAfter | money }}</dd>
-      </dl>
-
-      @if (r.capitalAfter === 0 && !r.bankrupt) {
-        <p class="warning" role="alert">
-          <app-icon name="alert" [size]="18" />
-          <span>
-            <strong>You're out of cash.</strong> Upkeep comes out of cash first, then your stock is
-            sold at the market bid. If that can't cover it, you go bankrupt.
-          </span>
-        </p>
-      }
+      <app-day-report [report]="r" />
 
       <button type="button" class="btn btn-primary" (click)="dismiss.emit()">
         @if (r.bankrupt) {

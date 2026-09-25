@@ -50,6 +50,56 @@ Time estimates are rough and cumulative.
   - Acceptance: rule 27; README documents the config tables and how to tune them.
   - Tests: sparkline component renders N points for N history entries.
 
+- [x] **Slice 9: P0 update (see `HANDOFF-P0.md`)**
+  - [x] 9a: the day report always lists all five prices (lemonade first; unchanged rows say "no change")
+  - [x] 9b: conflicting events never overlap (derived from multipliers)
+  - [x] 9c: header projection (lemonade to be made, ice to melt)
+  - [x] 9d: bulk trade bar (amount selector, `clamp` on buy and sell)
+
+- [x] **Slice 10: Economy state (see `HANDOFF-A-economy-and-runs.md`)**
+  - [x] 10a: sell facilities (quantity only, resale at half build cost)
+  - [x] 10b: average purchase price (cost basis)
+  - [x] 10c: all-commodities price chart
+
+- [x] **Slice 11: Runs (see `HANDOFF-A-economy-and-runs.md`)**
+  - [x] 11a: foundation: run ID, atomic effects, `runs` and `day_reports` tables, net worth in the header
+  - [x] 11b: give up
+  - [x] 11c: past day reports
+
+- [x] **Slice 13: Scores (see `HANDOFF-B-scores.md`; difficulty and rival are cut)**
+  - [x] 13a: personal record history and run detail (`/runs/:id`)
+  - [x] 13b: global board (`/scores`), "Best" on the game page, "New personal best" on the result screen
+
+- [ ] **Slice 14: Balance pass (see `HANDOFF-BALANCE.md`)**
+  - [x] Phase 0: exploit bots and baseline (no game change)
+  - [x] Phase 1: market depth and price impact (knobs swept; open questions listed in DECISIONS 33)
+  - [ ] Phase 3: retune; Phase 4: UX, docs, verification
+  - Phase 2 (perishable lemonade) is out of scope by decision.
+
+- [x] **Slice 14b: Late game phase 0 (see `HANDOFF-LATE-GAME-PHASE0.md`, DECISIONS 36)**
+  - [x] Depth by warehouse level, impact relative to depth, economies of scale in the tier table, upgrade cost sweep, bot cushion, `TestEachLevelPaysMoreThanTheLast`
+  - Future work: phases 1 to 7 of `LATE-GAME-DESIGN.md` (territories, rivals, upgrades, recipes, managers)
+
+- [ ] **Slice 15: Sign in with Google (see `HANDOFF-AUTH.md`; DECISIONS 34, 35)**
+  - [x] 15a: backend: token verifier, `/api/me` profile and claim endpoints, store methods
+  - [x] 15b: frontend: Firebase auth service, bearer interceptor, guards, sign-in and username pages, runtime config
+  - [x] 15c: infra (APIs, env vars), emulator in Compose, docs
+  - [x] 15d: Google made optional: username-only play stays, linking Google secures an account (DECISIONS 35)
+  - [ ] Real-Google smoke test on the deployed domain and in the installed PWA (needs the Firebase console runbook in `deploy/README.md`)
+
+- [ ] **Slice 16: Late game (see `HANDOFF-LATE-GAME-ROADMAP.md`)**
+  - [x] Products A: commodities and the lemonade recipe are catalog data (`domain/content`), timeline and price log are maps, EndDay runs the roadmap's named steps, salts in `salts.go`; golden bot runs byte-identical
+  - [ ] Goals A: achievements; Goals B: day-100 board
+  - [ ] Upgrades A: upgrade framework and first upgrades; Empire A: territories and rivals
+    - Upgrades A framework commit (safe to merge early for Empire): 5fa8604
+  - [ ] Products B: recipes, storage classes, perishables; Empire B: victory and economic cycles
+  - [ ] Upgrades B: managers and fast-forward; Products C: contracts
+
+- [x] **Slice 16: Late game Goals track (see `HANDOFF-LATE-GAME-GOALS.md`; DECISIONS TBD)**
+  - [x] 16a: achievement table, typed predicates, run-scoped goal facts, evaluated after every mutation in the same transaction, `unlocked` on mutation responses
+  - [x] 16b: `GET /api/achievements` with hidden masking and progress; board badge; run detail list; retroactive backfill at startup
+  - [x] 16c: frontend: unlock toasts (aria-live), Awards page, run page list, board badge
+  - [x] 16d: day-100 snapshot and `GET /api/scores?board=day_100`, board toggle on the scores page
 ## Hold points
 - **≈2:30 elapsed:** first Reviewer pass (see kickoff prompt 3). Fix only SPEC gaps and bugs.
 - **≈3:30 elapsed:** second Reviewer pass plus fresh-clone check; then walkthrough prep.
@@ -64,7 +114,7 @@ Time estimates are rough and cumulative.
 - Gentler bankruptcy variants (e.g. a one-day grace period) if the balance proves too harsh.
 - User-tweakable recipe.
 - Leaderboard using `capital` and `day`.
-- Real authentication.
+- Account deletion, username change, other sign-in providers, and a claim deadline after which unclaimed legacy accounts are archived.
 - PWA extras: update-available prompt, read-only cached game view offline, push notifications.
 - End-to-end browser tests; CI pipeline.
 - Balance tuning for actual fun.

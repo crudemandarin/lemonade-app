@@ -42,10 +42,10 @@ Rationale: the domain loads and saves a whole `Game` in one transaction, so JSON
 
 Persistence rule: every mutating request does `load game -> domain call -> save game` in one transaction with a row lock (`SELECT ... FOR UPDATE`) to prevent double-submit races.
 
-## 5. API (all JSON, `X-Username` header except login)
+## 5. API (all JSON; `X-Username` for guests, or `Authorization: Bearer` Firebase token for a Google-secured account, see DECISIONS 34, 35)
 | Method & path | Purpose |
 |---|---|
-| `POST /api/login` `{username}` | Create-or-get user; returns user |
+| `POST /api/login` `{username}` | Guest: create-or-get user. Google: `GET /api/me`, `POST /api/me/username`, `POST /api/me/claim` |
 | `GET /api/game` | Game view: day, capital, inventory, capacities, facilities (tier name, level, quantity, capacity, upkeep, expand cost, upgrade cost), quotes, events, price history, `timeline` (capital and stock snapshots after each action) and `stats` (running totals for the game-over summary; SPEC rule 29) |
 | `POST /api/game/new` | Start fresh game (replaces bankrupt or active one) |
 | `POST /api/game/buy` `{resource, qty}` | Buy at ask |
@@ -72,15 +72,15 @@ Facility tiers (L1 → L4). Size/rate is per building; costs and upkeep are per 
 | | L1 | L2 | L3 | L4 |
 |---|---|---|---|---|
 | **Warehouse name** | Pantry | Garage | Barn | Industrial Warehouse |
-| Size (cases) | 10 | 20 | 40 | 80 |
-| Expand (build) cost | $100 | $300 | $800 | $2,000 |
-| Upgrade cost to next | $100 | $250 | $600 | n/a |
-| Upkeep/day | $2 | $6 | $16 | $40 |
+| Size (cases) | 10 | 25 | 60 | 150 |
+| Expand (build) cost | $100 | $220 | $450 | $900 |
+| Upgrade cost to next | $155 | $200 | $400 | n/a |
+| Upkeep/day | $2 | $4 | $8 | $15 |
 | **Production name** | Kitchen | Food Truck | Bottling Plant | Lemonade Factory |
-| Rate (lemonade/day) | 10 | 20 | 40 | 80 |
-| Expand (build) cost | $500 | $1,500 | $4,000 | $10,000 |
-| Upgrade cost to next | $1,000 | $2,500 | $6,000 | n/a |
-| Upkeep/day | $20 | $50 | $120 | $280 |
+| Rate (lemonade/day) | 10 | 25 | 60 | 150 |
+| Expand (build) cost | $500 | $1,100 | $2,200 | $4,500 |
+| Upgrade cost to next | $780 | $1,000 | $2,000 | n/a |
+| Upkeep/day | $20 | $40 | $75 | $150 |
 
 Upgrade total = per-building upgrade cost × total buildings of the type. Upkeep total = per-building upkeep × buildings, summed over all warehouse buildings and production.
 

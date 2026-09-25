@@ -24,28 +24,31 @@ func settleUpkeep(g *Game, cfg Config) (paid, soldCases, soldProceeds int, insol
 }
 
 // sellStockToCover sells stock at bid, in liquidationOrder, until need dollars have
-// been raised or nothing is left.
+// been raised or nothing is left. Each case is priced with the player's own selling
+// impact, so a big forced sale takes more cases to raise the same cash.
 func sellStockToCover(g *Game, cfg Config, need int) (cases, proceeds int) {
 	quotes := Quotes(*g, cfg)
 	for _, r := range liquidationOrder {
 		if need <= 0 {
 			break
 		}
-		stock, bid := g.Inventory[r], quotes[r].Bid
+		stock := g.Inventory[r]
 		if stock == 0 {
 			continue
 		}
-		n := (need + bid - 1) / bid // fewest cases that cover what is still needed
-		if n > stock {
-			n = stock
+		n, raised := 0, 0
+		for n < stock && raised < need {
+			n++
+			raised += unitBid(cfg, freeDepth(*g, cfg, r), quotes[r].Bid, g.SellPressure[r], n)
 		}
-		g.Inventory[r] -= n
-		g.Capital += n * bid
+		g.removeStock(r, n)
+		g.addPressure(false, r, n)
+		g.Capital += raised
 		g.Stats.CasesSold += n
-		g.Stats.Earned += n * bid
+		g.Stats.Earned += raised
 		cases += n
-		proceeds += n * bid
-		need -= n * bid
+		proceeds += raised
+		need -= raised
 	}
 	return cases, proceeds
 }

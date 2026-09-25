@@ -1,6 +1,7 @@
 package domain
 
-// Resource is one of the five tradable goods. Each has its own warehouse.
+// Resource is a commodity key from the content catalog. The constants name the
+// original five, which rules and events still refer to directly.
 type Resource string
 
 const (
@@ -11,20 +12,8 @@ const (
 	Lemonade Resource = "lemonade"
 )
 
-// Resources lists all resources in display order.
-var Resources = []Resource{Lemon, Sugar, Ice, Cup, Lemonade}
-
-// Inputs are the raw resources consumed by production, in recipe order.
-var Inputs = []Resource{Lemon, Sugar, Ice, Cup}
-
-func (r Resource) Valid() bool {
-	switch r {
-	case Lemon, Sugar, Ice, Cup, Lemonade:
-		return true
-	default:
-		return false
-	}
-}
+// The list of commodities, their order and the recipe are catalog data: see
+// Config.Resources, Config.Valid and Config.Inputs (catalog.go).
 
 // FacilityType is one of the two upgradeable facility groups.
 type FacilityType string
@@ -44,4 +33,5 @@ type Status string
 const (
 	StatusActive   Status = "active"
 	StatusBankrupt Status = "bankrupt"
+	StatusGaveUp   Status = "gave_up"
 )

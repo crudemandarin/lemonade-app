@@ -33,6 +33,8 @@
   --series-ice: #2a78d6;
   --series-cup: #1baf7a;
   --series-lemonade: #eb6834;
+  /* Commodities without their own colour (added to the catalog later). */
+  --series-other: #6b7280;
 }
 
 @mixin dark-theme {
@@ -62,6 +64,7 @@
   --series-ice: #3987e5;
   --series-cup: #199e70;
   --series-lemonade: #d95926;
+  --series-other: #9ca3af;
 }
 
 @media (prefers-color-scheme: dark) {

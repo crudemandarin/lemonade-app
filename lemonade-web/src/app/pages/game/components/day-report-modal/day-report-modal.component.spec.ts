@@ -32,6 +32,29 @@ describe('DayReportModalComponent', () => {
     expect(text).toContain('$1,240 → $1,225');
   });
 
+  it('lists all five prices with lemonade first', () => {
+    const labels = Array.from(el.querySelectorAll('.prices dt')).map((n) => n.textContent!.trim());
+    expect(labels).toEqual(['Lemonade', 'Lemon', 'Sugar', 'Ice', 'Cups']);
+  });
+
+  it('says "no change" for an unchanged price, including lemonade', () => {
+    fixture.componentRef.setInput(
+      'report',
+      dayReport({
+        priceChanges: [
+          { resource: 'lemon', before: 20, after: 21 },
+          { resource: 'lemonade', before: 90, after: 90 },
+        ],
+      }),
+    );
+    fixture.detectChanges();
+    const rows = Array.from(el.querySelectorAll('.prices dd')).map((n) =>
+      n.textContent!.replace(/\s+/g, ' ').trim(),
+    );
+    expect(rows).toEqual(['$90 · no change', '$20 → $21']);
+    expect(el.querySelector('.prices dd.unchanged')).not.toBeNull();
+  });
+
   it('emits dismiss from the Start day button', () => {
     let dismissed = 0;
     fixture.componentInstance.dismiss.subscribe(() => dismissed++);

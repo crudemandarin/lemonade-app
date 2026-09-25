@@ -32,19 +32,52 @@ dd {
   font-variant-numeric: tabular-nums;
 }
 
+.projection {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+
+  strong {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+// Net worth is context, not a control: quieter than day, capital and upkeep.
+.secondary dd {
+  color: var(--text-muted);
+  font-size: 1.125rem;
+}
+
 @media (max-width: 720px) {
   .strip {
     padding: 0.875rem 1rem;
   }
 
+  // Four figures do not fit in one row once cash has seven digits: a 2x2 grid never overflows.
   dl {
+    display: grid;
     flex: 1 1 100%;
-    justify-content: space-between;
-    gap: 0.75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem 1rem;
+  }
+
+  dd {
+    overflow-wrap: anywhere;
   }
 
   dd {
     font-size: 1.25rem;
+  }
+
+  .secondary dd {
+    font-size: 1rem;
   }
 
   .btn-primary {

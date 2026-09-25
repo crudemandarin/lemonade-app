@@ -1,10 +1,18 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, firstValueFrom } from 'rxjs';
+import { Observable, firstValueFrom, from } from 'rxjs';
 
 import { apiErrorMessage } from './api-error';
-import { DayReport, FacilityType, GameView, Resource } from './api.models';
+import {
+  DayReport,
+  FacilityType,
+  GameView,
+  ReportSummary,
+  Resource,
+  UpgradesResponse,
+} from './api.models';
 import { ApiService } from './api.service';
-import { SessionService } from './session.service';
+import { AuthService } from './auth.service';
+import { ToastService } from './toast.service';
 
 /**
  * The single source of game state in the UI. Every mutation returns the updated
@@ -13,7 +21,8 @@ import { SessionService } from './session.service';
 @Injectable({ providedIn: 'root' })
 export class GameStore {
   private readonly api = inject(ApiService);
-  private readonly session = inject(SessionService);
+  private readonly auth = inject(AuthService);
+  private readonly toasts = inject(ToastService);
 
   private readonly _game = signal<GameView | null>(null);
   private readonly _report = signal<DayReport | null>(null);
@@ -28,18 +37,19 @@ export class GameStore {
   readonly loading = this._loading.asReadonly();
   readonly isBankrupt = computed(() => this._game()?.status === 'bankrupt');
 
+  /** Username-only play. Resolves false, with `error` set, when it fails (for example a protected name). */
   async signIn(username: string): Promise<boolean> {
-    const user = await this.run(this.api.login(username));
-    if (!user) {
+    const signedIn = await this.run(from(this.auth.guestSignIn(username)));
+    if (signedIn === undefined) {
       return false;
     }
     this._game.set(null);
-    this.session.signIn(user.username);
     return true;
   }
 
+  /** Signs out of Firebase and forgets everything held for this player. */
   signOut(): void {
-    this.session.signOut();
+    void this.auth.signOut();
     this._game.set(null);
     this._report.set(null);
     this._error.set(null);
@@ -54,12 +64,12 @@ export class GameStore {
     return this.update(this.api.newGame());
   }
 
-  buy(resource: Resource, qty: number): Promise<void> {
-    return this.update(this.api.buy(resource, qty));
+  buy(resource: Resource, qty: number, clamp = false): Promise<void> {
+    return this.update(this.api.buy(resource, qty, clamp));
   }
 
-  sell(resource: Resource, qty: number): Promise<void> {
-    return this.update(this.api.sell(resource, qty));
+  sell(resource: Resource, qty: number, clamp = false): Promise<void> {
+    return this.update(this.api.sell(resource, qty, clamp));
   }
 
   expandWarehouse(resource: Resource): Promise<void> {
@@ -70,8 +80,35 @@ export class GameStore {
     return this.update(this.api.expandProduction());
   }
 
+  sellFacility(type: FacilityType, resource?: Resource): Promise<void> {
+    return this.update(this.api.sellFacility(type, resource));
+  }
+
   upgrade(type: FacilityType): Promise<void> {
     return this.update(this.api.upgrade(type));
+  }
+
+  /** The upgrade list is read on demand and kept out of the game state. Rejects on failure. */
+  upgradeList(): Promise<UpgradesResponse> {
+    return firstValueFrom(this.api.upgrades());
+  }
+
+  /** Buys an upgrade; the game view (cash, features, upkeep) comes back with it. */
+  buyUpgrade(key: string): Promise<void> {
+    return this.update(this.api.buyUpgrade(key));
+  }
+
+  /** Past days are read on demand and kept out of the game state. Rejects on failure. */
+  reportSummaries(): Promise<ReportSummary[]> {
+    return firstValueFrom(this.api.listReports());
+  }
+
+  reportForDay(day: number): Promise<DayReport> {
+    return firstValueFrom(this.api.getReport(day));
+  }
+
+  giveUp(): Promise<void> {
+    return this.update(this.api.giveUp());
   }
 
   async endDay(): Promise<void> {
@@ -79,6 +116,7 @@ export class GameStore {
     if (res) {
       this._game.set(res.game);
       this._report.set(res.report);
+      this.toasts.unlocked(res.game.unlocked);
     }
   }
 
@@ -94,6 +132,7 @@ export class GameStore {
     const game = await this.run(request);
     if (game) {
       this._game.set(game);
+      this.toasts.unlocked(game.unlocked);
     }
   }
 

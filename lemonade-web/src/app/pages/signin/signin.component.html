@@ -5,13 +5,18 @@
     id="username"
     class="input"
     autocomplete="username"
-    minlength="5"
+    minlength="3"
     maxlength="40"
     autocapitalize="none"
     [attr.aria-invalid]="!!fieldError()"
   />
+  @if (wasSecured) {
+    <p class="notice" role="status">
+      That username is now protected with Google. Sign in with Google to keep playing it.
+    </p>
+  }
   @if (message(); as message) {
-    <p class="field-error">{{ message }}</p>
+    <p class="field-error" role="alert">{{ message }}</p>
   }
   <button
     type="submit"
@@ -21,7 +26,23 @@
   >
     Continue
   </button>
-  <p class="hint">
-    At least 5 characters, not case sensitive. New name? We'll start a game for it.
-  </p>
+  <p class="hint">3 to 40 characters, not case sensitive. New name? We'll start a game for it.</p>
+
+  @if (googleAvailable) {
+    <div class="google">
+      <p class="hint">Protected your username with Google? Sign in with it instead.</p>
+      @if (googleError(); as error) {
+        <p class="field-error" role="alert">{{ error }}</p>
+      }
+      <button
+        type="button"
+        class="btn"
+        [class.is-loading]="googleBusy()"
+        [disabled]="googleBusy() || !online()"
+        (click)="google()"
+      >
+        Sign in with Google
+      </button>
+    </div>
+  }
 </form>

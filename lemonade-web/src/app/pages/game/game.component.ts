@@ -1,16 +1,30 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 
+import { DayReport, ReportSummary } from '../../core/api.models';
 import { GameStore } from '../../core/game.store';
 import { OnlineService } from '../../core/online.service';
 import { CardComponent } from '../../shared/card/card.component';
+import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { IconComponent } from '../../shared/icon/icon.component';
+import { MoneyPipe } from '../../shared/money.pipe';
 import { TimelineChartsComponent } from '../../shared/timeline-charts/timeline-charts.component';
 import { DayReportModalComponent } from './components/day-report-modal/day-report-modal.component';
 import { EventsBannerComponent } from './components/events-banner/events-banner.component';
 import { FacilitiesPanelComponent } from './components/facilities-panel/facilities-panel.component';
 import { GameOverComponent } from './components/game-over/game-over.component';
+import { PastDaysDrawerComponent } from './components/past-days-drawer/past-days-drawer.component';
 import { MarketPanelComponent } from './components/market-panel/market-panel.component';
 import { StatsStripComponent } from './components/stats-strip/stats-strip.component';
+
+const TIMELINE_KEY = 'lemonade.timelineOpen';
+
+function loadTimelineOpen(): boolean {
+  try {
+    return localStorage.getItem(TIMELINE_KEY) !== 'closed';
+  } catch {
+    return true;
+  }
+}
 
 /** Wires the presentational game components to the GameStore. */
 @Component({
@@ -18,7 +32,9 @@ import { StatsStripComponent } from './components/stats-strip/stats-strip.compon
   standalone: true,
   imports: [
     CardComponent,
+    ConfirmDialogComponent,
     IconComponent,
+    MoneyPipe,
     TimelineChartsComponent,
     StatsStripComponent,
     EventsBannerComponent,
@@ -26,6 +42,7 @@ import { StatsStripComponent } from './components/stats-strip/stats-strip.compon
     FacilitiesPanelComponent,
     DayReportModalComponent,
     GameOverComponent,
+    PastDaysDrawerComponent,
   ],
   templateUrl: './game.component.html',
   styleUrl: './game.component.scss',
@@ -34,7 +51,72 @@ export class GameComponent implements OnInit {
   protected readonly store = inject(GameStore);
   protected readonly online = inject(OnlineService).online;
 
+  protected readonly confirmingGiveUp = signal(false);
+
+  /** The timeline card can be folded away; the choice is remembered. */
+  protected readonly timelineOpen = signal(loadTimelineOpen());
+
+  protected readonly pastOpen = signal(false);
+  protected readonly pastDays = signal<ReportSummary[] | null>(null);
+  protected readonly pastSelected = signal<number | null>(null);
+  protected readonly pastReport = signal<DayReport | null>(null);
+  protected readonly pastFailed = signal(false);
+  /** Full reports already fetched, so stepping back and forth costs nothing. */
+  private readonly pastCache = new Map<number, DayReport>();
+
   ngOnInit(): void {
     this.store.load();
+  }
+
+  protected toggleTimeline(): void {
+    const open = !this.timelineOpen();
+    this.timelineOpen.set(open);
+    try {
+      localStorage.setItem(TIMELINE_KEY, open ? 'open' : 'closed');
+    } catch {
+      // Storage can be blocked; the choice just won't persist.
+    }
+  }
+
+  protected giveUp(): void {
+    this.confirmingGiveUp.set(false);
+    this.store.giveUp();
+  }
+
+  /** Opens the drawer on the most recent ended day. */
+  protected async openPastDays(): Promise<void> {
+    this.pastOpen.set(true);
+    this.pastFailed.set(false);
+    this.pastDays.set(null);
+    this.pastReport.set(null);
+    this.pastCache.clear();
+    try {
+      const days = await this.store.reportSummaries();
+      this.pastDays.set(days);
+      if (days.length > 0) {
+        await this.selectPastDay(days[days.length - 1].day);
+      }
+    } catch {
+      this.pastFailed.set(true);
+    }
+  }
+
+  protected async selectPastDay(day: number): Promise<void> {
+    this.pastSelected.set(day);
+    const cached = this.pastCache.get(day);
+    if (cached) {
+      this.pastReport.set(cached);
+      return;
+    }
+    this.pastReport.set(null);
+    try {
+      const report = await this.store.reportForDay(day);
+      this.pastCache.set(day, report);
+      if (this.pastSelected() === day) {
+        this.pastReport.set(report);
+      }
+    } catch {
+      this.pastFailed.set(true);
+    }
   }
 }

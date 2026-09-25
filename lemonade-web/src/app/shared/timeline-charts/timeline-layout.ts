@@ -1,5 +1,5 @@
-import { Resource, TimelinePoint } from '../../core/api.models';
-import { RESOURCE_LABELS } from '../../core/resources';
+import { PricePoint, Resource, TimelinePoint } from '../../core/api.models';
+import { resourceLabel } from '../../core/resources';
 import { formatMoney } from '../money.pipe';
 
 // Pure layout and wording helpers for the two history charts. Nothing here touches
@@ -109,7 +109,9 @@ export function nearestIndex(xs: number[], px: number): number {
 
 /** The points worth a dot on the capital chart: trades and facility purchases. */
 export function markerPoints(placed: PlotPoint[]): PlotPoint[] {
-  return placed.filter((p) => ['buy', 'sell', 'expand', 'upgrade'].includes(p.point.kind));
+  return placed.filter((p) =>
+    ['buy', 'sell', 'expand', 'upgrade', 'facility_sold'].includes(p.point.kind),
+  );
 }
 
 const NOUN: Record<Resource, string> = {
@@ -124,7 +126,7 @@ const article = (word: string) => (/^[aeiou]/.test(word) ? 'an' : 'a');
 
 /** One plain-language line per point, used by the tooltip and the table view. */
 export function describePoint(p: TimelinePoint): string {
-  const resource = p.resource ? RESOURCE_LABELS[p.resource].toLowerCase() : '';
+  const resource = p.resource ? resourceLabel(p.resource).toLowerCase() : '';
   switch (p.kind) {
     case 'start':
       return 'Game started';
@@ -142,6 +144,12 @@ export function describePoint(p: TimelinePoint): string {
       return p.facility === 'warehouse'
         ? `Upgraded all warehouses for ${formatMoney(p.amount)}`
         : `Upgraded production for ${formatMoney(p.amount)}`;
+    case 'facility_sold':
+      if (p.facility === 'warehouse' && p.resource) {
+        const noun = NOUN[p.resource];
+        return `Sold ${article(noun)} ${noun} warehouse for ${formatMoney(p.amount)}`;
+      }
+      return `Sold a production building for ${formatMoney(p.amount)}`;
     case 'end_day':
       return `Day ${p.day} ended: made ${p.produced} lemonade, paid ${formatMoney(p.amount)} upkeep`;
   }
@@ -154,4 +162,44 @@ export function formatCompactMoney(n: number): string {
   const body =
     abs >= 1e6 ? `${trim(abs / 1e6)}M` : abs >= 1000 ? `${trim(abs / 1000)}k` : String(abs);
   return `${n < 0 ? '-' : ''}$${body}`;
+}
+
+export type PriceMode = 'dollars' | 'percent';
+
+/** One resource's line for the price chart: dollars, or percent of its base price. */
+export function priceSeries(
+  log: PricePoint[],
+  index: number,
+  mode: PriceMode,
+  basePrices: number[],
+): number[] {
+  return log.map((p) => {
+    const price = p.prices[index] ?? 0;
+    const base = basePrices[index];
+    return mode === 'percent' && base ? Math.round((price / base) * 1000) / 10 : price;
+  });
+}
+
+/** The prices in force at game time x: the newest log point that has started by then. */
+export function priceAt(log: PricePoint[], x: number): PricePoint | null {
+  let found: PricePoint | null = null;
+  for (const p of log) {
+    if (p.day <= x) {
+      found = p;
+    }
+  }
+  return found;
+}
+
+export interface EventBand {
+  from: number;
+  to: number;
+  events: string[];
+}
+
+/** Spans of game time (day d is [d, d + 1)) on which any event was active, clipped to xMax. */
+export function eventBands(log: PricePoint[], xMax: number): EventBand[] {
+  return log
+    .filter((p) => p.events.length > 0 && p.day < xMax)
+    .map((p) => ({ from: p.day, to: Math.min(p.day + 1, xMax), events: p.events }));
 }

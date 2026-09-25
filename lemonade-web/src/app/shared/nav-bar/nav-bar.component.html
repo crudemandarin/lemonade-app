@@ -1,19 +1,38 @@
-<nav class="nav">
-  <a class="brand" routerLink="/">
+<nav class="nav" [class.signed-in]="!!username()">
+  <a class="brand" routerLink="/" aria-label="Lemonade Tycoon home">
     <img src="assets/ui/logo.svg" alt="" width="28" height="28" />
-    Lemonade Tycoon
+    <span class="brand-text">Lemonade Tycoon</span>
   </a>
 
-  @if (username(); as name) {
-    <div class="user">
-      <app-icon name="user" />
-      <span class="name">{{ name }}</span>
-      <button type="button" class="btn btn-ghost log-out" (click)="logOut.emit()">
-        <app-icon name="log-out" [size]="14" />
-        Log out
-      </button>
-    </div>
-  } @else {
-    <a class="btn" routerLink="/signin">Sign in</a>
-  }
+  <div class="right">
+    <app-help-panel />
+    @if (username(); as name) {
+      <div class="user">
+        <a class="btn btn-ghost scores-link" routerLink="/scores">Scores</a>
+        <a
+          class="btn btn-ghost achievements-link"
+          routerLink="/achievements"
+          aria-label="Achievements"
+          >Awards</a
+        >
+        <app-icon name="user" />
+        <span class="name">{{ name }}</span>
+        @if (secured()) {
+          <span class="secured" title="Only your Google account can play this username"
+            >Secured</span
+          >
+        } @else if (canSecure()) {
+          <a class="btn btn-ghost secure-link" routerLink="/secure" aria-label="Secure account">
+            Secure<span class="wide-only"> account</span>
+          </a>
+        }
+        <button type="button" class="btn btn-ghost log-out" (click)="logOut.emit()">
+          <app-icon name="log-out" [size]="14" />
+          Log out
+        </button>
+      </div>
+    } @else {
+      <a class="btn" routerLink="/signin">Sign in</a>
+    }
+  </div>
 </nav>

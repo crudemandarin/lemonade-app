@@ -13,14 +13,21 @@
           <div>
             <h3>{{ wh.tierName }}</h3>
             <p class="key type">
-              <app-icon name="warehouse" [size]="14" /> Warehouses, level {{ wh.level }} of
+              <app-icon name="warehouse" [size]="14" /> Warehouses
+              <app-help-link term="warehouse" label="warehouses" />, level {{ wh.level }} of
               {{ wh.maxLevel }}
             </p>
-            <p class="key">Upkeep {{ wh.upkeepPerDay | money }} per day</p>
+            <p class="key">
+              Upkeep {{ wh.upkeepPerDay | money }} per day
+              <app-help-link term="upkeep" label="upkeep" />
+            </p>
           </div>
         </header>
 
         <div class="upgrade-block">
+          <p class="hint">
+            <app-help-link term="expand" label="expand and upgrade" /> Expand or upgrade?
+          </p>
           <button
             type="button"
             class="btn upgrade"
@@ -38,7 +45,9 @@
           @if (wh.upgrade; as up) {
             <p class="hint">
               Covers {{ buildings(wh.buildings) }} at {{ up.costPerBuilding | money }} each. Each
-              building goes from {{ wh.sizePerBuilding }} to {{ up.sizePerBuilding }} cases.
+              building goes from {{ wh.sizePerBuilding }} to {{ up.sizePerBuilding }} cases, and the
+              market takes more before prices move: {{ wh.marketDepth }} to
+              {{ wh.upgradeMarketDepth }}.
             </p>
           }
         </div>
@@ -47,25 +56,46 @@
           @for (r of wh.resources; track r.resource) {
             <li [attr.data-resource]="r.resource">
               <span class="name">
-                <img
-                  [src]="'assets/resources/' + r.resource + '.svg'"
-                  alt=""
-                  width="22"
-                  height="22"
-                />
-                {{ labels[r.resource] }}
+                <img [src]="icon(r.resource)" alt="" width="22" height="22" />
+                {{ label(r.resource) }}
               </span>
               <span class="count">x{{ r.count }}</span>
               <span class="muted">Holds {{ r.capacity }} cases</span>
-              <button
-                type="button"
-                class="btn btn-sm"
-                [disabled]="disabled()"
-                (click)="expandWarehouse.emit(r.resource)"
-              >
-                <app-icon name="expand" [size]="14" />
-                Expand {{ wh.expandCost | money }}
-              </button>
+              <span class="row-actions">
+                <button
+                  type="button"
+                  class="btn btn-sm"
+                  [disabled]="disabled()"
+                  (click)="expandWarehouse.emit(r.resource)"
+                >
+                  <app-icon name="expand" [size]="14" />
+                  Expand {{ wh.expandCost | money }}
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm sell-building"
+                  [disabled]="disabled() || !r.canSell"
+                  [attr.title]="blockedReason(r) || null"
+                  [attr.aria-label]="
+                    'Sell a ' +
+                    label(r.resource).toLowerCase() +
+                    ' warehouse for ' +
+                    r.sellValue +
+                    ' dollars' +
+                    (r.canSell ? '' : '. ' + blockedReason(r))
+                  "
+                  (click)="
+                    askToSell({
+                      type: 'warehouse',
+                      resource: r.resource,
+                      building: wh.tierName,
+                      value: r.sellValue,
+                    })
+                  "
+                >
+                  Sell {{ r.sellValue | money }}
+                </button>
+              </span>
             </li>
           }
         </ul>
@@ -85,12 +115,16 @@
           <div>
             <h3>{{ pr.tierName }}</h3>
             <p class="key type">
-              <app-icon name="factory" [size]="14" /> Production, level {{ pr.level }} of
+              <app-icon name="factory" [size]="14" /> Production
+              <app-help-link term="production" label="production" />, level {{ pr.level }} of
               {{ pr.maxLevel }}
             </p>
             <p class="muted">{{ buildings(pr.buildings) }}</p>
             <p class="muted">Makes {{ pr.ratePerDay }} lemonade per day</p>
-            <p class="key">Upkeep {{ pr.upkeepPerDay | money }} per day</p>
+            <p class="key">
+              Upkeep {{ pr.upkeepPerDay | money }} per day
+              <app-help-link term="upkeep" label="upkeep" />
+            </p>
           </div>
         </header>
 
@@ -118,6 +152,16 @@
               Max level
             }
           </button>
+          <button
+            type="button"
+            class="btn sell-building"
+            [disabled]="disabled() || !pr.canSell"
+            [attr.title]="blockedReason(pr) || null"
+            (click)="askToSell({ type: 'production', building: pr.tierName, value: pr.sellValue })"
+          >
+            Sell a building: {{ pr.sellValue | money }}
+          </button>
+          <app-help-link term="sell-building" label="selling a building" />
           @if (pr.upgrade; as up) {
             <p class="hint">
               Covers {{ buildings(pr.buildings) }} at {{ up.costPerBuilding | money }} each. Each
@@ -130,3 +174,17 @@
     }
   </div>
 </app-card>
+
+@if (pending(); as sale) {
+  <app-confirm-dialog
+    [title]="'Sell a ' + sale.building + '?'"
+    [message]="
+      'You get ' +
+      (sale.value | money) +
+      ' back, about half of what it cost to build, and your upkeep drops. Upgrades are not refunded.'
+    "
+    [confirmLabel]="'Sell for ' + (sale.value | money)"
+    (confirmed)="confirmSale()"
+    (cancelled)="pending.set(null)"
+  />
+}

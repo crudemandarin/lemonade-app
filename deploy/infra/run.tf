@@ -57,6 +57,12 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "TZ"
         value = "America/Denver"
       }
+      # Optional Google sign-in: verify Firebase ID tokens for this project. Without it players
+      # could still play on a username alone.
+      env {
+        name  = "FIREBASE_PROJECT_ID"
+        value = var.project_id
+      }
       env {
         name = "DB_PASSWORD"
         value_source {
@@ -111,6 +117,23 @@ resource "google_cloud_run_v2_service" "web" {
       env {
         name  = "NGINX_RESOLVER"
         value = "169.254.169.254"
+      }
+      # Rendered into /config/firebase-config.json at startup (public identifiers, not secrets).
+      env {
+        name  = "FIREBASE_PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "FIREBASE_API_KEY"
+        value = var.firebase_api_key
+      }
+      env {
+        name  = "FIREBASE_APP_ID"
+        value = var.firebase_app_id
+      }
+      env {
+        name  = "FIREBASE_AUTH_DOMAIN"
+        value = var.firebase_auth_domain
       }
     }
   }

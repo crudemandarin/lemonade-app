@@ -7,15 +7,19 @@ describe('SessionService', () => {
   afterEach(() => localStorage.removeItem(USERNAME_KEY));
 
   it('starts signed out when nothing is stored', () => {
-    expect(TestBed.inject(SessionService).username()).toBeNull();
+    const session = TestBed.inject(SessionService);
+    expect(session.username()).toBeNull();
+    expect(session.secured()).toBeFalse();
   });
 
-  it('restores a stored username', () => {
+  it('restores a guest from a stored username', () => {
     localStorage.setItem(USERNAME_KEY, 'lemonjoe');
-    expect(TestBed.inject(SessionService).username()).toBe('lemonjoe');
+    const session = TestBed.inject(SessionService);
+    expect(session.username()).toBe('lemonjoe');
+    expect(session.secured()).toBeFalse();
   });
 
-  it('persists sign in and clears on sign out', () => {
+  it('remembers a guest and forgets them on sign out', () => {
     const session = TestBed.inject(SessionService);
 
     session.signIn('lemonjoe');
@@ -24,6 +28,17 @@ describe('SessionService', () => {
 
     session.signOut();
     expect(session.username()).toBeNull();
+    expect(localStorage.getItem(USERNAME_KEY)).toBeNull();
+  });
+
+  it('keeps a secured account in memory only, and drops the guest name', () => {
+    localStorage.setItem(USERNAME_KEY, 'lemonjoe');
+    const session = TestBed.inject(SessionService);
+
+    session.signInSecured('lemonjoe');
+
+    expect(session.username()).toBe('lemonjoe');
+    expect(session.secured()).toBeTrue();
     expect(localStorage.getItem(USERNAME_KEY)).toBeNull();
   });
 });

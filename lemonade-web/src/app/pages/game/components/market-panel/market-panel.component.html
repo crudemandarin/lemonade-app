@@ -1,25 +1,35 @@
 <app-card title="Market and inventory">
+  <fieldset class="amounts" role="radiogroup">
+    <legend>Buy / Sell <app-help-link term="bulk" label="the buy or sell amount" /></legend>
+    @for (a of amounts; track a) {
+      <label [class.selected]="amount() === a">
+        <input
+          type="radio"
+          name="trade-amount"
+          [value]="a"
+          [checked]="amount() === a"
+          (change)="select(a)"
+        />
+        <span>{{ a === 'all' ? 'All' : a }}</span>
+      </label>
+    }
+  </fieldset>
+
   <div class="table" role="table" aria-label="Market and inventory">
     <div class="head" role="row">
       <span role="columnheader">Resource</span>
       <span role="columnheader">Stock</span>
-      <span role="columnheader">Price</span>
+      <span role="columnheader">Price <app-help-link term="price" label="price" /></span>
       <span role="columnheader">Last 14 days</span>
-      <span role="columnheader">Buy at ask</span>
-      <span role="columnheader">Sell at bid</span>
+      <span role="columnheader">Buy at ask <app-help-link term="ask" label="the ask" /></span>
+      <span role="columnheader">Sell at bid <app-help-link term="bid" label="the bid" /></span>
     </div>
 
     @for (row of resources(); track row.resource) {
       <div class="row" role="row" [attr.data-resource]="row.resource">
         <span class="name" role="cell">
-          <img
-            class="resource-img"
-            [src]="'assets/resources/' + row.resource + '.svg'"
-            alt=""
-            width="28"
-            height="28"
-          />
-          {{ labels[row.resource] }}
+          <img class="resource-img" [src]="icon(row.resource)" alt="" width="28" height="28" />
+          {{ label(row.resource) }}
         </span>
 
         <span class="stock" role="cell">
@@ -29,11 +39,26 @@
             [attr.aria-valuenow]="row.stock"
             aria-valuemin="0"
             [attr.aria-valuemax]="row.capacity"
-            [attr.aria-label]="labels[row.resource] + ' stock'"
+            [attr.aria-label]="label(row.resource) + ' stock'"
           >
             <span class="bar-fill" [style.width.%]="fill(row)"></span>
           </span>
           <span class="stock-text">{{ row.stock }} / {{ row.capacity }}</span>
+          <span class="cost-text">
+            @if (row.stock > 0) {
+              {{ row.resource === 'lemonade' ? 'cost to make' : 'avg' }}
+              {{ row.avgCost | money }}
+              <span
+                class="gain"
+                [class.up]="row.unrealizedGain > 0"
+                [class.down]="row.unrealizedGain < 0"
+                [attr.aria-label]="gainLabel(row.unrealizedGain)"
+                >{{ gainText(row.unrealizedGain) }}</span
+              >
+            } @else {
+              &nbsp;
+            }
+          </span>
         </span>
 
         <span class="price" role="cell">
@@ -49,47 +74,50 @@
               <app-icon class="trend flat" name="trend-flat" [size]="14" />
             }
           }
+          @if (impactNote(row); as note) {
+            <span class="impact" role="img" [attr.title]="note" [attr.aria-label]="note">
+              <app-icon name="alert" [size]="14" />
+            </span>
+          }
         </span>
 
         <span class="spark" role="cell">
-          <app-price-sparkline [values]="row.history" [label]="labels[row.resource]" />
+          <app-price-sparkline [values]="row.history" [label]="label(row.resource)" />
         </span>
 
         <span class="trade buy" role="cell">
-          <input
-            #buyQty
-            class="input qty"
-            type="number"
-            min="1"
-            value="1"
-            [attr.aria-label]="'Cases of ' + labels[row.resource] + ' to buy'"
-          />
           <button
             type="button"
-            [disabled]="disabled()"
+            [disabled]="!canBuy(row)"
             class="btn"
-            (click)="buy.emit({ resource: row.resource, qty: qty(buyQty) })"
+            [attr.title]="slippageNote(buyQuote(row), 'buy') || null"
+            (click)="onBuy(row)"
           >
-            Buy {{ row.ask | money }}
+            @if (buyQuote(row); as q) {
+              @if (q.qty > 0) {
+                Buy {{ q.qty }} · {{ q.total | money }}
+              } @else {
+                Buy {{ row.ask | money }}
+              }
+            }
           </button>
         </span>
 
         <span class="trade sell" role="cell">
-          <input
-            #sellQty
-            class="input qty"
-            type="number"
-            min="1"
-            value="1"
-            [attr.aria-label]="'Cases of ' + labels[row.resource] + ' to sell'"
-          />
           <button
             type="button"
-            [disabled]="disabled()"
+            [disabled]="!canSell(row)"
             class="btn"
-            (click)="sell.emit({ resource: row.resource, qty: qty(sellQty) })"
+            [attr.title]="slippageNote(sellQuote(row), 'sell') || null"
+            (click)="onSell(row)"
           >
-            Sell {{ row.bid | money }}
+            @if (sellQuote(row); as q) {
+              @if (q.qty > 0) {
+                Sell {{ q.qty }} · {{ q.total | money }}
+              } @else {
+                Sell {{ row.bid | money }}
+              }
+            }
           </button>
         </span>
       </div>

@@ -14,7 +14,9 @@ const (
 	PointSell    PointKind = "sell"
 	PointExpand  PointKind = "expand"
 	PointUpgrade PointKind = "upgrade"
-	PointEndDay  PointKind = "end_day"
+	// PointSellFacility is a building sold back (Resource set for warehouses).
+	PointSellFacility PointKind = "facility_sold"
+	PointEndDay       PointKind = "end_day"
 )
 
 // TimelinePoint is the state right after one action. Day is the day the action
@@ -28,7 +30,7 @@ type TimelinePoint struct {
 	Amount   int          // dollars: spent (buy, expand, upgrade), earned (sell), or upkeep paid (end of day)
 	Produced int          // lemonade made overnight (end of day only)
 	Capital  int
-	Stock    [5]int // stock after the action, in Resources order
+	Stock    map[Resource]int // stock after the action
 }
 
 // Stats are running totals for the end-of-game report. Unlike the timeline they are
@@ -41,6 +43,8 @@ type Stats struct {
 	FacilitiesBought int
 	Upgrades         int
 	FacilitySpend    int // expansions and upgrades
+	FacilitiesSold   int
+	FacilityProceeds int // cash from selling buildings
 	Produced         int
 	UpkeepPaid       int
 	PeakCapital      int
@@ -55,10 +59,14 @@ const (
 	maxTimelinePoints = 400
 )
 
-func (g *Game) stockSnapshot() [5]int {
-	var s [5]int
-	for i, r := range Resources {
-		s[i] = g.Inventory[r]
+// stockSnapshot copies the stock held, leaving out empty commodities so a long
+// timeline stays small as the catalog grows. A missing key reads as zero.
+func (g *Game) stockSnapshot() map[Resource]int {
+	s := make(map[Resource]int, len(g.Inventory))
+	for r, n := range g.Inventory {
+		if n != 0 {
+			s[r] = n
+		}
 	}
 	return s
 }
