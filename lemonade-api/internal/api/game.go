@@ -84,6 +84,7 @@ func (h *Game) Register(router gin.IRouter) {
 	g.POST("/facilities/:kind/expand", h.expand)
 	g.POST("/facilities/:kind/upgrade", h.upgrade)
 	g.POST("/facilities/:kind/sell", h.sellFacility)
+	g.POST("/give-up", h.giveUp)
 	g.POST("/end-day", h.endDay)
 }
 
@@ -272,6 +273,21 @@ func (h *Game) upgrade(c *gin.Context) {
 		return
 	}
 	h.mutate(c, func(g *domain.Game) error { return domain.Upgrade(g, h.cfg, kind) })
+}
+
+// giveUp ends the run and records it, in one transaction.
+func (h *Game) giveUp(c *gin.Context) {
+	g, _, ok := h.mutateWithEffects(c, func(g *domain.Game) (domain.Effects, error) {
+		if err := domain.GiveUp(g); err != nil {
+			return domain.Effects{}, err
+		}
+		rec := domain.FinishRun(*g, h.cfg, domain.EndedByGaveUp)
+		return domain.Effects{Finished: &rec}, nil
+	})
+	if !ok {
+		return
+	}
+	c.JSON(http.StatusOK, toGameView(g, h.cfg))
 }
 
 func (h *Game) endDay(c *gin.Context) {

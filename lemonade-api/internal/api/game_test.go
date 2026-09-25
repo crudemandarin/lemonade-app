@@ -785,3 +785,47 @@ func TestGameViewCarriesNetWorth(t *testing.T) {
 		t.Fatalf("%+v", nw)
 	}
 }
+
+func TestGiveUp(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+	run := e.storedGame("joe12").RunID
+	e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 5})
+	before := e.game("joe12")
+
+	rec := e.do("POST", "/api/game/give-up", "joe12", nil)
+	v := decode[gameViewDTO](t, rec)
+	if rec.Code != 200 || v.Status != "gave_up" || v.Day != before.Day || v.Capital != before.Capital {
+		t.Fatalf("%d %+v", rec.Code, v)
+	}
+
+	runs := e.repo.Runs()
+	if len(runs) != 1 {
+		t.Fatalf("%d runs recorded, want exactly 1", len(runs))
+	}
+	r := runs[0]
+	// The score is the final net worth: $890 cash + 5 lemons at the $18 bid + $500 of buildings.
+	if r.RunID != run || r.EndedBy != "gave_up" || r.Score != 1480 || r.NetWorth != 1480 || r.Days != before.Day {
+		t.Fatalf("%+v", r)
+	}
+	if v.NetWorth.Total != r.Score {
+		t.Fatalf("view net worth %d, record score %d", v.NetWorth.Total, r.Score)
+	}
+
+	// A second give-up and every other action are refused, and nothing more is recorded.
+	e.wantError(e.do("POST", "/api/game/give-up", "joe12", nil), http.StatusConflict, "game_over")
+	e.wantError(e.do("POST", "/api/game/end-day", "joe12", nil), http.StatusConflict, "game_over")
+	e.wantError(e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 1}), http.StatusConflict, "game_over")
+	e.wantError(e.do("POST", "/api/game/sell", "joe12", map[string]any{"resource": "lemon", "qty": 1}), http.StatusConflict, "game_over")
+	e.wantError(e.do("POST", "/api/game/facilities/production/upgrade", "joe12", nil), http.StatusConflict, "game_over")
+	e.wantError(e.do("POST", "/api/game/facilities/warehouse/expand", "joe12", map[string]any{"resource": "ice"}), http.StatusConflict, "game_over")
+	if len(e.repo.Runs()) != 1 {
+		t.Fatal("refused actions recorded another run")
+	}
+
+	// A new game starts a fresh run that can be given up again.
+	e.do("POST", "/api/game/new", "joe12", nil)
+	if e.game("joe12").Status != "active" {
+		t.Fatal("new game is not active")
+	}
+}

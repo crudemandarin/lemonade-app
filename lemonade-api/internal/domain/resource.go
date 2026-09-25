@@ -44,4 +44,5 @@ type Status string
 const (
 	StatusActive   Status = "active"
 	StatusBankrupt Status = "bankrupt"
+	StatusGaveUp   Status = "gave_up"
 )

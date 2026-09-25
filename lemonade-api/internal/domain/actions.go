@@ -161,3 +161,13 @@ func SellClamped(g *Game, cfg Config, r Resource, qty int) error {
 	}
 	return Sell(g, cfg, r, qty)
 }
+
+// GiveUp ends the run on the player's say-so. Nothing is sold or charged: the
+// final net worth is what the player had when they stopped.
+func GiveUp(g *Game) error {
+	if g.Status != StatusActive {
+		return ErrGameOver
+	}
+	g.Status = StatusGaveUp
+	return nil
+}
