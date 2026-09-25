@@ -150,3 +150,9 @@ Deviations from DESIGN.md and real tradeoffs made during the build. Newest last.
 - **Old saves:** the log starts at the day of the upgrade, seeded from the newest price history entry, so the chart begins there.
 - **Known:** the event backdrop (another agent's feature) makes the page 5 px wider than a 390 px phone under mobile emulation; the app's own content fits.
 
+
+
+## 27. Runs: identity, atomic effects, and score = final net worth (slice 11a)
+- **Did:** every game has a `RunID` (UUID), assigned at new game and, for older saves, on their first successful mutation. `Repository.Mutate` now takes a function returning `Effects{Report, Finished}`, and the store saves them in the same transaction as the game (a day report row per ended day, a run row when the run ends; both idempotent). Bankruptcy records its run in the same `EndDay` transaction that flips the status. `NetWorth` is cash + stock at the current bid + what every building would resell for, and is shown in the header.
+- **Score (user's decision):** a run's score is its final net worth and nothing else. The day count is stored and shown beside it on records and leaderboards, not added into it, so the handoff's proposed `ScorePerDay` is not built.
+- **Choices:** `Days` on a record is the day the run ended on (a run lost on day 12 says 12). `difficulty` exists on `runs` with default 3 and is not used yet. Reports and records are read back by a later slice; this one only writes them.

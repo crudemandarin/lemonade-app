@@ -49,6 +49,12 @@ dd {
   }
 }
 
+// Net worth is context, not a control: quieter than day, capital and upkeep.
+.secondary dd {
+  color: var(--text-muted);
+  font-size: 1.125rem;
+}
+
 @media (max-width: 720px) {
   .strip {
     padding: 0.875rem 1rem;
@@ -62,6 +68,10 @@ dd {
 
   dd {
     font-size: 1.25rem;
+  }
+
+  .secondary dd {
+    font-size: 1rem;
   }
 
   .btn-primary {

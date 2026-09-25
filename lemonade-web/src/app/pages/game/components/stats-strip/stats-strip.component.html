@@ -15,6 +15,14 @@
       </dt>
       <dd>{{ upkeepPerDay() | money }}</dd>
     </div>
+    <div class="secondary">
+      <dt
+        title="Cash, plus stock at the current bid, plus what your buildings would resell for. This is your score."
+      >
+        <app-icon name="coin" [size]="14" /> Net worth
+      </dt>
+      <dd>{{ netWorth() | money }}</dd>
+    </div>
   </dl>
   <button type="button" class="btn btn-primary" [disabled]="disabled()" (click)="endDay.emit()">
     <app-icon name="end-day" />

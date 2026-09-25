@@ -28,6 +28,7 @@
         [day]="game.day"
         [capital]="game.capital"
         [upkeepPerDay]="game.upkeepPerDay"
+        [netWorth]="game.netWorth.total"
         [projection]="game.projection"
         [disabled]="store.loading() || !online()"
         (endDay)="store.endDay()"

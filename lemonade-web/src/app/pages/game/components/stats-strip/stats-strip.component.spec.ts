@@ -11,6 +11,7 @@ describe('StatsStripComponent', () => {
     fixture.componentRef.setInput('day', 4);
     fixture.componentRef.setInput('capital', 1240);
     fixture.componentRef.setInput('upkeepPerDay', 15);
+    fixture.componentRef.setInput('netWorth', 2345);
     fixture.componentRef.setInput('projection', {
       lemonadeToProduce: 8,
       iceToMelt: 3,
@@ -27,6 +28,8 @@ describe('StatsStripComponent', () => {
     expect(text).toContain('4');
     expect(text).toContain('$1,240');
     expect(text).toContain('$15');
+    expect(text).toContain('Net worth');
+    expect(text).toContain('$2,345');
   });
 
   it('emits endDay', () => {

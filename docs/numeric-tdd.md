@@ -160,7 +160,8 @@ Two tables. Scalars a leaderboard would query are real columns; state that is on
 | `seed` | int64 | RNG seed for the price walk and events |
 | `day` | int | current day |
 | `capital` | int | whole dollars |
-| `status` | text | `active` or `bankrupt` |
+| `status` | text | `active` or `bankrupt` (`gave_up` arrives with give up) |
+| `run_id` | text | UUID of this playthrough; empty on older rows, assigned on their first mutation |
 | `warehouse_level` | int | 1–4, shared by all warehouses |
 | `production_level` | int | 1–4 |
 | `production_qty` | int | production buildings, 1–10 |
@@ -173,6 +174,8 @@ Two tables. Scalars a leaderboard would query are real columns; state that is on
 | `timeline` | JSONB | capital and stock snapshot after each action, for the history charts (old days compacted) |
 | `stats` | JSONB | running totals for the game-over summary |
 | `updated_at` | timestamp | |
+
+Two more tables hold what must outlive a game row. `day_reports(run_id, day, payload JSONB)`, primary key `(run_id, day)`, has one row per ended day and is never loaded with the game. `runs(id, user_id, run_id unique, difficulty default 3, days, score, net_worth, capital, ended_by, timeline, stats, price_log, created_at)` has one row per finished run, indexed on `(difficulty, score desc)` and `(user_id, created_at desc)`. Both are written in the same transaction as the game change that produced them.
 
 ## 5. API
 

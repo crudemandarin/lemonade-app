@@ -133,6 +133,16 @@ export interface GameStats {
   peakDay: number;
 }
 
+/** What the player is worth today. The score of a finished run is its final `total`. */
+export interface NetWorth {
+  cash: number;
+  /** Stock at the current bid. */
+  stock: number;
+  /** What every building would resell for. */
+  facilities: number;
+  total: number;
+}
+
 export interface GameView {
   day: number;
   capital: number;
@@ -155,6 +165,7 @@ export interface GameView {
   priceLog: PricePoint[];
   /** Long-run prices in the same order as `PricePoint.prices`, for the "% of base" view. */
   basePrices: number[];
+  netWorth: NetWorth;
 }
 
 /** `limitedBy` is a resource, `production`, `space`, or empty when production capacity is 0. */

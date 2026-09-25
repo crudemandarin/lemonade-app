@@ -18,6 +18,7 @@ export class StatsStripComponent {
   readonly day = input.required<number>();
   readonly capital = input.required<number>();
   readonly upkeepPerDay = input.required<number>();
+  readonly netWorth = input.required<number>();
   readonly projection = input.required<Projection>();
   /** True while a request is in flight or the app is offline. */
   readonly disabled = input(false);
