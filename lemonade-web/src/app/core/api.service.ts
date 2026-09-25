@@ -2,7 +2,15 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
-import { EndDayResponse, FacilityType, GameView, Resource, User } from './api.models';
+import {
+  DayReport,
+  EndDayResponse,
+  FacilityType,
+  GameView,
+  ReportSummary,
+  Resource,
+  User,
+} from './api.models';
 
 const API_URL = '/api';
 
@@ -63,6 +71,19 @@ export class ApiService {
   /** Ends the run; the server records its score. */
   giveUp(): Observable<GameView> {
     return this.http.post<GameView>(`${API_URL}/game/give-up`, {});
+  }
+
+  /** Ended days of the current run (or of a finished run of this user), oldest first. */
+  listReports(runId?: string): Observable<ReportSummary[]> {
+    return this.http.get<ReportSummary[]>(`${API_URL}/game/reports`, {
+      params: runId ? { runId } : {},
+    });
+  }
+
+  getReport(day: number, runId?: string): Observable<DayReport> {
+    return this.http.get<DayReport>(`${API_URL}/game/reports/${day}`, {
+      params: runId ? { runId } : {},
+    });
   }
 
   endDay(): Observable<EndDayResponse> {

@@ -191,6 +191,7 @@ JSON, camelCase. The contract is `lemonade-web/src/app/core/api.models.ts`.
 | `POST /api/game/buy \| sell {resource, qty, clamp?}` | trade at ask · bid; with `clamp`, trades as many as cash, space or stock allow (up to `qty`) instead of failing |
 | `POST /api/game/facilities/warehouse/expand {resource}` · `.../production/expand` | add one building |
 | `POST /api/game/facilities/{warehouse\|production}/upgrade` | upgrade whole type |
+| `GET /api/game/reports[?runId=]` · `GET /api/game/reports/{day}[?runId=]` | ended days of the current run (or of a finished run of the same player): a light list, or one full report; another player's run is a 404 |
 | `POST /api/game/give-up` | end the run (`status: gave_up`) and record it; the score is the net worth at that moment |
 | `POST /api/game/facilities/warehouse/sell {resource}` · `.../production/sell` | sell one building back at `ResaleRate` of its build cost; 409 `min_facility` or `stock_exceeds_capacity` |
 | `POST /api/game/end-day` | `{report, game}` |
@@ -357,4 +358,4 @@ Shows a warning when capital ends at $0 but the game continues.
 |                       [ New game (primary) ]                           |
 ```
 
-**Component map:** `nav-bar` (sign in/out) · `stats-strip` (day, capital, upkeep, end-of-day projection; end day) · `events-banner` · `market-panel` (shared trade amount: 10/50/100/All, then Buy and Sell per row) · `facilities-panel` (expandWarehouse, expandProduction, upgrade, sell with confirmation) · `day-report-modal` · `game-over` · `offline-banner`. Open UX: signed-in users are not auto-redirected from `/`; mobile stacks each market row as a card.
+**Component map:** `nav-bar` (sign in/out) · `stats-strip` (day, capital, upkeep, end-of-day projection; end day) · `events-banner` · `market-panel` (shared trade amount: 10/50/100/All, then Buy and Sell per row) · `facilities-panel` (expandWarehouse, expandProduction, upgrade, sell with confirmation) · `day-report-modal` (body shared with `past-days-drawer`) · `game-over` · `offline-banner`. Open UX: signed-in users are not auto-redirected from `/`; mobile stacks each market row as a card.

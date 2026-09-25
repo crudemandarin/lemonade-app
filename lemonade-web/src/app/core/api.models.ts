@@ -184,6 +184,18 @@ export interface PricePoint {
   events: string[];
 }
 
+/** One row of the past-days list; the full report is fetched per day. */
+export interface ReportSummary {
+  day: number;
+  produced: number;
+  capitalBefore: number;
+  capitalAfter: number;
+  /** Event names. */
+  newEvents: string[];
+  expiredEvents: string[];
+  bankrupt: boolean;
+}
+
 export interface PriceChange {
   resource: Resource;
   before: number;

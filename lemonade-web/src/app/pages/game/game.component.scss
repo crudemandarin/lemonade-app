@@ -8,6 +8,12 @@
   gap: 1rem;
 }
 
+.page-tools {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -0.5rem;
+}
+
 // Quiet and at the very end: giving up is never the obvious next click.
 .give-up {
   display: flex;

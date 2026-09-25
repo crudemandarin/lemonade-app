@@ -2,7 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, firstValueFrom } from 'rxjs';
 
 import { apiErrorMessage } from './api-error';
-import { DayReport, FacilityType, GameView, Resource } from './api.models';
+import { DayReport, FacilityType, GameView, ReportSummary, Resource } from './api.models';
 import { ApiService } from './api.service';
 import { SessionService } from './session.service';
 
@@ -76,6 +76,15 @@ export class GameStore {
 
   upgrade(type: FacilityType): Promise<void> {
     return this.update(this.api.upgrade(type));
+  }
+
+  /** Past days are read on demand and kept out of the game state. Rejects on failure. */
+  reportSummaries(): Promise<ReportSummary[]> {
+    return firstValueFrom(this.api.listReports());
+  }
+
+  reportForDay(day: number): Promise<DayReport> {
+    return firstValueFrom(this.api.getReport(day));
   }
 
   giveUp(): Promise<void> {

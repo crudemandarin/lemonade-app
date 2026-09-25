@@ -1,30 +1,17 @@
-import { Component, computed, input, output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 
 import { DayReport } from '../../../../core/api.models';
-import { RESOURCE_LABELS } from '../../../../core/resources';
-import { IconComponent } from '../../../../shared/icon/icon.component';
-import { MoneyPipe } from '../../../../shared/money.pipe';
+import { DayReportComponent } from '../day-report/day-report.component';
 
-/** End-of-day summary, rendered straight from the server's DayReport. */
+/** End-of-day summary in a modal, with the button that starts the next day. */
 @Component({
   selector: 'app-day-report-modal',
   standalone: true,
-  imports: [IconComponent, MoneyPipe],
+  imports: [DayReportComponent],
   templateUrl: './day-report-modal.component.html',
   styleUrl: './day-report-modal.component.scss',
 })
 export class DayReportModalComponent {
   readonly report = input.required<DayReport>();
   readonly dismiss = output<void>();
-
-  protected readonly labels = RESOURCE_LABELS;
-
-  /** Every price, lemonade first, then the rest in the server's order. */
-  protected readonly prices = computed(() => {
-    const all = this.report().priceChanges;
-    return [
-      ...all.filter((c) => c.resource === 'lemonade'),
-      ...all.filter((c) => c.resource !== 'lemonade'),
-    ];
-  });
 }

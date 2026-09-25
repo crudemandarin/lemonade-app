@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { newGameView, timelinePoint } from '../../core/testing/fixtures';
+import { dayReport, newGameView, timelinePoint } from '../../core/testing/fixtures';
 import { GameComponent } from './game.component';
 
 describe('GameComponent', () => {
@@ -80,6 +80,62 @@ describe('GameComponent', () => {
 
       expect(el.querySelector('app-game-over')).not.toBeNull();
       expect(el.querySelector('[role=alertdialog]')).toBeNull();
+    });
+  });
+
+  describe('past days', () => {
+    const summaries = [1, 2].map((day) => ({
+      day,
+      produced: 5,
+      capitalBefore: 1000,
+      capitalAfter: 970,
+      newEvents: [],
+      expiredEvents: [],
+      bankrupt: false,
+    }));
+    const settle = async () => {
+      await new Promise((resolve) => setTimeout(resolve));
+      fixture.detectChanges();
+    };
+
+    it('opens on the latest day and pages back, fetching each day once', async () => {
+      const el = await render();
+      el.querySelector<HTMLButtonElement>('.past-days')!.click();
+      fixture.detectChanges();
+      http.expectOne('/api/game/reports').flush(summaries);
+      await settle();
+      http.expectOne('/api/game/reports/2').flush(dayReport({ day: 2 }));
+      await settle();
+      expect(el.querySelector('app-past-days-drawer h3')!.textContent).toContain('Day 2 report');
+
+      el.querySelector<HTMLButtonElement>('app-past-days-drawer .prev')!.click();
+      await settle();
+      http.expectOne('/api/game/reports/1').flush(dayReport({ day: 1 }));
+      await settle();
+      expect(el.querySelector('app-past-days-drawer h3')!.textContent).toContain('Day 1 report');
+
+      el.querySelector<HTMLButtonElement>('app-past-days-drawer .next')!.click();
+      await settle();
+      http.expectNone('/api/game/reports/2'); // cached
+      expect(el.querySelector('app-past-days-drawer h3')!.textContent).toContain('Day 2 report');
+    });
+
+    it('shows the empty state for a run with no ended days', async () => {
+      const el = await render();
+      el.querySelector<HTMLButtonElement>('.past-days')!.click();
+      fixture.detectChanges();
+      http.expectOne('/api/game/reports').flush([]);
+      await settle();
+      expect(el.querySelector('app-past-days-drawer .empty')).not.toBeNull();
+    });
+
+    it('says so when the list cannot be loaded', async () => {
+      const el = await render();
+      el.querySelector<HTMLButtonElement>('.past-days')!.click();
+      fixture.detectChanges();
+      http.expectOne('/api/game/reports').flush({}, { status: 500, statusText: '' });
+      await settle();
+      expect(el.querySelector('app-past-days-drawer [role=alert]')).not.toBeNull();
     });
   });
 });

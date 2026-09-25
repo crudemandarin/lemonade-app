@@ -1,0 +1,60 @@
+<div class="backdrop fade-in">
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="past-days-title">
+    <header>
+      <h2 id="past-days-title">Past days</h2>
+      <button
+        type="button"
+        class="icon-btn close"
+        aria-label="Close past days"
+        (click)="closed.emit()"
+      >
+        <app-icon name="x" />
+      </button>
+    </header>
+
+    @if (failed()) {
+      <p class="note" role="alert">Couldn't load your past days. Close this and try again.</p>
+    } @else if (days() === null) {
+      <p class="note">Loading…</p>
+    } @else if (days()!.length === 0) {
+      <p class="note empty">
+        No days have ended yet. Each day you finish will show up here. Days played before this
+        feature was added aren't kept.
+      </p>
+    } @else {
+      <nav class="stepper" aria-label="Choose a day">
+        <button
+          type="button"
+          class="btn btn-sm prev"
+          [disabled]="previous() === null"
+          (click)="selectDay.emit(previous()!)"
+        >
+          Previous
+        </button>
+        <label class="jump">
+          <span class="visually-hidden">Jump to day</span>
+          <select class="input" [value]="selected()" (change)="onJump($event)">
+            @for (d of days(); track d.day) {
+              <option [value]="d.day" [selected]="d.day === selected()">Day {{ d.day }}</option>
+            }
+          </select>
+        </label>
+        <button
+          type="button"
+          class="btn btn-sm next"
+          [disabled]="next() === null"
+          (click)="selectDay.emit(next()!)"
+        >
+          Next
+        </button>
+      </nav>
+
+      @if (report(); as r) {
+        <h3>Day {{ r.day }} report</h3>
+        <app-day-report [report]="r" />
+      } @else {
+        <p class="note">Loading…</p>
+      }
+    }
+  </aside>
+</div>

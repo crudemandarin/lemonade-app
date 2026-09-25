@@ -61,10 +61,10 @@ Time estimates are rough and cumulative.
   - [x] 10b: average purchase price (cost basis)
   - [x] 10c: all-commodities price chart
 
-- [ ] **Slice 11: Runs (see `HANDOFF-A-economy-and-runs.md`)**
+- [x] **Slice 11: Runs (see `HANDOFF-A-economy-and-runs.md`)**
   - [x] 11a: foundation: run ID, atomic effects, `runs` and `day_reports` tables, net worth in the header
   - [x] 11b: give up
-  - [ ] 11c: past day reports
+  - [x] 11c: past day reports
 
 ## Hold points
 - **≈2:30 elapsed:** first Reviewer pass (see kickoff prompt 3). Fix only SPEC gaps and bugs.
