@@ -82,8 +82,10 @@ Postgres reads the credentials only when it sets up an empty volume. To change t
 
 ```bash
 curl http://localhost:8080/api/health
+# Dev bypass: start the API with AUTH_MODE=dev (in .env). Refused on Cloud Run or APP_ENV=production.
 curl -X POST http://localhost:8080/api/login -H "Content-Type: application/json" -d '{"username":"lemonjoe"}'
 curl http://localhost:8080/api/game -H "X-Username: lemonjoe"
+# Normal mode (AUTH_MODE=firebase): Authorization: Bearer <Firebase ID token>. Locally, mint one from the emulator.
 ```
 
 ## Test
@@ -101,12 +103,15 @@ golangci-lint run    # lint using .golangci.yml; install with: brew install gola
 
 ## API reference
 
-Every `/api/game` route needs an `X-Username` header (username-only auth, intentionally not secure). Every mutation returns the updated game view; errors return `{"error": "<code>", "message": "..."}`. The response shapes are defined in [api.models.ts](../lemonade-web/src/app/core/api.models.ts).
+Every `/api/game`, `/api/scores` and `/api/runs` route needs `Authorization: Bearer <Firebase ID token>` (verified: signature, issuer, audience, expiry; provider must be `google.com` and the email verified). Missing or invalid token: 401 `unauthorized`. A valid token whose account has no player yet: 403 `profile_required`. With `AUTH_MODE=dev` an `X-Username` header is accepted too. Every mutation returns the updated game view; errors return `{"error": "<code>", "message": "..."}`. The response shapes are defined in [api.models.ts](../lemonade-web/src/app/core/api.models.ts).
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET    | `/api/health` | Liveness check (no auth) |
-| POST   | `/api/login` `{username}` | Create or get a user (a new user gets a new game) |
+| POST   | `/api/login` `{username}` | **Dev mode only** (404 otherwise): create or get a user (a new user gets a new game) |
+| GET    | `/api/me` | The caller's profile `{id, username}`, or 403 `profile_required` (token only, no player needed) |
+| POST   | `/api/me/username` `{username}` | Create the player and their first game. 400 `invalid_username`, 409 `username_taken`, 409 `already_linked` |
+| POST   | `/api/me/claim` `{username}` | Link an existing pre-Google username. 404 `unknown_username`, 409 `already_claimed`, 409 `already_linked`, 429 `rate_limited` |
 | GET    | `/api/game` | Current game view |
 | POST   | `/api/game/new` | Start a fresh game |
 | POST   | `/api/game/buy` `{resource, qty}` | Buy at ask |

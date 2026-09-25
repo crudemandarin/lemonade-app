@@ -65,3 +65,15 @@ variable "api_domain" {
   type        = string
   default     = ""
 }
+
+variable "firebase_api_key" {
+  description = "Web API key of the Firebase web app (Firebase console, Project settings, Your apps). Public, not a secret; see deploy/README.md, Sign in with Google."
+  type        = string
+  default     = ""
+}
+
+variable "firebase_app_id" {
+  description = "App ID of the Firebase web app (looks like 1:123456789:web:abc123)."
+  type        = string
+  default     = ""
+}

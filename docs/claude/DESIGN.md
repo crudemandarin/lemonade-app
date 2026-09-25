@@ -42,10 +42,10 @@ Rationale: the domain loads and saves a whole `Game` in one transaction, so JSON
 
 Persistence rule: every mutating request does `load game -> domain call -> save game` in one transaction with a row lock (`SELECT ... FOR UPDATE`) to prevent double-submit races.
 
-## 5. API (all JSON, `X-Username` header except login)
+## 5. API (all JSON; `Authorization: Bearer` Firebase ID token, see DECISIONS 32)
 | Method & path | Purpose |
 |---|---|
-| `POST /api/login` `{username}` | Create-or-get user; returns user |
+| `POST /api/login` `{username}` | Dev mode only: create-or-get user. Normal mode: `GET /api/me`, `POST /api/me/username`, `POST /api/me/claim` |
 | `GET /api/game` | Game view: day, capital, inventory, capacities, facilities (tier name, level, quantity, capacity, upkeep, expand cost, upgrade cost), quotes, events, price history, `timeline` (capital and stock snapshots after each action) and `stats` (running totals for the game-over summary; SPEC rule 29) |
 | `POST /api/game/new` | Start fresh game (replaces bankrupt or active one) |
 | `POST /api/game/buy` `{resource, qty}` | Buy at ask |

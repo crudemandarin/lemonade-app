@@ -32,6 +32,31 @@ All default to project `lemonade-app-dev` in `us-central1`. Override with `PROJE
 
 In Cloud Run, `web`'s nginx proxies `/api/*` to the `api` service URL (the `API_UPSTREAM` env var), and `api` connects to Cloud SQL through the `/cloudsql` Unix socket. No app code differs between Compose and Cloud Run.
 
+## Sign in with Google (Firebase Auth)
+
+Players sign in with Google through Firebase Authentication; the API verifies the Firebase ID token on every request. Terraform enables the two APIs and passes the settings to Cloud Run, but a few Firebase steps cannot be done cleanly in Terraform. **Do them once per GCP project, in this order, before merging the change to `main`** (the deploy action ships `api` and `web` together, and the new `api` refuses the old username header):
+
+1. **Add Firebase to the project.** Firebase console → Add project → choose the existing GCP project (`lemonade-app-dev` by default). Skip Google Analytics.
+2. **Register a web app.** Project settings → Your apps → Add app → Web. Note `apiKey` and `appId` from the config snippet (public identifiers, not secrets).
+3. **Enable Google sign-in.** Build → Authentication → Get started → Sign-in method → Google → Enable. Set the support email. This creates the OAuth web client.
+4. **Authorized domains.** Authentication → Settings → Authorized domains must list the Cloud Run web hostname (`web-….run.app`, from `terraform output` or `gcloud run services describe web`), the custom domain if `web_domain` is set, and `localhost`. Sign-in fails with `auth/unauthorized-domain` without them.
+5. **OAuth consent screen.** Google Auth Platform → Branding/Audience: user type **External**, app name, support email, scopes `email` and `profile` only. **Publish the app** (Audience → Publish app) so it is not limited to test users; basic scopes need no Google verification.
+6. **Give Terraform the two web settings.** Create `deploy/infra/terraform.tfvars` (ignored by git; Terraform loads it automatically, so re-running `bootstrap.sh` keeps the values):
+
+   ```hcl
+   firebase_api_key = "AIza..."
+   firebase_app_id  = "1:1234567890:web:abc123"
+   ```
+
+7. `./deploy/scripts/bootstrap.sh` (enables `identitytoolkit.googleapis.com` and `firebase.googleapis.com`, sets `AUTH_MODE=firebase` and `FIREBASE_PROJECT_ID` on `api`, and the `FIREBASE_*` variables on `web`). No service-account key file is needed: `api` only verifies tokens against Google's public keys.
+
+How it fits together:
+
+- `web`'s nginx renders `/config/firebase-config.json` from the `FIREBASE_*` environment variables at request time (`Cache-Control: no-store`), so one image works in any project. `authDomain` is the web host itself, and nginx proxies `/__/auth/` and `/__/firebase/` to `<project>.firebaseapp.com`, which keeps redirect sign-in (used in the installed PWA) same-origin.
+- `api` starts only if `AUTH_MODE=firebase` has a `FIREBASE_PROJECT_ID`, and refuses `AUTH_MODE=dev` on Cloud Run, so the `X-Username` bypass cannot be switched on in production.
+- **Cutover:** after the deploy, old username-only clients get 401 and land on the sign-in page. Existing players sign in with Google once and choose "I already have a username" to link their old account, keeping runs and scores. First come, first served: see Known limitations in the root README.
+- **Smoke test after deploy:** sign in with a real Google account on the real domain, choose a username, play a day, reload, sign out, and repeat inside the installed PWA (desktop Chrome).
+
 ## Custom domains
 
 Custom domains are off by default in dev (`web_domain` / `api_domain` in [infra/variables.tf](infra/variables.tf) default to `""`). To serve `web` and `api` at your own domains, set them (e.g. `lemonade.nyko.run` and `lemonade-api.nyko.run`) via `terraform -var` or the defaults; Cloud Run domain mappings are used and Google issues the TLS certificates.

@@ -76,6 +76,12 @@ Time estimates are rough and cumulative.
   - [ ] Phase 3: retune; Phase 4: UX, docs, verification
   - Phase 2 (perishable lemonade) is out of scope by decision.
 
+- [ ] **Slice 15: Sign in with Google (see `HANDOFF-AUTH.md`; DECISIONS 32)**
+  - [x] 15a: backend: token verifier, `AUTH_MODE` guard, `/api/me` profile and claim endpoints, store methods
+  - [x] 15b: frontend: Firebase auth service, bearer interceptor, guards, sign-in and username pages, runtime config
+  - [x] 15c: infra (APIs, env vars), emulator in Compose, docs
+  - [ ] Real-Google smoke test on the deployed domain and in the installed PWA (needs the Firebase console runbook in `deploy/README.md`)
+
 ## Hold points
 - **≈2:30 elapsed:** first Reviewer pass (see kickoff prompt 3). Fix only SPEC gaps and bugs.
 - **≈3:30 elapsed:** second Reviewer pass plus fresh-clone check; then walkthrough prep.
@@ -90,7 +96,7 @@ Time estimates are rough and cumulative.
 - Gentler bankruptcy variants (e.g. a one-day grace period) if the balance proves too harsh.
 - User-tweakable recipe.
 - Leaderboard using `capital` and `day`.
-- Real authentication.
+- Account deletion, username change, other sign-in providers, and a claim deadline after which unclaimed legacy accounts are archived.
 - PWA extras: update-available prompt, read-only cached game view offline, push notifications.
 - End-to-end browser tests; CI pipeline.
 - Balance tuning for actual fun.

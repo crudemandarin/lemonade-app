@@ -49,6 +49,13 @@ DB_USERNAME=admin
 DB_PASSWORD=password
 DB_NAME=sample
 DB_PORT=5432
+
+# Auth: "firebase" (default) verifies Firebase ID tokens. "dev" also accepts the old
+# X-Username header and POST /api/login, and is refused on Cloud Run or APP_ENV=production.
+AUTH_MODE=firebase
+FIREBASE_PROJECT_ID=demo-lemonade
+# Local Firebase Auth Emulator (docker compose --profile auth up); leave unset in production.
+FIREBASE_AUTH_EMULATOR_HOST=localhost:9099
 ```
 
 ## Run
@@ -56,10 +63,12 @@ DB_PORT=5432
 ### Full stack (Docker Compose)
 
 ```bash
-docker compose up -d --build
-open http://localhost:4200                  # the game
+docker compose --profile auth up -d --build   # the "auth" profile adds the Firebase Auth Emulator
+open http://localhost:4200                  # the game; "Continue with Google" opens the emulator's fake Google
 curl http://localhost:4200/api/health      # API health via the web proxy: {"status":"ok"}
 ```
+
+Sign-in runs against the [Firebase Auth Emulator](https://firebase.google.com/docs/emulator-suite/connect_auth) (no real Google account, no Firebase project needed): in the popup choose "Add new account", "Auto-generate user information", then "Sign in with Google.com". Its account list is at http://localhost:4000/auth. Without `--profile auth` the game loads but nobody can sign in. The emulator forgets its accounts when it stops.
 
 ```bash
 docker compose down           # stop
@@ -73,9 +82,12 @@ docker compose logs -f api    # tail logs (also: web, db)
 
 ```bash
 docker compose up -d db                                  # database only
+docker compose --profile auth up -d auth-emulator        # Firebase Auth Emulator on :9099 (UI on :4000)
 (cd lemonade-api && cp ../.env .env && go run .)         # API on :8080 (keeps running; use a new terminal for the next line)
 (cd lemonade-web && npm start)                           # web on :4200, proxies /api to :8080
 ```
+
+`npm start` reads `lemonade-web/src/config/firebase-config.json`, which points at the emulator. For the fastest loop without signing in through a browser, run the API with `AUTH_MODE=dev` (in `lemonade-api/.env`): then `curl -H "X-Username: lemonjoe"` works, after `POST /api/login {"username":"lemonjoe"}`. The dev bypass is for curl and tests only; the web app always signs in with Google.
 
 Inside Compose the API always connects to `db:5432`. `DB_HOST` only matters when you run the API outside Docker.
 
@@ -86,11 +98,19 @@ Inside Compose the API always connects to `db:5432`. `DB_HOST` only matters when
 (cd lemonade-web && npx ng test --watch=false --browsers=ChromeHeadless)
 ```
 
+Optional integration test of the token verifier against the emulator (skipped otherwise): start it with `docker compose --profile auth up -d auth-emulator`, then `FIREBASE_AUTH_EMULATOR_HOST=localhost:9099 go test ./internal/auth`.
+
 Lint and format: `gofmt -w . && go vet ./...` in `lemonade-api/`; `npm run lint && npm run format` in `lemonade-web/`.
+
+## Sign in
+
+Players sign in with Google (Firebase Authentication). The web app sends the Firebase ID token as `Authorization: Bearer <token>`; the API verifies it, requires the Google provider and a verified email, and maps the account's Firebase UID to a player. **The username is the only public identity**: the Google name and email are never shown or returned by any endpoint (the email is stored for the account and nothing reads it back). A new account chooses a username on first sign-in (`POST /api/me/username`); a player from before Google sign-in can enter their old username once to link it (`POST /api/me/claim`) and keeps their runs and scores.
+
+Setup for a real GCP project is a one-time runbook in [deploy/README.md](deploy/README.md#sign-in-with-google-firebase-auth). Locally it needs nothing but the emulator (see Run above).
 
 ## Deploy
 
-Google Cloud (Cloud Run + Cloud SQL), see [deploy/](deploy/README.md). Pushes to `main` redeploy automatically.
+Google Cloud (Cloud Run + Cloud SQL), see [deploy/](deploy/README.md). Pushes to `main` redeploy automatically. Set up Firebase first if you have not (see Sign in): the API no longer accepts the old username header.
 
 ## Tuning the game
 
@@ -106,5 +126,8 @@ Changing a price, cost or upkeep also changes a few exact numbers asserted in th
 
 ## Known limitations
 
-- Login is username-only (sent as an `X-Username` header), by design of the brief. Not secure: anyone can play as anyone by typing their name. Usernames are 3 to 40 ASCII characters and not case sensitive (`Joe` and `joe` are the same player).
-- Usernames are public on the global high score board, and because login is username-only, anyone can type another player's name and play (or read their run history) as them. A player's run detail is readable only with their username; other players' runs are not viewable from the board.
+- **Legacy accounts are claimed first come, first served.** Before Google sign-in, login was username-only and anyone could type any name, so every existing username is effectively public. Whoever signs in with Google and links an old username first owns it; a hostile player could link someone else's before they do. Claims are rate limited (5 attempts per 10 minutes per Google account, in memory, so per API instance). Possible hardening, not built: a claim deadline after which unclaimed legacy accounts are archived.
+- Usernames are public on the global high score board (3 to 40 ASCII characters, not case sensitive: `Joe` and `joe` are the same player). Nothing else about a player is public. A player's run detail is readable only by that player; other players' runs are not viewable from the board.
+- Tokens live up to an hour and are checked locally, not for revocation, so disabling a Google account takes effect within the hour.
+- One Google account per player; no account deletion, no username change, no other sign-in providers.
+- `AUTH_MODE=dev` (X-Username header, `POST /api/login`) exists for local curl and tests. The API refuses to start with it on Cloud Run or with `APP_ENV=production`.
