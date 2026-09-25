@@ -40,9 +40,9 @@ describe('SigninComponent', () => {
   });
 
   it('rejects names with spaces or non-ASCII characters without calling the API', () => {
-    for (const bad of ['a bcde', 'josé!', 'abcd']) {
+    for (const bad of ['a bcde', 'josé!', 'ab']) {
       submit(bad);
-      expect(el.querySelector('.field-error')?.textContent).toContain('5 to 40');
+      expect(el.querySelector('.field-error')?.textContent).toContain('3 to 40');
     }
   });
 
@@ -56,6 +56,15 @@ describe('SigninComponent', () => {
     flushMicrotasks();
 
     expect(navigate).toHaveBeenCalledWith('/game');
+  }));
+
+  it('accepts a 3-character username', fakeAsync(() => {
+    spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
+    submit('Joe');
+    const req = http.expectOne('/api/login');
+    expect(req.request.body).toEqual({ username: 'joe' });
+    req.flush({ id: 1, username: 'joe' });
+    flushMicrotasks();
   }));
 
   it('disables Continue while offline', () => {

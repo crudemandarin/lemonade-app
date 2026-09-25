@@ -18,7 +18,7 @@ import (
 const (
 	usernameHeader = "X-Username"
 	userKey        = "user"
-	minUsernameLen = 5
+	minUsernameLen = 3
 	maxUsernameLen = 40
 )
 
@@ -130,7 +130,7 @@ func (h *Game) login(c *gin.Context) {
 	}
 	username, ok := normalizeUsername(req.Username)
 	if !ok {
-		abort(c, http.StatusBadRequest, "invalid_username", "Username must be 5 to 40 standard ASCII characters, with no spaces.")
+		abort(c, http.StatusBadRequest, "invalid_username", "Username must be 3 to 40 standard ASCII characters, with no spaces.")
 		return
 	}
 

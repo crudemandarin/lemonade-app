@@ -121,7 +121,12 @@ func TestLoginValidation(t *testing.T) {
 	e := newEnv(t)
 	e.wantError(e.do("POST", "/api/login", "", map[string]string{"username": "   "}), 400, "invalid_username")
 	e.wantError(e.do("POST", "/api/login", "", map[string]string{"username": strings.Repeat("a", 41)}), 400, "invalid_username")
-	e.wantError(e.do("POST", "/api/login", "", map[string]string{"username": "abcd"}), 400, "invalid_username")
+	e.wantError(e.do("POST", "/api/login", "", map[string]string{"username": "ab"}), 400, "invalid_username")
+	e.wantError(e.do("POST", "/api/login", "", map[string]string{"username": "a"}), 400, "invalid_username")
+	// Three characters is the shortest allowed, so that is accepted.
+	if rec := e.do("POST", "/api/login", "", map[string]string{"username": "Joe"}); rec.Code != 200 {
+		t.Fatalf("a 3-character username was refused: %d %s", rec.Code, rec.Body)
+	}
 	for _, bad := range []string{"jo ee", "josée", "日本語日本", "ab\tcd"} {
 		e.wantError(e.do("POST", "/api/login", "", map[string]string{"username": bad}), 400, "invalid_username")
 	}

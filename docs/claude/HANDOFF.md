@@ -80,7 +80,7 @@ deploy/                   Terraform + scripts
 
 **Bankruptcy:** insolvency as above, not "capital 0 and no stock" (that original rule let $0-capital players hold one case and never lose; decisions 16, 18).
 
-**Usernames:** username-only login, sent as `X-Username` on every request, 5 to 40 ASCII chars, case-insensitive (decision 19). Intentionally not secure; documented.
+**Usernames:** username-only login, sent as `X-Username` on every request, 3 to 40 ASCII chars, case-insensitive (decision 19). Intentionally not secure; documented.
 
 ## 5. API (all JSON, camelCase; every mutation returns the updated game view)
 

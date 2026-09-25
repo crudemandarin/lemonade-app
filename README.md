@@ -106,5 +106,5 @@ Changing a price, cost or upkeep also changes a few exact numbers asserted in th
 
 ## Known limitations
 
-- Login is username-only (sent as an `X-Username` header), by design of the brief. Not secure: anyone can play as anyone by typing their name. Usernames are 5 to 40 ASCII characters and not case sensitive (`Joe` and `joe` are the same player).
+- Login is username-only (sent as an `X-Username` header), by design of the brief. Not secure: anyone can play as anyone by typing their name. Usernames are 3 to 40 ASCII characters and not case sensitive (`Joe` and `joe` are the same player).
 - Usernames are public on the global high score board, and because login is username-only, anyone can type another player's name and play (or read their run history) as them. A player's run detail is readable only with their username; other players' runs are not viewable from the board.

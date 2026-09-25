@@ -37,7 +37,7 @@ Timings are cumulative. **Say** is what to say; **Do** is what to click.
 
 ### 0:30 Sign in and install (30s)
 **Do:** Sign in with the fresh username. Point at the browser's Install button.
-**Say:** "Username-only login, as the brief asked. Names are case-insensitive, 5 to 40 characters, and the header identifies you on every request, so it's not secure and I say so in the README. It's an installable PWA: the app shell is cached, but gameplay needs the network because **the server is the source of truth**. I chose no offline play over stale-state bugs."
+**Say:** "Username-only login, as the brief asked. Names are case-insensitive, 3 to 40 characters, and the header identifies you on every request, so it's not secure and I say so in the README. It's an installable PWA: the app shell is cached, but gameplay needs the network because **the server is the source of truth**. I chose no offline play over stale-state bugs."
 
 ### 1:00 The market (45s)
 **Do:** Go to the game page. Point at prices, arrows, sparklines and the event banner and backdrop.

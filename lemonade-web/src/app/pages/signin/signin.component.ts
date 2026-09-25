@@ -29,8 +29,8 @@ export class SigninComponent {
       this.fieldError.set('Enter a username');
       return;
     }
-    if (!/^[\x21-\x7e]{5,40}$/.test(username)) {
-      this.fieldError.set('Use 5 to 40 letters, numbers or symbols, with no spaces');
+    if (!/^[\x21-\x7e]{3,40}$/.test(username)) {
+      this.fieldError.set('Use 3 to 40 letters, numbers or symbols, with no spaces');
       return;
     }
     this.fieldError.set(null);
