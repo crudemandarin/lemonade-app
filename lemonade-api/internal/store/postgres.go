@@ -74,6 +74,30 @@ type eventRow struct {
 	DaysLeft    int                `json:"daysLeft"`
 }
 
+type territoryRow struct {
+	Entered          bool    `json:"entered"`
+	Share            float64 `json:"share"`
+	CampaignDaysLeft int     `json:"campaignDaysLeft"`
+	CampaignBonus    float64 `json:"campaignBonus"`
+}
+
+type rivalRow struct {
+	Share            float64 `json:"share"`
+	Valuation        float64 `json:"valuation"`
+	Momentum         float64 `json:"momentum"`
+	Status           string  `json:"status"`
+	Mood             string  `json:"mood"`
+	TelegraphKey     string  `json:"telegraphKey"`
+	TelegraphDay     int     `json:"telegraphDay"`
+	LossStreak       int     `json:"lossStreak"`
+	StruggleDays     int     `json:"struggleDays"`
+	LastWarDay       int     `json:"lastWarDay"`
+	CampaignDaysLeft int     `json:"campaignDaysLeft"`
+	OfferDaysLeft    int     `json:"offerDaysLeft"`
+	PricePaid        int     `json:"pricePaid"`
+	Hostile          bool    `json:"hostile"`
+}
+
 // gameRow keeps queryable scalars as columns and carried-along state as JSONB.
 type gameRow struct {
 	ID              uint   `gorm:"primaryKey"`
@@ -106,6 +130,10 @@ type gameRow struct {
 	UpgradeSpend int
 	IceOld       int
 	Carry        map[string]float64 `gorm:"type:jsonb;serializer:json"`
+	// Territories and Rivals are NULL on rows saved before territories existed; fromRow
+	// gives those the Neighborhood at its start share with its catalog rivals.
+	Territories map[string]territoryRow `gorm:"type:jsonb;serializer:json"`
+	Rivals      map[string]rivalRow     `gorm:"type:jsonb;serializer:json"`
 
 	UpdatedAt time.Time
 }
@@ -440,12 +468,20 @@ func toRow(g domain.Game) gameRow {
 		UpgradeSpend:    g.UpgradeSpend,
 		IceOld:          g.IceOld,
 		Carry:           make(map[string]float64, len(g.Carry)),
+		Territories:     make(map[string]territoryRow, len(g.Territories)),
+		Rivals:          make(map[string]rivalRow, len(g.Rivals)),
 	}
 	for k, v := range g.Upgrades {
 		row.Upgrades[k] = v
 	}
 	for k, v := range g.Carry {
 		row.Carry[k] = v
+	}
+	for k, t := range g.Territories {
+		row.Territories[k] = territoryRow(t)
+	}
+	for k, r := range g.Rivals {
+		row.Rivals[k] = rivalRow(r)
 	}
 	for _, p := range g.Timeline {
 		row.Timeline = append(row.Timeline, pointRow{
@@ -568,6 +604,20 @@ func fromRow(row gameRow) domain.Game {
 			DaysLeft:    e.DaysLeft,
 		})
 	}
+	if row.Territories != nil {
+		g.Territories = make(map[string]domain.TerritoryState, len(row.Territories))
+		for k, t := range row.Territories {
+			g.Territories[k] = domain.TerritoryState(t)
+		}
+	}
+	if row.Rivals != nil {
+		g.Rivals = make(map[string]domain.RivalState, len(row.Rivals))
+		for k, r := range row.Rivals {
+			g.Rivals[k] = domain.RivalState(r)
+		}
+	}
+	// Games saved before territories existed enter the Neighborhood at its start share.
+	domain.SeedEmpire(&g, domain.DefaultConfig())
 	// Games saved before cost basis existed get an approximate one.
 	domain.SeedCostBasis(&g)
 	domain.SeedPriceLog(&g)

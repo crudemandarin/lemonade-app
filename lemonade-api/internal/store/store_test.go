@@ -226,6 +226,64 @@ func TestPostgresLoadsAnOldShapeRow(t *testing.T) {
 	}
 }
 
+// A row saved before territories has NULL there. It loads as the Neighborhood at 40% with
+// its three catalog rivals, and an empire round-trips exactly.
+func TestPostgresRoundTripsTheEmpire(t *testing.T) {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		t.Skip("DATABASE_URL not set")
+	}
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := NewPostgres(db)
+	if err := repo.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	cleanup := func() {
+		db.Exec("DELETE FROM games WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'pgemp%')")
+		db.Exec("DELETE FROM users WHERE username LIKE 'pgemp%'")
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	ctx := context.Background()
+	cfg := domain.DefaultConfig()
+	game := domain.NewGame(cfg, 7)
+	game.Territories["city"] = domain.TerritoryState{Entered: true, Share: 12.5, CampaignDaysLeft: 3, CampaignBonus: 0.1}
+	game.Rivals["zest_express"] = domain.RivalState{Share: 20, Valuation: 51234.5, Status: domain.RivalActive, Mood: domain.MoodHostile, TelegraphKey: "price_war", TelegraphDay: 9}
+	game.Rivals["lil_lucy"] = domain.RivalState{Share: 0, Status: domain.RivalAcquired, PricePaid: 2500, Hostile: true}
+	user, err := repo.CreateUserWithGame(ctx, "pgemp1", game)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.GetGame(ctx, user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Territories["city"] != game.Territories["city"] || got.Rivals["zest_express"] != game.Rivals["zest_express"] || got.Rivals["lil_lucy"] != game.Rivals["lil_lucy"] {
+		t.Fatalf("empire did not round-trip: %+v %+v", got.Territories, got.Rivals)
+	}
+
+	if err := db.Exec("UPDATE games SET territories = NULL, rivals = NULL WHERE user_id = ?", user.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	old, err := repo.GetGame(ctx, user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nh := old.Territories["neighborhood"]; !nh.Entered || nh.Share != 40 || len(old.Territories) != 1 {
+		t.Fatalf("old row territories = %+v", old.Territories)
+	}
+	if len(old.Rivals) != 3 || old.Rivals["sour_sam"].Share != 25 || old.Rivals["lil_lucy"].Valuation != 2500 {
+		t.Fatalf("old row rivals = %+v", old.Rivals)
+	}
+	if domain.Era(old, cfg) != 1 {
+		t.Fatal("an old save is era 1")
+	}
+}
+
 func TestPostgresSavesEffectsWithTheGame(t *testing.T) {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
