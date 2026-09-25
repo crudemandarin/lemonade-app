@@ -93,6 +93,7 @@ type rivalRow struct {
 	StruggleDays     int     `json:"struggleDays"`
 	LastWarDay       int     `json:"lastWarDay"`
 	CampaignDaysLeft int     `json:"campaignDaysLeft"`
+	FoldDaysLeft     int     `json:"foldDaysLeft"`
 	OfferDaysLeft    int     `json:"offerDaysLeft"`
 	PricePaid        int     `json:"pricePaid"`
 	Hostile          bool    `json:"hostile"`

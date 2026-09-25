@@ -17,6 +17,10 @@ const (
 	// PointSellFacility is a building sold back (Resource set for warehouses).
 	PointSellFacility PointKind = "facility_sold"
 	PointEndDay       PointKind = "end_day"
+	// Empire actions: Resource holds the territory or rival key.
+	PointEnterTerritory PointKind = "territory"
+	PointBuyout         PointKind = "buyout"
+	PointCampaign       PointKind = "campaign"
 )
 
 // TimelinePoint is the state right after one action. Day is the day the action

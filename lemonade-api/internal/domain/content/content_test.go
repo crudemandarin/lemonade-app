@@ -206,6 +206,12 @@ func TestRivalsAreValid(t *testing.T) {
 		if r.Share <= 0 || r.Buyout < 1 || r.FriendlyPremium < 0 || r.RefuseBelowShare < 0 || r.RefuseBelowShare > 100 {
 			t.Errorf("%s: numbers out of range: %+v", r.Key, r)
 		}
+		if r.TelegraphDays < 0 || r.TelegraphDays > 5 || r.SupplyFactor < 0 || r.SupplyFactor > 2 || r.AcquiredFactor < 0 || r.AcquiredFactor > 2 {
+			t.Errorf("%s: telegraph or supply numbers out of range", r.Key)
+		}
+		if (len(r.SupplyResources) > 0) != (r.Personality == Integrated) || (len(r.SupplyResources) > 0 && r.SupplyFactor == 0) {
+			t.Errorf("%s: only integrated rivals control supply, and they need a factor", r.Key)
+		}
 		total[r.Territory] += r.Share
 	}
 	for key, d := range terr {

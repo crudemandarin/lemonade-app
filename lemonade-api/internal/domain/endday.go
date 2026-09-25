@@ -136,6 +136,8 @@ func stepAdvance(g *Game, cfg Config) {
 // Step 8: events expire and may spawn; economic cycles follow (Empire B).
 func stepEvents(g *Game, cfg Config, rng *rand.Rand, report *DayReport) {
 	report.ExpiredEvents, report.NewEvents = tickEvents(g, rng, cfg)
+	// Rival moves announced a day ago happen now; they draw no random numbers.
+	fireRivalEvents(g, cfg)
 }
 
 // effectivePrices is every commodity's effective price right now.
@@ -169,9 +171,6 @@ func stepMarketTick(g *Game, cfg Config, rng *rand.Rand, before map[Resource]int
 		}
 	}
 }
-
-// Step 10: rivals fight for share. Owned by Empire A.
-func stepRivals(g *Game, cfg Config, report *DayReport) {}
 
 // Step 11: contracts past their deadline settle. Owned by Products C.
 func stepContracts(g *Game, cfg Config, report *DayReport) {}

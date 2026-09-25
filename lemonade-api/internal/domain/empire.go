@@ -54,6 +54,9 @@ type RivalState struct {
 	LastWarDay int
 	// CampaignDaysLeft is a running rival campaign (presence bonus).
 	CampaignDaysLeft int
+	// FoldDaysLeft counts down while a folded rival's freed share goes to whoever has
+	// more presence (Share is what is left to hand out).
+	FoldDaysLeft int
 	// OfferDaysLeft is a running merger offer (buyout at a discount).
 	OfferDaysLeft int
 	// PricePaid is what the player paid to acquire it; acquisitions count in net worth.
@@ -200,7 +203,7 @@ func reach(g Game, cfg Config, r Resource) int {
 			total += float64(d.Depth) * t.Share / 100 * ratio
 		}
 	}
-	return int(math.Round(total))
+	return int(math.Round(total * supplyFactor(g, cfg, r)))
 }
 
 // ReachIn is one territory's part of the reach of r, for the breakdown.

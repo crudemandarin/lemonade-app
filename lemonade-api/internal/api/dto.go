@@ -233,7 +233,9 @@ type netWorthDTO struct {
 	Cash       int `json:"cash"`
 	Stock      int `json:"stock"`
 	Facilities int `json:"facilities"`
-	Total      int `json:"total"`
+	// Acquisitions is what rivals bought out count for (half the price paid).
+	Acquisitions int `json:"acquisitions"`
+	Total        int `json:"total"`
 }
 
 type gameViewDTO struct {

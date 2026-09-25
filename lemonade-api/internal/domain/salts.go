@@ -12,6 +12,11 @@ const (
 	// price walk, in that order. It is 0 so games started before salts existed
 	// replay exactly.
 	SaltMarket int64 = 0
+	// SaltRivals is the stream for rival valuation drift; SaltRivalEvents for the
+	// rolls that start rival events. Each draws once per rival per day, in catalog
+	// order, whether or not anything happens, so the streams never shift.
+	SaltRivals      int64 = 0x52495641
+	SaltRivalEvents int64 = 0x52495645
 )
 
 // dayRNG returns the random stream for one system on one day.
