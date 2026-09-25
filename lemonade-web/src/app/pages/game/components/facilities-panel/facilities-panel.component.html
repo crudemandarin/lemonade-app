@@ -13,14 +13,21 @@
           <div>
             <h3>{{ wh.tierName }}</h3>
             <p class="key type">
-              <app-icon name="warehouse" [size]="14" /> Warehouses, level {{ wh.level }} of
+              <app-icon name="warehouse" [size]="14" /> Warehouses
+              <app-help-link term="warehouse" label="warehouses" />, level {{ wh.level }} of
               {{ wh.maxLevel }}
             </p>
-            <p class="key">Upkeep {{ wh.upkeepPerDay | money }} per day</p>
+            <p class="key">
+              Upkeep {{ wh.upkeepPerDay | money }} per day
+              <app-help-link term="upkeep" label="upkeep" />
+            </p>
           </div>
         </header>
 
         <div class="upgrade-block">
+          <p class="hint">
+            <app-help-link term="expand" label="expand and upgrade" /> Expand or upgrade?
+          </p>
           <button
             type="button"
             class="btn upgrade"
@@ -111,12 +118,16 @@
           <div>
             <h3>{{ pr.tierName }}</h3>
             <p class="key type">
-              <app-icon name="factory" [size]="14" /> Production, level {{ pr.level }} of
+              <app-icon name="factory" [size]="14" /> Production
+              <app-help-link term="production" label="production" />, level {{ pr.level }} of
               {{ pr.maxLevel }}
             </p>
             <p class="muted">{{ buildings(pr.buildings) }}</p>
             <p class="muted">Makes {{ pr.ratePerDay }} lemonade per day</p>
-            <p class="key">Upkeep {{ pr.upkeepPerDay | money }} per day</p>
+            <p class="key">
+              Upkeep {{ pr.upkeepPerDay | money }} per day
+              <app-help-link term="upkeep" label="upkeep" />
+            </p>
           </div>
         </header>
 
@@ -153,6 +164,7 @@
           >
             Sell a building: {{ pr.sellValue | money }}
           </button>
+          <app-help-link term="sell-building" label="selling a building" />
           @if (pr.upgrade; as up) {
             <p class="hint">
               Covers {{ buildings(pr.buildings) }} at {{ up.costPerBuilding | money }} each. Each

@@ -3,6 +3,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { GameStore } from '../../core/game.store';
 import { OnlineService } from '../../core/online.service';
 import { CardComponent } from '../../shared/card/card.component';
+import { HelpPanelComponent } from '../../shared/help/help-panel.component';
 import { IconComponent } from '../../shared/icon/icon.component';
 import { TimelineChartsComponent } from '../../shared/timeline-charts/timeline-charts.component';
 import { DayReportModalComponent } from './components/day-report-modal/day-report-modal.component';
@@ -19,6 +20,7 @@ import { StatsStripComponent } from './components/stats-strip/stats-strip.compon
   imports: [
     CardComponent,
     IconComponent,
+    HelpPanelComponent,
     TimelineChartsComponent,
     StatsStripComponent,
     EventsBannerComponent,

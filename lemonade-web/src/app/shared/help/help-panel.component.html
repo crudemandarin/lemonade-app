@@ -1,0 +1,53 @@
+<section class="help" id="how-to-play">
+  <button
+    type="button"
+    class="toggle"
+    [attr.aria-expanded]="help.open()"
+    aria-controls="help-body"
+    (click)="help.toggle()"
+  >
+    <app-icon name="help" [size]="16" />
+    <span class="grow">How to play</span>
+    <span aria-hidden="true">{{ help.open() ? 'Hide' : 'Show' }}</span>
+  </button>
+
+  @if (help.open()) {
+    <div id="help-body" class="body fade-in">
+      <div class="tabs" role="tablist" aria-label="Help sections">
+        @for (s of sections; track s.id) {
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="help.section() === s.id"
+            [class.active]="help.section() === s.id"
+            (click)="help.section.set(s.id)"
+          >
+            {{ s.label }}
+          </button>
+        }
+      </div>
+
+      <dl role="tabpanel">
+        @for (t of terms(); track t.id) {
+          <div class="term" [id]="'help-' + t.id" [class.target]="help.target() === t.id">
+            <dt>{{ t.term }}</dt>
+            <dd>{{ t.definition }}</dd>
+            @if (t.id === 'events') {
+              <table>
+                <tbody>
+                  @for (e of events; track e.name) {
+                    <tr>
+                      <th scope="row">{{ e.name }}</th>
+                      <td>{{ e.effect }}</td>
+                      <td>{{ e.days }} {{ e.days === 1 ? 'day' : 'days' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </div>
+        }
+      </dl>
+    </div>
+  }
+</section>

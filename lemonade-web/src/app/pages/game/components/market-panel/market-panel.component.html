@@ -1,6 +1,6 @@
 <app-card title="Market and inventory">
   <fieldset class="amounts" role="radiogroup">
-    <legend>Buy or sell amount</legend>
+    <legend>Buy or sell amount <app-help-link term="bulk" label="the buy or sell amount" /></legend>
     @for (a of amounts; track a) {
       <label [class.selected]="amount() === a">
         <input
@@ -19,10 +19,10 @@
     <div class="head" role="row">
       <span role="columnheader">Resource</span>
       <span role="columnheader">Stock</span>
-      <span role="columnheader">Price</span>
+      <span role="columnheader">Price <app-help-link term="price" label="price" /></span>
       <span role="columnheader">Last 14 days</span>
-      <span role="columnheader">Buy at ask</span>
-      <span role="columnheader">Sell at bid</span>
+      <span role="columnheader">Buy at ask <app-help-link term="ask" label="the ask" /></span>
+      <span role="columnheader">Sell at bid <app-help-link term="bid" label="the bid" /></span>
     </div>
 
     @for (row of resources(); track row.resource) {
@@ -52,6 +52,7 @@
           <span class="stock-text">{{ row.stock }} / {{ row.capacity }}</span>
           @if (row.stock > 0) {
             <span class="cost-text">
+              <app-help-link term="avg-cost" label="average cost" />
               {{ row.resource === 'lemonade' ? 'cost to make' : 'avg' }}
               {{ row.avgCost | money }}
               <span

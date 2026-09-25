@@ -24,6 +24,7 @@ const PATH_ICONS = {
   'log-out': 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
   alert: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 8v4M12 16h.01',
   x: 'M18 6 6 18M6 6l12 12',
+  help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01',
 } as const;
 
 export type IconName = (typeof ASSET_ICONS)[number] | keyof typeof PATH_ICONS;

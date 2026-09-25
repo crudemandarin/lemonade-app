@@ -9,7 +9,10 @@
       <dd>{{ capital() | money }}</dd>
     </div>
     <div>
-      <dt><app-icon name="coin" [size]="14" /> Upkeep per day</dt>
+      <dt>
+        <app-icon name="coin" [size]="14" /> Upkeep per day
+        <app-help-link term="upkeep" label="upkeep" />
+      </dt>
       <dd>{{ upkeepPerDay() | money }}</dd>
     </div>
   </dl>
@@ -18,6 +21,7 @@
     End day
   </button>
   <p class="projection" [attr.aria-label]="reading()" [title]="limitedBy()">
+    <app-help-link term="projection" label="the projection" />
     <span aria-hidden="true"
       >Makes <strong>{{ projection().lemonadeToProduce }}</strong> lemonade</span
     >

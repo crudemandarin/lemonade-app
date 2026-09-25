@@ -2,6 +2,7 @@ import { Component, computed, input, output } from '@angular/core';
 
 import { Projection } from '../../../../core/api.models';
 import { RESOURCE_LABELS } from '../../../../core/resources';
+import { HelpLinkComponent } from '../../../../shared/help/help-link.component';
 import { IconComponent } from '../../../../shared/icon/icon.component';
 import { MoneyPipe } from '../../../../shared/money.pipe';
 
@@ -9,7 +10,7 @@ import { MoneyPipe } from '../../../../shared/money.pipe';
 @Component({
   selector: 'app-stats-strip',
   standalone: true,
-  imports: [IconComponent, MoneyPipe],
+  imports: [HelpLinkComponent, IconComponent, MoneyPipe],
   templateUrl: './stats-strip.component.html',
   styleUrl: './stats-strip.component.scss',
 })

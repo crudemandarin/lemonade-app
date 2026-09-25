@@ -11,6 +11,7 @@ import {
 import { RESOURCE_LABELS } from '../../../../core/resources';
 import { CardComponent } from '../../../../shared/card/card.component';
 import { ConfirmDialogComponent } from '../../../../shared/confirm-dialog/confirm-dialog.component';
+import { HelpLinkComponent } from '../../../../shared/help/help-link.component';
 import { IconComponent } from '../../../../shared/icon/icon.component';
 import { MoneyPipe } from '../../../../shared/money.pipe';
 
@@ -35,7 +36,7 @@ export interface SellFacilityRequest {
 @Component({
   selector: 'app-facilities-panel',
   standalone: true,
-  imports: [CardComponent, ConfirmDialogComponent, IconComponent, MoneyPipe],
+  imports: [HelpLinkComponent, CardComponent, ConfirmDialogComponent, IconComponent, MoneyPipe],
   templateUrl: './facilities-panel.component.html',
   styleUrl: './facilities-panel.component.scss',
 })

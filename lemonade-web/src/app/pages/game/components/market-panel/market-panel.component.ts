@@ -3,6 +3,7 @@ import { Component, input, output, signal } from '@angular/core';
 import { Resource, ResourceView } from '../../../../core/api.models';
 import { RESOURCE_LABELS } from '../../../../core/resources';
 import { CardComponent } from '../../../../shared/card/card.component';
+import { HelpLinkComponent } from '../../../../shared/help/help-link.component';
 import { IconComponent } from '../../../../shared/icon/icon.component';
 import { formatMoney, MoneyPipe } from '../../../../shared/money.pipe';
 import { PriceSparklineComponent } from '../../../../shared/price-sparkline/price-sparkline.component';
@@ -34,7 +35,7 @@ function loadAmount(): TradeAmount {
 @Component({
   selector: 'app-market-panel',
   standalone: true,
-  imports: [CardComponent, IconComponent, MoneyPipe, PriceSparklineComponent],
+  imports: [HelpLinkComponent, CardComponent, IconComponent, MoneyPipe, PriceSparklineComponent],
   templateUrl: './market-panel.component.html',
   styleUrl: './market-panel.component.scss',
 })

@@ -117,7 +117,7 @@ describe('MarketPanelComponent', () => {
     fixture.componentRef.setInput('disabled', true);
     fixture.detectChanges();
 
-    const buttons = Array.from(el.querySelectorAll<HTMLButtonElement>('button'));
+    const buttons = Array.from(el.querySelectorAll<HTMLButtonElement>('button:not(.help-link)'));
     expect(buttons.length).toBe(10);
     expect(buttons.every((b) => b.disabled)).toBeTrue();
   });
