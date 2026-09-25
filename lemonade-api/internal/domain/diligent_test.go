@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"sync"
 	"testing"
 )
 
@@ -15,16 +16,25 @@ import (
 // capacity as reach grows. The careful grower is the control that ignores all of this.
 
 const (
-	paybackDays   = 25 // enter a territory when its depth pays the cost back this fast
-	buyoutPayback = 60 // and a rival when the share it brings pays back this fast
-	cushionDays   = 6  // days of upkeep kept in cash after any empire spend
-	sampleMargin  = 20 // dollars a case of lemonade earns at base prices, after impact, for planning
+	paybackDays     = 25  // enter a territory when its depth pays the cost back this fast
+	buyoutPayback   = 60  // and a rival when the share it brings pays back this fast
+	cushionDays     = 6   // days of upkeep kept in cash after any empire spend
+	capacityToReach = 1.1 // keep production capacity about equal to reach
+	sampleMargin    = 20  // dollars a case of lemonade earns at base prices, after impact, for planning
 )
 
 // growDiligent is growFast with the empire's caps: the building cap and tier cap now depend
 // on the territories held.
 func growDiligent(g *Game, cfg Config, reserve func(Game) int, res *simResult, day int) {
-	for {
+	for guard := 0; ; guard++ {
+		if guard > 500 {
+			panic(fmt.Sprintf("growDiligent loops: day %d cap %d pl %d/%d wl %d", day, g.Capital, g.ProductionLevel, g.ProductionQty, g.WarehouseLevel))
+		}
+		// Capacity about equal to reach: more than the market absorbs earns nothing, and
+		// the cash is better saved for the next territory or rival.
+		if float64(ProductionCapacity(*g, cfg)) >= capacityToReach*float64(freeDepth(*g, cfg, Lemonade)) {
+			return
+		}
 		pl, wl := g.ProductionLevel, g.WarehouseLevel
 		maxQ, maxL := buildingCap(*g, cfg), levelCap(*g, cfg)
 		canExpand := g.ProductionQty < maxQ
@@ -143,11 +153,7 @@ func diligentEmpire(g *Game, cfg Config, res *simResult, peak map[string]float64
 			t := g.Territories[rd.Territory]
 			hostile := rd.RefuseBelowShare > 0 && t.Share < rd.RefuseBelowShare
 			price, _ := BuyoutPrice(*g, cfg, rd.Key, hostile)
-			def, _, _ := territoryDef(cfg, rd.Territory)
-			depth := float64(def.Depth) * r.Share / 100
-			if rd.Territory == cfg.Territories[0].Key {
-				depth = float64(cfg.FreeDepth[Lemonade]) * DepthMult(*g, cfg) * r.Share / cfg.NeighborhoodStartShare
-			}
+			depth := ShareDepth(*g, cfg, rd.Territory, r.Share)
 			if float64(price)/(depth*sampleMargin) > buyoutPayback || !cashAfter(*g, cfg, price) {
 				continue
 			}
@@ -185,14 +191,6 @@ func diligentEmpire(g *Game, cfg Config, res *simResult, peak map[string]float64
 			}
 		}
 	}
-}
-
-// DepthMult is the warehouse-level multiplier on the Neighborhood depth (bot planning).
-func DepthMult(g Game, cfg Config) float64 {
-	if i := g.WarehouseLevel - 1; i >= 0 && i < len(cfg.DepthByLevel) {
-		return cfg.DepthByLevel[i]
-	}
-	return 1
 }
 
 // noteEmpire records era arrival, net worth and the flat-run length.
@@ -265,14 +263,31 @@ func diligent(cfg Config, seed int64, days int) simResult {
 	return res
 }
 
+// runSeeds plays seeds 1..seeds in parallel and returns the results in seed order.
+func runSeeds(cfg Config, bot func(Config, int64, int) simResult, days, seeds int) []simResult {
+	out := make([]simResult, seeds)
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 4)
+	for i := 0; i < seeds; i++ {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(i int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			out[i] = bot(cfg, int64(i+1), days)
+		}(i)
+	}
+	wg.Wait()
+	return out
+}
+
 func eraReport(name string, cfg Config, bot func(Config, int64, int) simResult, days, seeds int) {
 	var eraDays [6][]int
 	var eraNW [6][]int
 	var bankrupt []int
 	var buyouts, flat []int
 	at := map[int][]int{}
-	for s := int64(1); s <= int64(seeds); s++ {
-		r := bot(cfg, s, days)
+	for _, r := range runSeeds(cfg, bot, days, seeds) {
 		for e := 2; e <= 5; e++ {
 			if r.eraDay[e] > 0 {
 				eraDays[e] = append(eraDays[e], r.eraDay[e])
@@ -333,5 +348,4 @@ func TestDiligentReport(t *testing.T) {
 	}
 	cfg := DefaultConfig()
 	eraReport("diligent", cfg, diligent, 200, seeds)
-	eraReport("grower", cfg, grower, 200, seeds)
 }

@@ -192,11 +192,7 @@ func reach(g Game, cfg Config, r Resource) int {
 	if _, ok := g.Territories[cfg.Territories[0].Key]; !ok {
 		share = start
 	}
-	mult := 1.0
-	if i := g.WarehouseLevel - 1; i >= 0 && i < len(cfg.DepthByLevel) {
-		mult = cfg.DepthByLevel[i]
-	}
-	total := float64(cfg.FreeDepth[r]) * mult * (share / start)
+	total := float64(cfg.FreeDepth[r]) * levelMultiplier(g, cfg) * (share / start)
 	ratio := float64(cfg.FreeDepth[r]) / float64(cfg.FreeDepth[Lemonade])
 	for _, d := range cfg.Territories[1:] {
 		if t := g.Territories[d.Key]; t.Entered {
@@ -204,6 +200,14 @@ func reach(g Game, cfg Config, r Resource) int {
 		}
 	}
 	return int(math.Round(total * supplyFactor(g, cfg, r)))
+}
+
+// levelMultiplier is the phase 0 depth multiplier for the warehouse level.
+func levelMultiplier(g Game, cfg Config) float64 {
+	if i := g.WarehouseLevel - 1; i >= 0 && i < len(cfg.DepthByLevel) {
+		return cfg.DepthByLevel[i]
+	}
+	return 1
 }
 
 // ReachIn is one territory's part of the reach of r, for the breakdown.

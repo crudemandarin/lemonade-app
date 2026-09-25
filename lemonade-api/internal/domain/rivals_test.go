@@ -63,16 +63,18 @@ func TestEnteringATerritory(t *testing.T) {
 
 func TestBuyoutAccounting(t *testing.T) {
 	g, cfg := newTestGame()
-	g.Capital = 10_000
+	g.Capital = 20_000
 	nwBefore := NetWorth(g, cfg)
 	price, _ := BuyoutPrice(g, cfg, "lil_lucy", false)
-	if price != int(math.Round(2500*cfg.ValuationMultiple)) { // Lucy's premium is 1.0
+	// Lucy's premium is 1.0, so she costs her valuation, or 13 days of the profit her
+	// 30 cases of depth add ($26 each) if that is more.
+	if want := 13 * 30 * 26; price != want {
 		t.Fatalf("Lucy costs %d", price)
 	}
 	if err := BuyOut(&g, cfg, "lil_lucy", false); err != nil {
 		t.Fatal(err)
 	}
-	if g.Capital != 10_000-price {
+	if g.Capital != 20_000-price {
 		t.Fatalf("cash %d", g.Capital)
 	}
 	if got := g.Territories["neighborhood"].Share; got != 55 {
@@ -118,7 +120,7 @@ func TestSourSamRefusesUntilTheLeaderHasSixtyPercent(t *testing.T) {
 	}
 	friendly, _ := BuyoutPrice(g, cfg, "sour_sam", false)
 	hostile, _ := BuyoutPrice(g, cfg, "sour_sam", true)
-	if hostile <= friendly || float64(hostile) != math.Round(g.Rivals["sour_sam"].Valuation*1.6) {
+	if hostile <= friendly || float64(hostile) != math.Round(math.Max(g.Rivals["sour_sam"].Valuation, MinBuyoutValue(g, cfg, "sour_sam"))*1.6) {
 		t.Fatalf("hostile %d vs friendly %d", hostile, friendly)
 	}
 	if err := BuyOut(&g, cfg, "sour_sam", true); err != nil {
@@ -433,5 +435,36 @@ func TestIntegratedRivalsCutInputDepthUntilBoughtOut(t *testing.T) {
 	}
 	if got := freeDepth(g, cfg, Lemon); got <= other {
 		t.Fatalf("lemon depth %d should beat sugar depth %d after buying Golden Grove (+20%%)", got, other)
+	}
+}
+
+// A buyout never returns its cost within 10 days at base prices: whatever the rival, the
+// warehouse level, friendly, hostile or a merger offer, the price is over ten days of the
+// profit its share adds (depth gained times the base margin of a case).
+func TestNoBuyoutRepaysItselfWithinTenDays(t *testing.T) {
+	cfg := DefaultConfig()
+	for level := 1; level <= 4; level++ {
+		g := NewGame(cfg, 1)
+		g.WarehouseLevel = level
+		for _, k := range []string{"city", "region", "nation", "world"} {
+			g.Territories[k] = TerritoryState{Entered: true, Share: 5}
+			seedRivals(&g, cfg, k)
+		}
+		for _, d := range cfg.Rivals {
+			r := g.Rivals[d.Key]
+			gain := ShareDepth(g, cfg, d.Territory, r.Share) * float64(cfg.BuyoutMargin)
+			for _, kind := range []string{"friendly", "hostile", "offer"} {
+				probe := g.Clone()
+				pr := probe.Rivals[d.Key]
+				if kind == "offer" {
+					pr.OfferDaysLeft = 2
+					probe.Rivals[d.Key] = pr
+				}
+				price, _ := BuyoutPrice(probe, cfg, d.Key, kind == "hostile")
+				if days := float64(price) / gain; days <= 10 {
+					t.Errorf("level %d %s %s: %d dollars repays in %.1f days of $%.0f", level, d.Key, kind, price, days, gain)
+				}
+			}
+		}
 	}
 }

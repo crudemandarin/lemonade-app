@@ -40,6 +40,7 @@ func BuyoutPrice(g Game, cfg Config, key string, hostile bool) (price int, offer
 		return 0, false
 	}
 	def, _ := rivalDef(cfg, key)
+	value := math.Max(r.Valuation, MinBuyoutValue(g, cfg, key))
 	premium := cfg.FriendlyPremium
 	if def.FriendlyPremium > 0 {
 		premium = def.FriendlyPremium
@@ -50,7 +51,7 @@ func BuyoutPrice(g Game, cfg Config, key string, hostile bool) (price int, offer
 		premium *= cfg.MergerDiscount
 		offer = true
 	}
-	return int(math.Round(r.Valuation * premium)), offer
+	return int(math.Round(value * premium)), offer
 }
 
 // BuyOut pays valuation times the premium for a rival and takes its whole share. A
@@ -130,4 +131,30 @@ func RunCampaign(g *Game, cfg Config, territory string, level int) error {
 	g.Territories[territory] = t
 	g.record(TimelinePoint{Day: g.Day, Kind: PointCampaign, Resource: Resource(territory), Amount: cost})
 	return nil
+}
+
+// ShareDepth is the lemonade depth a rival's whole share would add to the player's reach
+// if the player held it: the territory's depth per share point times the points.
+func ShareDepth(g Game, cfg Config, territory string, points float64) float64 {
+	d, i, ok := territoryDef(cfg, territory)
+	if !ok {
+		return 0
+	}
+	if i == 0 {
+		return float64(cfg.FreeDepth[Lemonade]) * levelMultiplier(g, cfg) * points / cfg.NeighborhoodStartShare
+	}
+	return float64(d.Depth) * points / 100
+}
+
+// MinBuyoutValue is the least a rival is worth: MinPaybackDays of the profit its share
+// would add at base prices. It keeps every buyout from repaying itself in a few days,
+// whatever the rival's own valuation and however deep the player's warehouses make the
+// Neighborhood.
+func MinBuyoutValue(g Game, cfg Config, key string) float64 {
+	def, ok := rivalDef(cfg, key)
+	r, have := g.Rivals[key]
+	if !ok || !have {
+		return 0
+	}
+	return cfg.MinPaybackDays * ShareDepth(g, cfg, def.Territory, r.Share) * float64(cfg.BuyoutMargin)
 }

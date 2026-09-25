@@ -111,6 +111,13 @@ type Config struct {
 	HostilePremium  float64
 	// ValuationMultiple scales every catalog buyout price (a knob for balance).
 	ValuationMultiple float64
+	// BuyoutMargin is the dollars a case of lemonade earns at base prices, and
+	// MinPaybackDays the shortest a buyout may repay itself at that margin from the depth
+	// it adds: the price of a rival never falls under that many days of what its share
+	// would earn, so buying one is never an instant flip. 13 days leaves more than 10
+	// even after a merger offer's 20% discount.
+	BuyoutMargin   int
+	MinPaybackDays float64
 	// RivalGrowth is a rival's daily valuation growth: buying earlier is cheaper.
 	RivalGrowth float64
 	// HubSynergy is the hub upkeep discount per territory beyond the first, up to
@@ -183,6 +190,8 @@ func DefaultConfig() Config {
 		FriendlyPremium:   1.2,
 		HostilePremium:    1.6,
 		ValuationMultiple: 1,
+		BuyoutMargin:      26,
+		MinPaybackDays:    13,
 		RivalGrowth:       0.004,
 		HubSynergy:        0.05,
 		HubSynergyMax:     0.20,
