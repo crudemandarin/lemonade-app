@@ -7,12 +7,10 @@ describe('NavBarComponent', () => {
   let fixture: ComponentFixture<NavBarComponent>;
   let el: HTMLElement;
 
-  function render(username: string | null, secured = false, canSecure = false) {
+  function render(username: string | null) {
     TestBed.configureTestingModule({ providers: [provideRouter([])] });
     fixture = TestBed.createComponent(NavBarComponent);
     fixture.componentRef.setInput('username', username);
-    fixture.componentRef.setInput('secured', secured);
-    fixture.componentRef.setInput('canSecure', canSecure);
     fixture.detectChanges();
     el = fixture.nativeElement;
   }
@@ -32,25 +30,6 @@ describe('NavBarComponent', () => {
     el.querySelector<HTMLButtonElement>('.log-out')!.click();
 
     expect(count).toBe(1);
-  });
-
-  it('offers a guest to secure their account when Google is available', () => {
-    render('lemonjoe', false, true);
-    expect(el.querySelector<HTMLAnchorElement>('a.secure-link')!.getAttribute('href')).toBe(
-      '/secure',
-    );
-    expect(el.querySelector('.secured')).toBeNull();
-  });
-
-  it('does not offer it when Google is not configured', () => {
-    render('lemonjoe', false, false);
-    expect(el.querySelector('a.secure-link')).toBeNull();
-  });
-
-  it('says so, in words, when the account is secured', () => {
-    render('lemonjoe', true, true);
-    expect(el.querySelector('.secured')!.textContent!.trim()).toBe('Secured');
-    expect(el.querySelector('a.secure-link')).toBeNull();
   });
 
   it('links to the scores page when signed in', () => {

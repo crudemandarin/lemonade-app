@@ -46,7 +46,7 @@ Done means: gofmt clean, `go vet` clean, all Go tests pass, frontend tests, lint
 - **Persistence:** one game row per user with JSONB columns; `AutoMigrate` adds columns and old rows load with zero values. Any new persisted field must be safe for old saves. Every mutation is load, domain call, save in one transaction.
 - **Determinism:** market prices come from `rand(seed ^ day)`; do not add unseeded randomness to game logic.
 - The service worker is off in `ng serve`; PWA behavior needs a production build (compose's `web` container serves one).
-- Auth is currently username-only via the `X-Username` header; a Firebase migration is planned (`HANDOFF-AUTH.md`). Do not touch auth in a small fix.
+- Auth is currently username-only via the `X-Username` header; Google sign-in was built and later removed (DECISIONS 34 to 36). Do not touch auth in a small fix.
 
 ## 6. Git rules
 
@@ -57,7 +57,7 @@ Done means: gofmt clean, `go vet` clean, all Go tests pass, frontend tests, lint
 
 ## 7. Where the bigger work is documented (do not implement from these)
 
-`HANDOFF-P0.md`, `HANDOFF-A-economy-and-runs.md`, `HANDOFF-B-scores.md`, `HANDOFF-C-glossary.md` (feature slices), `HANDOFF-BALANCE.md` (balance pass), `HANDOFF-AUTH.md` (Firebase sign-in). Some are already partly or fully implemented; check `PLAN.md` and `DECISIONS.md` for what has landed. If your fix overlaps one of them, mention it to the user instead of guessing.
+`HANDOFF-P0.md`, `HANDOFF-A-economy-and-runs.md`, `HANDOFF-B-scores.md`, `HANDOFF-C-glossary.md` (feature slices), `HANDOFF-BALANCE.md` (balance pass). Some are already partly or fully implemented; check `PLAN.md` and `DECISIONS.md` for what has landed. If your fix overlaps one of them, mention it to the user instead of guessing.
 
 ## 8. When to stop and ask
 

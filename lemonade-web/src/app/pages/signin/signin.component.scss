@@ -14,17 +14,8 @@
   }
 }
 
-.hint,
-.notice {
+.hint {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.8125rem;
-}
-
-.google {
-  display: grid;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
 }

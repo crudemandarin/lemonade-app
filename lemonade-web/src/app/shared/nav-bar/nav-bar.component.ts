@@ -13,9 +13,5 @@ import { IconComponent } from '../icon/icon.component';
 })
 export class NavBarComponent {
   readonly username = input<string | null>(null);
-  /** The account is protected by Google. */
-  readonly secured = input(false);
-  /** A guest could link Google (it is configured), so offer to. */
-  readonly canSecure = input(false);
   readonly logOut = output<void>();
 }

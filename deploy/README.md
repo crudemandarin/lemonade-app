@@ -32,35 +32,53 @@ All default to project `lemonade-app-dev` in `us-central1`. Override with `PROJE
 
 In Cloud Run, `web`'s nginx proxies `/api/*` to the `api` service URL (the `API_UPSTREAM` env var), and `api` connects to Cloud SQL through the `/cloudsql` Unix socket. No app code differs between Compose and Cloud Run.
 
-## Sign in with Google (Firebase Auth)
+## Removing Google sign-in (Firebase) from the cloud
 
-Signing in with Google is **optional**: everyone can play on a username alone, and Google (through Firebase Authentication) is how a player secures an account. Without any of this setup the app still works for guests and simply hides the Google buttons. To turn Google on, Terraform enables the two APIs and passes the settings to Cloud Run, but a few Firebase steps cannot be done cleanly in Terraform. **Do them once per GCP project, in this order:**
+The app is username-only. If you ever set up Google sign-in, none of the scripts remove what it created (the Firebase console pieces were made by hand). Do this after deploying the username-only version, in this order. `PROJECT` below is `lemonade-app-dev` unless you changed it.
 
-1. **Add Firebase to the project.** Firebase console → Add project → choose the existing GCP project (`lemonade-app-dev` by default). Skip Google Analytics.
-2. **Register a web app.** Project settings → Your apps → Add app → Web. Note `apiKey` and `appId` from the config snippet (public identifiers, not secrets).
-3. **Enable Google sign-in.** Build → Authentication → Get started → Sign-in method → Google → Enable. Set the support email. This creates the OAuth web client.
-4. **Authorized domains.** Authentication → Settings → Authorized domains must list the Cloud Run web hostname (`web-….run.app`, from `terraform output` or `gcloud run services describe web`), the custom domain if `web_domain` is set, and `localhost`. Sign-in fails with `auth/unauthorized-domain` without them.
-5. **Allow the web host in the Google OAuth client** (skipping this gives `Error 400: redirect_uri_mismatch`). The app signs in through its own host, so Google must know it. Google Cloud console → APIs & Services → Credentials → the client named **Web client (auto created by Google Service)** → add, for the Cloud Run web hostname and again for any custom domain:
-   - Authorized JavaScript origins: `https://<web-host>`
-   - Authorized redirect URIs: `https://<web-host>/__/auth/handler`
+**1. Deploy the current code, and let Terraform drop the settings.** `./deploy/scripts/bootstrap.sh` (safe to re-run) rebuilds both images without Firebase and applies Terraform, which removes the `FIREBASE_*` and `AUTH_MODE` environment variables from `api` and `web` and stops managing the two Firebase APIs. Check the site: type a username, play a day. (`./deploy/scripts/deploy.sh` alone only swaps the images, so old env vars would linger until the next Terraform apply. They are harmless.)
 
-   It can take a few minutes to apply. To avoid this step, set `firebase_auth_domain = "<project>.firebaseapp.com"` in `terraform.tfvars` instead; the catch is that redirect sign-in (installed PWA, blocked popups) then runs cross-origin and some browsers block its storage.
-6. **OAuth consent screen.** Google Auth Platform → Branding/Audience: user type **External**, app name, support email, scopes `email` and `profile` only. **Publish the app** (Audience → Publish app) so it is not limited to test users; basic scopes need no Google verification.
-7. **Give Terraform the two web settings.** Create `deploy/infra/terraform.tfvars` (ignored by git; Terraform loads it automatically, so re-running `bootstrap.sh` keeps the values):
+**2. Turn Google sign-in off and delete the app in Firebase.** Firebase console → your project:
+- Build → Authentication → Sign-in method → Google → **Disable**.
+- Project settings → General → Your apps → the web app (`lemonade-web`) → **Delete app**.
 
-   ```hcl
-   firebase_api_key = "AIza..."
-   firebase_app_id  = "1:1234567890:web:abc123"
-   ```
+Firebase cannot be detached from a Google Cloud project short of deleting the project itself; leaving it attached is free and inert once the APIs below are off.
 
-8. `./deploy/scripts/bootstrap.sh` (enables `identitytoolkit.googleapis.com` and `firebase.googleapis.com`, sets `FIREBASE_PROJECT_ID` on `api`, and the `FIREBASE_*` variables on `web`). No service-account key file is needed: `api` only verifies tokens against Google's public keys.
+**3. Delete the credentials Firebase created.** Google Cloud console → APIs & Services → Credentials:
+- OAuth 2.0 Client IDs → **Web client (auto created by Google Service)** → delete. This is the client whose redirect URIs you edited.
+- API keys → **Browser key (auto created by Firebase)** → delete. Or by command: `gcloud services api-keys list --project PROJECT`, then `gcloud services api-keys delete KEY_ID --project PROJECT`.
+- The OAuth consent screen (Google Auth Platform) cannot be deleted and does nothing without a client; leave it.
 
-How it fits together:
+**4. Disable the Firebase APIs.** They stay enabled after Terraform stops listing them (`disable_on_destroy` is false), so list and disable them:
 
-- `web`'s nginx renders `/config/firebase-config.json` from the `FIREBASE_*` environment variables at request time (`Cache-Control: no-store`), so one image works in any project. `authDomain` is the web host itself (unless overridden), and nginx proxies `/__/auth/` and `/__/firebase/` to `<project>.firebaseapp.com`, which keeps redirect sign-in (used in the installed PWA) same-origin.
-- `api` verifies Firebase tokens when `FIREBASE_PROJECT_ID` is set; unset, it runs guests-only.
-- **Rollout:** nothing breaks for existing players. Username play keeps working; a player who wants a protected account opens "Secure account" and links Google. Until then their name is open to anyone who types it (see Known limitations in the root README).
-- **Smoke test after deploy:** sign in with a real Google account on the real domain, play as a guest, use Secure account to link Google, reload, log out, confirm the bare username is refused and Google signs you back in, and repeat inside the installed PWA (desktop Chrome).
+```bash
+gcloud services list --enabled --project PROJECT --format='value(config.name)' | grep -Ei 'firebase|identitytoolkit|securetoken|fcm|mobilesdk'
+gcloud services disable identitytoolkit.googleapis.com firebase.googleapis.com --project PROJECT
+# add --force if it names services that depend on them, and repeat for any others the first command listed
+```
+
+**5. Clean up locally.** `rm -f deploy/infra/terraform.tfvars` (it held the Firebase web settings) and, if you ran the old emulator, `docker rm -f lemonade-auth-emulator`.
+
+**6. Optional: drop the unused database columns.** A database that ran the Google version has `users.firebase_uid`, `email` and `claimed_at` (plus a unique index on `firebase_uid`). The app ignores them and never drops columns. To remove them, connect to Cloud SQL (`gcloud sql connect $(gcloud sql instances list --project PROJECT --format='value(name)' --filter='name:lemonade-db-*') --user=app --database=sample --project PROJECT`, password from the `db-password` secret) and run:
+
+```sql
+ALTER TABLE users DROP COLUMN IF EXISTS firebase_uid, DROP COLUMN IF EXISTS email, DROP COLUMN IF EXISTS claimed_at;
+```
+
+Anyone who had secured an account with Google can be played by username again, since nothing checks the link any more.
+
+## Tearing down everything
+
+`./deploy/scripts/teardown.sh` deletes what `bootstrap.sh` created and then verifies nothing is left: the `web` and `api` Cloud Run services, Cloud SQL (deletion protection is lifted first), the Artifact Registry repo, Secret Manager `db-password`, the service accounts, custom domain mappings, the billing budget, the GitHub Actions identity pool, the Cloud Build source bucket(s) and the Terraform state bucket. It asks you to type the project id first. `--yes` skips the prompt and `--keep-state` keeps the state bucket. It exits non-zero if anything remains.
+
+Then remove what it does not know about:
+
+1. Everything in the section above that applies (Firebase app, OAuth client, API key, enabled Firebase APIs), if you ever set up Google sign-in.
+2. Custom domain DNS: delete the `lemonade` and `lemonade-api` CNAMEs (`ghs.googlehosted.com`) in Cloudflare, and the Search Console TXT record if you no longer want the domain verified.
+3. GitHub: the `GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_SERVICE_ACCOUNT` repository variables (teardown deletes them when `gh` is installed; check Settings → Secrets and variables → Actions → Variables).
+4. Enabled APIs stay enabled; that costs nothing.
+
+For an absolute guarantee that nothing keeps billing, delete the whole project, which also removes Firebase and every credential in it: `gcloud projects delete PROJECT`. The scripts never do this. Deletion is recoverable for 30 days (`gcloud projects undelete PROJECT`).
 
 ## Custom domains
 

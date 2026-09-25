@@ -38,24 +38,11 @@
   font-weight: 500;
 }
 
-.secured {
-  padding: 0 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--text-muted);
-  font-size: 0.75rem;
-}
-
 a.btn {
   text-decoration: none;
 }
 
-.wide-only {
-  display: inline;
-}
-
 @media (max-width: 480px) {
-  .wide-only,
   .user app-icon {
     display: none;
   }
@@ -87,15 +74,13 @@ a.btn {
     min-width: 0;
   }
 
-  .secure-link,
-  .secured,
   .scores-link,
   .achievements-link,
   .log-out {
     padding-inline: 0.375rem;
   }
 
-  /* Signed in, the account controls need the room: keep the logo, drop the wordmark. */
+  /* Signed in, the links need the room: keep the logo, drop the wordmark. */
   .signed-in .brand-text {
     display: none;
   }

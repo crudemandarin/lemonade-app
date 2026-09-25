@@ -15,8 +15,6 @@ type Memory struct {
 	mu     sync.Mutex
 	nextID uint
 	users  map[string]domain.User
-	byUID  map[string]uint // Firebase UID -> user ID
-	linked map[uint]bool   // user IDs that have a UID (email is not kept: nothing reads it)
 	games  map[uint]domain.Game
 
 	reports  map[string]map[int]domain.DayReport // by run ID, then day
@@ -33,8 +31,6 @@ func NewMemory() *Memory {
 	return &Memory{
 		nextID: 1,
 		users:  map[string]domain.User{},
-		byUID:  map[string]uint{},
-		linked: map[uint]bool{},
 		games:  map[uint]domain.Game{},
 
 		reports:  map[string]map[int]domain.DayReport{},
@@ -63,70 +59,6 @@ func (m *Memory) CreateUserWithGame(_ context.Context, username string, game dom
 	m.nextID++
 	m.users[username] = u
 	m.games[u.ID] = game.Clone()
-	return u, nil
-}
-
-func (m *Memory) FindGuestUser(_ context.Context, username string) (domain.User, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	u, ok := m.users[username]
-	switch {
-	case !ok:
-		return domain.User{}, ErrNotFound
-	case m.linked[u.ID]:
-		return domain.User{}, ErrAlreadyClaimed
-	}
-	return u, nil
-}
-
-func (m *Memory) FindUserByUID(_ context.Context, uid string) (domain.User, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	id, ok := m.byUID[uid]
-	if !ok || uid == "" {
-		return domain.User{}, ErrNotFound
-	}
-	for _, u := range m.users {
-		if u.ID == id {
-			return u, nil
-		}
-	}
-	return domain.User{}, ErrNotFound
-}
-
-func (m *Memory) CreateProfile(_ context.Context, username, uid, _ string, game domain.Game) (domain.User, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if _, ok := m.byUID[uid]; ok {
-		return domain.User{}, ErrAlreadyLinked
-	}
-	if _, ok := m.users[username]; ok {
-		return domain.User{}, ErrUsernameTaken
-	}
-	u := domain.User{ID: m.nextID, Username: username}
-	m.nextID++
-	m.users[username] = u
-	m.byUID[uid] = u.ID
-	m.linked[u.ID] = true
-	m.games[u.ID] = game.Clone()
-	return u, nil
-}
-
-func (m *Memory) ClaimUser(_ context.Context, username, uid, _ string) (domain.User, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if _, ok := m.byUID[uid]; ok {
-		return domain.User{}, ErrAlreadyLinked
-	}
-	u, ok := m.users[username]
-	if !ok {
-		return domain.User{}, ErrNotFound
-	}
-	if m.linked[u.ID] {
-		return domain.User{}, ErrAlreadyClaimed
-	}
-	m.byUID[uid] = u.ID
-	m.linked[u.ID] = true
 	return u, nil
 }
 
