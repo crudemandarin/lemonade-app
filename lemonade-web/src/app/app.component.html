@@ -4,5 +4,8 @@
   <app-offline-banner />
 </header>
 <main class="page">
-  <router-outlet />
+  @if (!auth.ready()) {
+    <p class="boot" role="status">Loading…</p>
+  }
+  <div [hidden]="!auth.ready()"><router-outlet /></div>
 </main>

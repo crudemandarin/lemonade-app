@@ -1,76 +1,94 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ComponentFixture, TestBed, fakeAsync, flushMicrotasks } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 
-import { SessionService } from '../../core/session.service';
+import { FakeAuthPort, provideFakeAuth } from '../../core/testing/fake-auth';
 import { SigninComponent } from './signin.component';
 
 describe('SigninComponent', () => {
   let fixture: ComponentFixture<SigninComponent>;
   let el: HTMLElement;
   let http: HttpTestingController;
+  let port: FakeAuthPort;
+  let navigate: jasmine.Spy;
 
   beforeEach(() => {
+    port = new FakeAuthPort();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        provideFakeAuth(port),
+      ],
     });
-    fixture = TestBed.createComponent(SigninComponent);
+    navigate = spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
     http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(SigninComponent);
     fixture.detectChanges();
     el = fixture.nativeElement;
   });
 
-  afterEach(() => {
-    http.verify();
-    TestBed.inject(SessionService).signOut();
-  });
+  afterEach(() => http.verify());
 
-  function submit(username: string) {
-    const input = el.querySelector<HTMLInputElement>('input')!;
-    input.value = username;
-    input.dispatchEvent(new Event('input'));
-    el.querySelector('form')!.dispatchEvent(new Event('submit'));
+  const button = () => el.querySelector<HTMLButtonElement>('button')!;
+  const settle = async () => {
+    await new Promise((resolve) => setTimeout(resolve));
     fixture.detectChanges();
-  }
+  };
 
-  it('shows an inline error for an empty username and sends nothing', () => {
-    submit('   ');
-    expect(el.querySelector('.field-error')?.textContent).toContain('Enter a username');
+  it('has exactly one button, the primary "Continue with Google"', () => {
+    expect(el.querySelectorAll('button').length).toBe(1);
+    expect(button().textContent!.trim()).toBe('Continue with Google');
+    expect(button().classList).toContain('btn-primary');
+    expect(el.querySelector('input')).toBeNull();
   });
 
-  it('rejects names with spaces or non-ASCII characters without calling the API', () => {
-    for (const bad of ['a bcde', 'josé!', 'ab']) {
-      submit(bad);
-      expect(el.querySelector('.field-error')?.textContent).toContain('3 to 40');
-    }
-  });
+  it('signs in and goes to the game when the account has a profile', async () => {
+    button().click();
+    await settle();
+    http.expectOne('/api/me').flush({ id: 1, username: 'lemonjoe' });
+    await settle();
 
-  it('logs in and routes to /game', fakeAsync(() => {
-    const navigate = spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
-
-    submit(' LemonJoe ');
-    const req = http.expectOne('/api/login');
-    expect(req.request.body).toEqual({ username: 'lemonjoe' });
-    req.flush({ id: 1, username: 'lemonjoe' });
-    flushMicrotasks();
-
+    expect(port.popupCalls).toBe(1);
     expect(navigate).toHaveBeenCalledWith('/game');
-  }));
+  });
 
-  it('accepts a 3-character username', fakeAsync(() => {
-    spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
-    submit('Joe');
-    const req = http.expectOne('/api/login');
-    expect(req.request.body).toEqual({ username: 'joe' });
-    req.flush({ id: 1, username: 'joe' });
-    flushMicrotasks();
-  }));
+  it('sends a new account to choose a username', async () => {
+    button().click();
+    await settle();
+    http
+      .expectOne('/api/me')
+      .flush({ error: 'profile_required', message: 'x' }, { status: 403, statusText: '' });
+    await settle();
 
-  it('disables Continue while offline', () => {
+    expect(navigate).toHaveBeenCalledWith('/signin/username');
+  });
+
+  it('shows an inline error when Google sign-in fails', async () => {
+    port.popupError = { code: 'auth/network-request-failed' };
+    button().click();
+    await settle();
+
+    expect(el.querySelector('.field-error')?.textContent).toContain('Google sign-in did not work');
+    expect(navigate).not.toHaveBeenCalled();
+    expect(button().disabled).toBeFalse();
+  });
+
+  it('stays put when the popup is closed', async () => {
+    port.popupError = { code: 'auth/popup-closed-by-user' };
+    button().click();
+    await settle();
+
+    expect(el.querySelector('.field-error')).toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('disables the button while offline', () => {
     window.dispatchEvent(new Event('offline'));
     fixture.detectChanges();
-    expect(el.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBeTrue();
+    expect(button().disabled).toBeTrue();
     window.dispatchEvent(new Event('online'));
   });
 });

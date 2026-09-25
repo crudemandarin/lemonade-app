@@ -4,7 +4,7 @@ import { Observable, firstValueFrom } from 'rxjs';
 import { apiErrorMessage } from './api-error';
 import { DayReport, FacilityType, GameView, ReportSummary, Resource } from './api.models';
 import { ApiService } from './api.service';
-import { SessionService } from './session.service';
+import { AuthService } from './auth.service';
 
 /**
  * The single source of game state in the UI. Every mutation returns the updated
@@ -13,7 +13,7 @@ import { SessionService } from './session.service';
 @Injectable({ providedIn: 'root' })
 export class GameStore {
   private readonly api = inject(ApiService);
-  private readonly session = inject(SessionService);
+  private readonly auth = inject(AuthService);
 
   private readonly _game = signal<GameView | null>(null);
   private readonly _report = signal<DayReport | null>(null);
@@ -28,18 +28,9 @@ export class GameStore {
   readonly loading = this._loading.asReadonly();
   readonly isBankrupt = computed(() => this._game()?.status === 'bankrupt');
 
-  async signIn(username: string): Promise<boolean> {
-    const user = await this.run(this.api.login(username));
-    if (!user) {
-      return false;
-    }
-    this._game.set(null);
-    this.session.signIn(user.username);
-    return true;
-  }
-
+  /** Signs out of Firebase and forgets everything held for this player. */
   signOut(): void {
-    this.session.signOut();
+    void this.auth.signOut();
     this._game.set(null);
     this._report.set(null);
     this._error.set(null);

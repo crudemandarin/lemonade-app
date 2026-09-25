@@ -1,7 +1,7 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
-import { GameStore } from '../../core/game.store';
+import { AuthService } from '../../core/auth.service';
 import { OnlineService } from '../../core/online.service';
 
 @Component({
@@ -11,31 +11,26 @@ import { OnlineService } from '../../core/online.service';
   styleUrl: './signin.component.scss',
 })
 export class SigninComponent {
+  private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  protected readonly store = inject(GameStore);
   protected readonly online = inject(OnlineService).online;
-  protected readonly fieldError = signal<string | null>(null);
-  /** Local validation first, then the server's message. */
-  protected readonly message = computed(() => this.fieldError() ?? this.store.error());
+  protected readonly busy = signal(false);
+  protected readonly error = signal<string | null>(null);
 
-  constructor() {
-    this.store.clearError();
-  }
-
-  protected async submit(event: Event, raw: string): Promise<void> {
-    event.preventDefault();
-    const username = raw.trim().toLowerCase();
-    if (!username) {
-      this.fieldError.set('Enter a username');
-      return;
-    }
-    if (!/^[\x21-\x7e]{3,40}$/.test(username)) {
-      this.fieldError.set('Use 3 to 40 letters, numbers or symbols, with no spaces');
-      return;
-    }
-    this.fieldError.set(null);
-    if (await this.store.signIn(username)) {
-      await this.router.navigateByUrl('/game');
+  protected async signIn(): Promise<void> {
+    this.error.set(null);
+    this.busy.set(true);
+    try {
+      await this.auth.signInWithGoogle();
+      // A redirect sign-in leaves the page; a popup signs in right here.
+      if (this.auth.firebaseUser()) {
+        const hasProfile = await this.auth.loadProfile();
+        await this.router.navigateByUrl(hasProfile ? '/game' : '/signin/username');
+      }
+    } catch {
+      this.error.set('Google sign-in did not work. Try again.');
+    } finally {
+      this.busy.set(false);
     }
   }
 }

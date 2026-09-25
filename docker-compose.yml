@@ -41,6 +41,13 @@ services:
     container_name: lemonade-web
     depends_on:
       - api
+    environment:
+      # Local sign-in against the emulator (docker compose --profile auth up -d).
+      FIREBASE_API_KEY: fake-api-key
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-demo-lemonade}
+      FIREBASE_APP_ID: 1:000000000000:web:local
+      FIREBASE_USE_EMULATOR: "true"
+      FIREBASE_EMULATOR_URL: http://localhost:9099
     ports:
       - "4200:80"
 

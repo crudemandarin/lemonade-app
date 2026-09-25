@@ -1,27 +1,16 @@
-<form class="form" novalidate (submit)="submit($event, username.value)">
-  <label for="username">Username</label>
-  <input
-    #username
-    id="username"
-    class="input"
-    autocomplete="username"
-    minlength="3"
-    maxlength="40"
-    autocapitalize="none"
-    [attr.aria-invalid]="!!fieldError()"
-  />
-  @if (message(); as message) {
-    <p class="field-error">{{ message }}</p>
+<section class="card">
+  <h1>Sign in</h1>
+  <p class="hint">Other players only ever see your username, never your Google account.</p>
+  @if (error(); as message) {
+    <p class="field-error" role="alert">{{ message }}</p>
   }
   <button
-    type="submit"
+    type="button"
     class="btn btn-primary"
-    [class.is-loading]="store.loading()"
-    [disabled]="store.loading() || !online()"
+    [class.is-loading]="busy()"
+    [disabled]="busy() || !online()"
+    (click)="signIn()"
   >
-    Continue
+    Continue with Google
   </button>
-  <p class="hint">
-    At least 5 characters, not case sensitive. New name? We'll start a game for it.
-  </p>
-</form>
+</section>

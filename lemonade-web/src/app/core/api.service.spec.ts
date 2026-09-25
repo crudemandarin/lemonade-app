@@ -20,7 +20,15 @@ describe('ApiService', () => {
   afterEach(() => http.verify());
 
   const cases: [string, () => Observable<unknown>, string, string, unknown][] = [
-    ['login', () => api.login('lemonjoe'), 'POST', '/api/login', { username: 'lemonjoe' }],
+    ['me', () => api.me(), 'GET', '/api/me', null],
+    [
+      'createProfile',
+      () => api.createProfile('lemonjoe'),
+      'POST',
+      '/api/me/username',
+      { username: 'lemonjoe' },
+    ],
+    ['claim', () => api.claim('oldtimer'), 'POST', '/api/me/claim', { username: 'oldtimer' }],
     ['getGame', () => api.getGame(), 'GET', '/api/game', null],
     ['scores', () => api.scores(), 'GET', '/api/scores', null],
     ['scores with a limit', () => api.scores(5), 'GET', '/api/scores?limit=5', null],

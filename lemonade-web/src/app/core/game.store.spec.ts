@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { GameStore } from './game.store';
+import { FakeAuthPort, provideFakeAuth } from './testing/fake-auth';
 import { SessionService } from './session.service';
 import { dayReport, newGameView } from './testing/fixtures';
 
@@ -10,10 +11,12 @@ describe('GameStore', () => {
   let store: GameStore;
   let http: HttpTestingController;
   let session: SessionService;
+  let port: FakeAuthPort;
 
   beforeEach(() => {
+    port = new FakeAuthPort();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideFakeAuth(port)],
     });
     store = TestBed.inject(GameStore);
     http = TestBed.inject(HttpTestingController);
@@ -24,25 +27,6 @@ describe('GameStore', () => {
   afterEach(() => {
     http.verify();
     session.signOut();
-  });
-
-  it('signIn logs in, stores the username, and resolves true', async () => {
-    const done = store.signIn('lemonjoe');
-    http.expectOne('/api/login').flush({ id: 1, username: 'lemonjoe' });
-
-    expect(await done).toBeTrue();
-    expect(session.username()).toBe('lemonjoe');
-  });
-
-  it('signIn failure sets the error and stays signed out', async () => {
-    const done = store.signIn('x');
-    http
-      .expectOne('/api/login')
-      .flush({ error: 'invalid_username', message: 'Bad name' }, { status: 400, statusText: '' });
-
-    expect(await done).toBeFalse();
-    expect(store.error()).toBe('Bad name');
-    expect(session.username()).toBeNull();
   });
 
   it('load stores the game view', async () => {
@@ -124,13 +108,14 @@ describe('GameStore', () => {
     expect(store.isBankrupt()).toBeTrue();
   });
 
-  it('signOut clears the session and the game', async () => {
+  it('signOut signs out of Firebase and clears the session and the game', async () => {
     session.signIn('lemonjoe');
     const done = store.load();
     http.expectOne('/api/game').flush(newGameView());
     await done;
 
     store.signOut();
+    expect(port.signOutCalls).toBe(1);
     expect(session.username()).toBeNull();
     expect(store.game()).toBeNull();
   });

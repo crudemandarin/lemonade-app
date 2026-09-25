@@ -1,29 +1,28 @@
 import { TestBed } from '@angular/core/testing';
 
-import { SessionService, USERNAME_KEY } from './session.service';
+import { LEGACY_USERNAME_KEY, SessionService } from './session.service';
 
 describe('SessionService', () => {
-  beforeEach(() => localStorage.removeItem(USERNAME_KEY));
-  afterEach(() => localStorage.removeItem(USERNAME_KEY));
+  afterEach(() => localStorage.removeItem(LEGACY_USERNAME_KEY));
 
-  it('starts signed out when nothing is stored', () => {
+  it('starts signed out', () => {
     expect(TestBed.inject(SessionService).username()).toBeNull();
   });
 
-  it('restores a stored username', () => {
-    localStorage.setItem(USERNAME_KEY, 'lemonjoe');
-    expect(TestBed.inject(SessionService).username()).toBe('lemonjoe');
-  });
-
-  it('persists sign in and clears on sign out', () => {
+  it('holds the username in memory only', () => {
     const session = TestBed.inject(SessionService);
 
     session.signIn('lemonjoe');
     expect(session.username()).toBe('lemonjoe');
-    expect(localStorage.getItem(USERNAME_KEY)).toBe('lemonjoe');
+    expect(localStorage.getItem(LEGACY_USERNAME_KEY)).toBeNull();
 
     session.signOut();
     expect(session.username()).toBeNull();
-    expect(localStorage.getItem(USERNAME_KEY)).toBeNull();
+  });
+
+  it('ignores and clears the old localStorage username', () => {
+    localStorage.setItem(LEGACY_USERNAME_KEY, 'lemonjoe');
+    expect(TestBed.inject(SessionService).username()).toBeNull();
+    expect(localStorage.getItem(LEGACY_USERNAME_KEY)).toBeNull();
   });
 });
