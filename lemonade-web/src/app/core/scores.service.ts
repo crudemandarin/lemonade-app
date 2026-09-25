@@ -3,6 +3,7 @@ import { firstValueFrom } from 'rxjs';
 
 import {
   AchievementsResponse,
+  Board,
   DayReport,
   RunDetail,
   RunSummary,
@@ -19,8 +20,8 @@ import { ApiService } from './api.service';
 export class ScoresService {
   private readonly api = inject(ApiService);
 
-  scores(limit?: number): Promise<ScoresResponse> {
-    return firstValueFrom(this.api.scores(limit));
+  scores(limit?: number, board: Board = 'all_time'): Promise<ScoresResponse> {
+    return firstValueFrom(this.api.scores(limit, board));
   }
 
   achievements(): Promise<AchievementsResponse> {

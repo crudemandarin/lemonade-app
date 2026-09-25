@@ -279,7 +279,12 @@ export interface ScoreRow {
   achievements: number;
 }
 
+/** all_time ranks each player's best finished run; day_100 their net worth on reaching day 100. */
+export type Board = 'all_time' | 'day_100';
+
 export interface ScoresResponse {
+  /** The board these rows belong to. */
+  board: Board;
   rows: ScoreRow[];
   /** The caller's own best row and rank, even below the rows shown; null with no finished run. */
   me: ScoreRow | null;

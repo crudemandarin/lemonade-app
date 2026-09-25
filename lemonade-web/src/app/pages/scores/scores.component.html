@@ -24,9 +24,34 @@
 </div>
 
 @if (tab() === 'global') {
-  <app-card title="Global high scores">
+  <app-card [title]="board() === 'day_100' ? 'Best net worth by day 100' : 'Global high scores'">
     <div role="tabpanel" id="panel-global" aria-labelledby="tab-global">
-      <p class="lede">Each player's best finished run, by final net worth.</p>
+      <div class="boards" role="group" aria-label="Board">
+        <button
+          type="button"
+          class="btn btn-sm board-all"
+          [attr.aria-pressed]="board() === 'all_time'"
+          (click)="selectBoard('all_time')"
+        >
+          All time
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm board-100"
+          [attr.aria-pressed]="board() === 'day_100'"
+          (click)="selectBoard('day_100')"
+        >
+          By day 100
+        </button>
+      </div>
+      @if (board() === 'day_100') {
+        <p class="lede">
+          Each player's best net worth on arriving at day 100, so a long run competes fairly with a
+          short one.
+        </p>
+      } @else {
+        <p class="lede">Each player's best finished run, by final net worth.</p>
+      }
       @switch (globalState()) {
         @case ('loading') {
           <p class="note">Loading scores…</p>
@@ -39,7 +64,14 @@
         }
         @default {
           @if (rows().length === 0) {
-            <p class="note empty">No finished runs yet. Finish a run to take the first spot.</p>
+            @if (board() === 'day_100') {
+              <p class="note empty">
+                No run has reached day 100 yet. Runs finished before this board existed did not
+                record it, so they are not listed.
+              </p>
+            } @else {
+              <p class="note empty">No finished runs yet. Finish a run to take the first spot.</p>
+            }
           } @else {
             <table>
               <caption class="visually-hidden">
@@ -49,7 +81,9 @@
                 <tr>
                   <th scope="col" class="rank">Rank</th>
                   <th scope="col">Player</th>
-                  <th scope="col" class="num">Score</th>
+                  <th scope="col" class="num">
+                    {{ board() === 'day_100' ? 'Net worth' : 'Score' }}
+                  </th>
                   <th scope="col" class="num">Days</th>
                   <th scope="col" class="num">Achievements</th>
                 </tr>
