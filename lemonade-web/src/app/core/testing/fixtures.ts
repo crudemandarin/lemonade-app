@@ -5,21 +5,62 @@ import {
   RunDetail,
   RunSummary,
   ScoreRow,
+  TradeAmountKey,
+  TradeLadder,
+  TradeQuote,
   Resource,
   ResourceView,
   SaleInfo,
   TimelinePoint,
 } from '../api.models';
 
+const AMOUNTS: [TradeAmountKey, number][] = [
+  ['1', 1],
+  ['10', 10],
+  ['50', 50],
+  ['100', 100],
+  ['all', 1_000_000],
+];
+
+/** The trade ladder for a market with no price impact, as the server would price it. */
+export function tradeLadder(
+  ask: number,
+  bid: number,
+  stock: number,
+  capacity: number,
+  capital = 1000,
+): TradeLadder {
+  const quote = (qty: number, unit: number): TradeQuote => ({
+    qty,
+    total: qty * unit,
+    averagePrice: qty > 0 ? unit : 0,
+    slippagePercent: 0,
+  });
+  const ladder = { buy: {}, sell: {} } as unknown as TradeLadder;
+  for (const [key, amount] of AMOUNTS) {
+    const buyQty = Math.max(0, Math.min(amount, Math.floor(capital / ask), capacity - stock));
+    ladder.buy[key] = quote(buyQty, ask);
+    ladder.sell[key] = quote(Math.min(amount, stock), bid);
+  }
+  return ladder;
+}
+
 function row(resource: Resource, price: number, stock = 0): ResourceView {
+  const bid = Math.max(1, Math.floor(price * 0.9));
+  const ask = Math.ceil(price * 1.1);
   return {
     resource,
     stock,
     capacity: 10,
     price,
     previousPrice: null,
-    bid: Math.max(1, Math.floor(price * 0.9)),
-    ask: Math.ceil(price * 1.1),
+    bid,
+    ask,
+    buyDepthLeft: 80,
+    sellDepthLeft: 80,
+    buyImpactPercent: 0,
+    sellImpactPercent: 0,
+    trade: tradeLadder(ask, bid, stock, 10),
     history: [price],
     avgCost: 0,
     unrealizedGain: 0,

@@ -22,10 +22,38 @@ export interface ResourceView {
   ask: number;
   /** Effective prices, oldest first, at most 14. */
   history: number[];
+  /** `bid` and `ask` are the price of the next single case, including the market's reaction to the player's own recent trades. */
+  /** Cases that can still be bought (or sold) at the plain price before the market reacts. */
+  buyDepthLeft: number;
+  sellDepthLeft: number;
+  /** How far the next case is from the plain price, in percent (0 when the market has not reacted). */
+  buyImpactPercent: number;
+  sellImpactPercent: number;
+  /** What the bulk-bar amounts would cost or raise, with price impact, cut to cash, space and stock. */
+  trade: TradeLadder;
   /** Average paid per case held (for lemonade, the cost to make one); 0 when none is held. */
   avgCost: number;
   /** Stock value at the bid minus what it cost; negative is a loss. 0 when none is held. */
   unrealizedGain: number;
+}
+
+/** What a trade of some size costs (buy) or raises (sell), as the server prices it. */
+export interface TradeQuote {
+  /** Cases the quote covers: fewer than asked when cash, space or stock run out. */
+  qty: number;
+  total: number;
+  /** Per case, with impact, to one decimal. */
+  averagePrice: number;
+  /** How much worse than the plain price the trade is, in percent. */
+  slippagePercent: number;
+}
+
+export type TradeAmountKey = '1' | '10' | '50' | '100' | 'all';
+export type TradeSideQuotes = Record<TradeAmountKey, TradeQuote>;
+
+export interface TradeLadder {
+  buy: TradeSideQuotes;
+  sell: TradeSideQuotes;
 }
 
 export interface UpgradeOption {

@@ -1,8 +1,22 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { ResourceView } from '../../../../core/api.models';
-import { newGameView } from '../../../../core/testing/fixtures';
+import { ResourceView, TradeQuote } from '../../../../core/api.models';
+import { newGameView, tradeLadder } from '../../../../core/testing/fixtures';
 import { ALL_QTY, MarketPanelComponent, TradeRequest } from './market-panel.component';
+
+/** A row holding `stock` cases, with the trade ladder the server would send for it. */
+function held(
+  row: ResourceView,
+  stock: number,
+  overrides: Partial<ResourceView> = {},
+): ResourceView {
+  return {
+    ...row,
+    stock,
+    trade: tradeLadder(row.ask, row.bid, stock, row.capacity),
+    ...overrides,
+  };
+}
 
 describe('MarketPanelComponent', () => {
   let fixture: ComponentFixture<MarketPanelComponent>;
@@ -12,7 +26,7 @@ describe('MarketPanelComponent', () => {
     localStorage.removeItem('lemonade.tradeAmount');
     fixture = TestBed.createComponent(MarketPanelComponent);
     const resources = newGameView().resources;
-    resources[0] = { ...resources[0], stock: 4, previousPrice: 18 };
+    resources[0] = held(resources[0], 4, { previousPrice: 18 });
     fixture.componentRef.setInput('resources', resources);
     fixture.componentRef.setInput('capital', 1000);
     fixture.detectChanges();
@@ -43,25 +57,78 @@ describe('MarketPanelComponent', () => {
 
   it('shows the unit price when nothing can be traded', () => {
     expect(label('sugar', 'sell')).toBe('Sell $9'); // no stock
-    fixture.componentRef.setInput('capital', 5);
+    const resources = newGameView().resources;
+    resources[1] = { ...resources[1], trade: tradeLadder(11, 9, 0, 10, 5) }; // $5 buys nothing
+    fixture.componentRef.setInput('resources', resources);
     fixture.detectChanges();
-    expect(label('sugar', 'buy')).toBe('Buy $11'); // cannot afford one
+    expect(label('sugar', 'buy')).toBe('Buy $11');
   });
 
-  it('cuts the buy down to what cash allows', () => {
-    fixture.componentRef.setInput('capital', 40);
+  it('shows what the server says the buy costs, cut down to cash', () => {
+    const resources = newGameView().resources;
+    resources[1] = { ...resources[1], trade: tradeLadder(11, 9, 0, 10, 40) }; // $40 buys 3
+    fixture.componentRef.setInput('resources', resources);
     fixture.detectChanges();
     expect(label('sugar', 'buy')).toBe('Buy 3 · $33');
   });
 
   it('follows the amount, including All', () => {
     const resources = newGameView().resources;
-    resources[0] = { ...resources[0], stock: 10 };
+    resources[0] = held(resources[0], 10);
     fixture.componentRef.setInput('resources', resources);
     fixture.detectChanges();
     pick('all');
     expect(label('lemon', 'sell')).toBe('Sell 10 · $180');
     expect(label('sugar', 'buy')).toBe('Buy 10 · $110');
+  });
+
+  describe('price impact', () => {
+    const slipped = (qty: number, total: number, avg: number, pct: number): TradeQuote => ({
+      qty,
+      total,
+      averagePrice: avg,
+      slippagePercent: pct,
+    });
+
+    function withImpact() {
+      const resources = newGameView().resources;
+      const base = resources[1];
+      resources[1] = {
+        ...base,
+        ask: 12,
+        buyImpactPercent: 9,
+        sellImpactPercent: 4,
+        buyDepthLeft: 0,
+        trade: {
+          ...base.trade,
+          buy: { ...base.trade.buy, '10': slipped(10, 128, 12.8, 16.4) },
+        },
+      };
+      fixture.componentRef.setInput('resources', resources);
+      fixture.detectChanges();
+    }
+
+    it('shows the price the server quoted, not unit price times amount', () => {
+      withImpact();
+      expect(label('sugar', 'buy')).toBe('Buy 10 · $128');
+    });
+
+    it('explains the slippage in words on the button', () => {
+      withImpact();
+      const button = row('sugar').querySelector<HTMLButtonElement>('.buy button')!;
+      expect(button.title).toBe('Average $12.8 a case, 16.4% above the plain price');
+      expect(row('lemon').querySelector<HTMLButtonElement>('.buy button')!.title).toBe('');
+    });
+
+    it('marks a row whose price the player has moved, with the words as well as an icon', () => {
+      withImpact();
+      const hint = row('sugar').querySelector('.impact')!;
+      expect(hint.getAttribute('aria-label')).toContain('ask +9%');
+      expect(hint.getAttribute('aria-label')).toContain('bid -4%');
+      expect(hint.getAttribute('title')).toContain('wears off overnight');
+      expect(row('sugar').querySelector('.impact app-icon')).not.toBeNull();
+      expect(row('lemon').querySelector('.impact')).toBeNull();
+    });
   });
 
   it('shows a trend arrow against yesterday', () => {

@@ -1,18 +1,60 @@
-export type HelpSection = 'basics' | 'market' | 'resources' | 'facilities' | 'events';
+import { Resource } from '../../core/api.models';
+import { IconName } from '../icon/icon.component';
+
+export type HelpSection =
+  'quickstart' | 'basics' | 'market' | 'resources' | 'facilities' | 'events';
 
 export interface HelpTerm {
   id: string;
   section: HelpSection;
   term: string;
   definition: string;
+  /** Line icon, or a resource picture when `resource` is set. */
+  icon?: IconName;
+  resource?: Resource;
 }
 
-export const HELP_SECTIONS: { id: HelpSection; label: string }[] = [
-  { id: 'basics', label: 'Basics' },
-  { id: 'market', label: 'Market' },
-  { id: 'resources', label: 'Resources' },
-  { id: 'facilities', label: 'Facilities' },
-  { id: 'events', label: 'Day and events' },
+export const HELP_SECTIONS: { id: HelpSection; label: string; icon: IconName }[] = [
+  { id: 'quickstart', label: 'Quick start', icon: 'end-day' },
+  { id: 'basics', label: 'Basics', icon: 'calendar' },
+  { id: 'market', label: 'Market', icon: 'coin' },
+  { id: 'resources', label: 'Resources', icon: 'warehouse' },
+  { id: 'facilities', label: 'Facilities', icon: 'factory' },
+  { id: 'events', label: 'Events', icon: 'event' },
+];
+
+export interface QuickStep {
+  icon: IconName;
+  title: string;
+  text: string;
+}
+
+export const QUICK_START: QuickStep[] = [
+  {
+    icon: 'coin',
+    title: 'Buy ingredients',
+    text: 'Stock up on lemons, sugar, ice and cups while prices are low.',
+  },
+  {
+    icon: 'factory',
+    title: 'Check the projection',
+    text: 'The header shows how much lemonade you will make, and what is holding you back.',
+  },
+  {
+    icon: 'end-day',
+    title: 'End the day',
+    text: 'Lemonade is made, ice melts and upkeep is paid.',
+  },
+  {
+    icon: 'trend-up',
+    title: 'Sell high',
+    text: 'Sell your lemonade when the price is up. Events can swing it a lot.',
+  },
+  {
+    icon: 'upgrade',
+    title: 'Grow',
+    text: 'Reinvest in bigger warehouses and production, but keep cash for upkeep.',
+  },
 ];
 
 // Numbers in the prose mirror the backend Config (lemonade-api/internal/domain/config.go):
@@ -20,6 +62,7 @@ export const HELP_SECTIONS: { id: HelpSection; label: string }[] = [
 export const HELP_TERMS: HelpTerm[] = [
   {
     id: 'recipe',
+    resource: 'lemonade',
     section: 'basics',
     term: 'The recipe',
     definition:
@@ -27,6 +70,7 @@ export const HELP_TERMS: HelpTerm[] = [
   },
   {
     id: 'day',
+    icon: 'calendar',
     section: 'basics',
     term: 'Days',
     definition:
@@ -34,6 +78,7 @@ export const HELP_TERMS: HelpTerm[] = [
   },
   {
     id: 'capital',
+    icon: 'coin',
     section: 'basics',
     term: 'Capital',
     definition:
@@ -41,6 +86,7 @@ export const HELP_TERMS: HelpTerm[] = [
   },
   {
     id: 'net-worth',
+    icon: 'trend-up',
     section: 'basics',
     term: 'Net worth',
     definition:
@@ -48,6 +94,7 @@ export const HELP_TERMS: HelpTerm[] = [
   },
   {
     id: 'bankrupt',
+    icon: 'sad-face',
     section: 'basics',
     term: 'Going bankrupt',
     definition:
@@ -56,6 +103,7 @@ export const HELP_TERMS: HelpTerm[] = [
 
   {
     id: 'price',
+    icon: 'trend-flat',
     section: 'market',
     term: 'Price',
     definition:
@@ -63,19 +111,36 @@ export const HELP_TERMS: HelpTerm[] = [
   },
   {
     id: 'bid',
+    icon: 'trend-down',
     section: 'market',
     term: 'Bid',
     definition: 'What the market pays you when you sell. It sits 10% below the price.',
   },
   {
     id: 'ask',
+    icon: 'trend-up',
     section: 'market',
     term: 'Ask',
     definition:
       'What the market charges you when you buy. It sits 10% above the price, so buying and selling straight away always loses a little.',
   },
   {
+    id: 'price-impact',
+    section: 'market',
+    term: 'Price impact',
+    definition:
+      'The market is not bottomless. Buy or sell a lot and the price moves against you: buying pushes the ask up, selling pushes the bid down. The first 80 cases of each resource trade at the normal price, and your recent volume fades by half every night. Small businesses never notice; a big factory does.',
+  },
+  {
+    id: 'market-depth',
+    section: 'market',
+    term: 'Market depth',
+    definition:
+      'How many cases you can trade at the normal price before the market reacts. The bulk buttons show what the amount you chose really costs, and the average price when the price has moved. Net worth and your score value stock at the plain bid and ignore price impact.',
+  },
+  {
     id: 'bulk',
+    icon: 'expand',
     section: 'market',
     term: 'Buy or sell amount',
     definition:
@@ -84,6 +149,7 @@ export const HELP_TERMS: HelpTerm[] = [
 
   {
     id: 'lemon',
+    resource: 'lemon',
     section: 'resources',
     term: 'Lemon, sugar and cups',
     definition:
@@ -91,6 +157,7 @@ export const HELP_TERMS: HelpTerm[] = [
   },
   {
     id: 'ice',
+    resource: 'ice',
     section: 'resources',
     term: 'Ice',
     definition:
@@ -98,6 +165,7 @@ export const HELP_TERMS: HelpTerm[] = [
   },
   {
     id: 'lemonade',
+    resource: 'lemonade',
     section: 'resources',
     term: 'Lemonade',
     definition:
@@ -106,6 +174,7 @@ export const HELP_TERMS: HelpTerm[] = [
 
   {
     id: 'warehouse',
+    icon: 'warehouse',
     section: 'facilities',
     term: 'Warehouses',
     definition:
@@ -113,6 +182,7 @@ export const HELP_TERMS: HelpTerm[] = [
   },
   {
     id: 'production',
+    icon: 'factory',
     section: 'facilities',
     term: 'Production',
     definition:
@@ -120,6 +190,7 @@ export const HELP_TERMS: HelpTerm[] = [
   },
   {
     id: 'expand',
+    icon: 'expand',
     section: 'facilities',
     term: 'Expand and upgrade',
     definition:
@@ -127,6 +198,7 @@ export const HELP_TERMS: HelpTerm[] = [
   },
   {
     id: 'upkeep',
+    icon: 'coin',
     section: 'facilities',
     term: 'Upkeep',
     definition:
@@ -134,6 +206,7 @@ export const HELP_TERMS: HelpTerm[] = [
   },
   {
     id: 'sell-building',
+    icon: 'upgrade',
     section: 'facilities',
     term: 'Selling a building',
     definition:
@@ -142,20 +215,23 @@ export const HELP_TERMS: HelpTerm[] = [
 
   {
     id: 'end-day',
-    section: 'events',
+    icon: 'end-day',
+    section: 'basics',
     term: 'Ending the day',
     definition:
       'In order: lemonade is made, leftover ice melts, upkeep is paid, then the day advances and prices and events update. A report shows what changed.',
   },
   {
     id: 'projection',
-    section: 'events',
+    icon: 'factory',
+    section: 'basics',
     term: 'The projection',
     definition:
       'The header previews the next end of day: how much lemonade will be made, how much ice will melt, and what is limiting production.',
   },
   {
     id: 'events',
+    icon: 'event',
     section: 'events',
     term: 'Events',
     definition:
@@ -165,15 +241,23 @@ export const HELP_TERMS: HelpTerm[] = [
 
 export interface HelpEvent {
   name: string;
-  effect: string;
+  effects: { resource: Resource; multiplier: number }[];
   days: number;
 }
 
+// Mirrors the event table in the backend Config (config.go).
 export const HELP_EVENTS: HelpEvent[] = [
-  { name: 'Heat wave', effect: 'Lemonade x1.4, ice x1.3', days: 2 },
-  { name: 'Rainy week', effect: 'Lemonade x0.75', days: 3 },
-  { name: 'Lemon blight', effect: 'Lemons x1.7', days: 3 },
-  { name: 'Sugar glut', effect: 'Sugar x0.7', days: 2 },
-  { name: 'Holiday', effect: 'Lemonade x1.35', days: 1 },
-  { name: 'Cup shortage', effect: 'Cups x1.5', days: 2 },
+  {
+    name: 'Heat wave',
+    effects: [
+      { resource: 'lemonade', multiplier: 1.4 },
+      { resource: 'ice', multiplier: 1.3 },
+    ],
+    days: 2,
+  },
+  { name: 'Rainy week', effects: [{ resource: 'lemonade', multiplier: 0.75 }], days: 3 },
+  { name: 'Lemon blight', effects: [{ resource: 'lemon', multiplier: 1.7 }], days: 3 },
+  { name: 'Sugar glut', effects: [{ resource: 'sugar', multiplier: 0.7 }], days: 2 },
+  { name: 'Holiday', effects: [{ resource: 'lemonade', multiplier: 1.35 }], days: 1 },
+  { name: 'Cup shortage', effects: [{ resource: 'cup', multiplier: 1.5 }], days: 2 },
 ];

@@ -2,7 +2,7 @@ import { Component, computed, effect, inject } from '@angular/core';
 
 import { CardComponent } from '../card/card.component';
 import { IconComponent } from '../icon/icon.component';
-import { HELP_EVENTS, HELP_SECTIONS, HELP_TERMS } from './glossary';
+import { HELP_EVENTS, HELP_SECTIONS, HELP_TERMS, QUICK_START } from './glossary';
 import { HelpService } from './help.service';
 
 /** Collapsible glossary at the top of the game page. */
@@ -17,6 +17,7 @@ export class HelpPanelComponent {
   protected readonly help = inject(HelpService);
   protected readonly sections = HELP_SECTIONS;
   protected readonly events = HELP_EVENTS;
+  protected readonly steps = QUICK_START;
   protected readonly terms = computed(() =>
     HELP_TERMS.filter((t) => t.section === this.help.section()),
   );

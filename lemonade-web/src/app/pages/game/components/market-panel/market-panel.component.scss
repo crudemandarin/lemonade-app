@@ -86,6 +86,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+// A small warning shape (with the words in its title and label) when the player's own
+// trades have moved this price.
+.impact {
+  display: inline-flex;
+  color: var(--accent-strong);
+}
+
 .trend.up {
   color: var(--green);
 }
