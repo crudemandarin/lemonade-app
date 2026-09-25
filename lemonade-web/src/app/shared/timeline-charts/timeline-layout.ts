@@ -1,4 +1,4 @@
-import { Resource, TimelinePoint } from '../../core/api.models';
+import { PricePoint, Resource, TimelinePoint } from '../../core/api.models';
 import { RESOURCE_LABELS } from '../../core/resources';
 import { formatMoney } from '../money.pipe';
 
@@ -162,4 +162,44 @@ export function formatCompactMoney(n: number): string {
   const body =
     abs >= 1e6 ? `${trim(abs / 1e6)}M` : abs >= 1000 ? `${trim(abs / 1000)}k` : String(abs);
   return `${n < 0 ? '-' : ''}$${body}`;
+}
+
+export type PriceMode = 'dollars' | 'percent';
+
+/** One resource's line for the price chart: dollars, or percent of its base price. */
+export function priceSeries(
+  log: PricePoint[],
+  index: number,
+  mode: PriceMode,
+  basePrices: number[],
+): number[] {
+  return log.map((p) => {
+    const price = p.prices[index] ?? 0;
+    const base = basePrices[index];
+    return mode === 'percent' && base ? Math.round((price / base) * 1000) / 10 : price;
+  });
+}
+
+/** The prices in force at game time x: the newest log point that has started by then. */
+export function priceAt(log: PricePoint[], x: number): PricePoint | null {
+  let found: PricePoint | null = null;
+  for (const p of log) {
+    if (p.day <= x) {
+      found = p;
+    }
+  }
+  return found;
+}
+
+export interface EventBand {
+  from: number;
+  to: number;
+  events: string[];
+}
+
+/** Spans of game time (day d is [d, d + 1)) on which any event was active, clipped to xMax. */
+export function eventBands(log: PricePoint[], xMax: number): EventBand[] {
+  return log
+    .filter((p) => p.events.length > 0 && p.day < xMax)
+    .map((p) => ({ from: p.day, to: Math.min(p.day + 1, xMax), events: p.events }));
 }

@@ -144,3 +144,9 @@ Deviations from DESIGN.md and real tradeoffs made during the build. Newest last.
 - **Old saves:** a game saved before this has no basis (`cost_basis` is NULL). On load it is seeded as stock × the current walked price, which is an approximation; from then on it is exact. A Postgres round-trip test covers an old-shape row.
 - **Invariants tested:** basis is never negative; no stock means no basis; production conserves cost exactly; each sale's share is within $1 of the exact proportion (random-play test).
 
+## 26. A third chart for prices, fed by a daily price log (slice 10c)
+- **Did:** the game stores one `PricePoint` per day (effective prices after the tick, as the player sees them, plus active event keys): one at game start and one at the end of every day that does not end the game. The view returns it as `priceLog`, with event names and `basePrices`. The timeline component gets a third chart on the shared time axis, one line per commodity in the fixed resource colours, with a legend toggle, the shared crosshair and keyboard steps, a table twin, and a `$` / `% of base` switch because lemonade at $90 dwarfs everything else. Event days are shaded with a neutral tint and named on hover, so colour carries no meaning.
+- **Why a third chart, not a dual axis:** the two-chart rule (decision 20) stands: one series set per chart, each in its own unit.
+- **Old saves:** the log starts at the day of the upgrade, seeded from the newest price history entry, so the chart begins there.
+- **Known:** the event backdrop (another agent's feature) makes the page 5 px wider than a 390 px phone under mobile emulation; the app's own content fits.
+

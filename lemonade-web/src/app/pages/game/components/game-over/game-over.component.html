@@ -44,6 +44,11 @@
         </div>
       </dl>
     }
-    <app-timeline-charts [points]="timeline()" size="large" />
+    <app-timeline-charts
+      [points]="timeline()"
+      [priceLog]="priceLog()"
+      [basePrices]="basePrices()"
+      size="large"
+    />
   </app-card>
 </div>

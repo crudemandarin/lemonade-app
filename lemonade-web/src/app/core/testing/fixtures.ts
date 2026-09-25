@@ -85,6 +85,8 @@ export function newGameView(overrides: Partial<GameView> = {}): GameView {
     timeline: [timelinePoint()],
     stats: gameStats(),
     projection: { lemonadeToProduce: 0, iceToMelt: 0, limitedBy: 'lemon' },
+    priceLog: [{ day: 1, prices: [20, 10, 10, 10, 90], events: [] }],
+    basePrices: [20, 10, 10, 10, 90],
     ...overrides,
   };
 }

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { TimelinePoint } from '../../core/api.models';
+import { PricePoint, TimelinePoint } from '../../core/api.models';
 import { timelinePoint } from '../../core/testing/fixtures';
 import { TimelineChartsComponent } from './timeline-charts.component';
 
@@ -56,11 +56,13 @@ describe('TimelineChartsComponent', () => {
   let fixture: ComponentFixture<TimelineChartsComponent>;
   let el: HTMLElement;
 
-  async function render(points: TimelinePoint[] = POINTS) {
+  async function render(points: TimelinePoint[] = POINTS, priceLog: PricePoint[] = []) {
     fixture = TestBed.createComponent(TimelineChartsComponent);
     fixture.nativeElement.style.display = 'block';
     fixture.nativeElement.style.width = '640px';
     fixture.componentRef.setInput('points', points);
+    fixture.componentRef.setInput('priceLog', priceLog);
+    fixture.componentRef.setInput('basePrices', [20, 10, 10, 10, 90]);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -73,7 +75,7 @@ describe('TimelineChartsComponent', () => {
   };
 
   /** Moves the pointer over a chart's hit area, at a fraction of its width. */
-  function hover(chart: 'capital' | 'stock', fraction: number) {
+  function hover(chart: 'capital' | 'stock' | 'prices', fraction: number) {
     const hit = el.querySelector<SVGRectElement>(`.${chart} .hit`)!;
     const box = hit.getBoundingClientRect();
     hit.dispatchEvent(
@@ -255,5 +257,89 @@ describe('TimelineChartsComponent', () => {
         .withContext(label)
         .toBeTrue();
     }
+  });
+
+  describe('price chart', () => {
+    const DAYS: TimelinePoint[] = [
+      timelinePoint({ kind: 'start', day: 1 }),
+      timelinePoint({ kind: 'end_day', day: 1 }),
+      timelinePoint({ kind: 'end_day', day: 2 }),
+    ];
+    const LOG: PricePoint[] = [
+      { day: 1, prices: [20, 10, 10, 10, 90], events: [] },
+      { day: 2, prices: [22, 9, 10, 11, 126], events: ['Heat Wave'] },
+      { day: 3, prices: [21, 9, 10, 10, 100], events: [] },
+    ];
+
+    it('draws one line per commodity, coloured per resource', async () => {
+      await render(DAYS, LOG);
+      const lines = Array.from(el.querySelectorAll<SVGPathElement>('.prices .price-line'));
+      expect(lines.map((l) => l.getAttribute('data-resource'))).toEqual([
+        'lemon',
+        'sugar',
+        'ice',
+        'cup',
+        'lemonade',
+      ]);
+      expect(lines[4].style.stroke).toContain('--series-lemonade');
+    });
+
+    it('toggles a commodity from its legend but never hides them all', async () => {
+      await render(DAYS, LOG);
+      const buttons = () => Array.from(el.querySelectorAll<HTMLElement>('.prices .legend button'));
+      buttons()[4].click();
+      fixture.detectChanges();
+      expect(el.querySelectorAll('.prices .price-line').length).toBe(4);
+      for (const b of buttons().slice(0, 4)) {
+        b.click();
+        fixture.detectChanges();
+      }
+      expect(el.querySelectorAll('.prices .price-line').length).toBe(1);
+    });
+
+    it('switches between dollars and percent of base', async () => {
+      await render(DAYS, LOG);
+      const labels = () =>
+        Array.from(el.querySelectorAll('.prices svg text.tick[text-anchor=end]')).map((t) =>
+          t.textContent!.trim(),
+        );
+      expect(labels().some((l) => l.startsWith('$'))).toBeTrue();
+      click('.prices .mode button:last-child');
+      expect(labels().some((l) => l.endsWith('%'))).toBeTrue();
+      expect(
+        el.querySelector('.prices .mode button:last-child')!.getAttribute('aria-pressed'),
+      ).toBe('true');
+    });
+
+    it('shades event days and names them in the tooltip', async () => {
+      await render(DAYS, LOG);
+      expect(el.querySelectorAll('.prices .event-band').length).toBe(1);
+      hover('prices', 0.5); // day 2
+      const tip = el.querySelector('.prices .tip')!.textContent!.replace(/\s+/g, ' ');
+      expect(tip).toContain('Day 2: Heat Wave');
+      expect(tip).toContain('$126');
+      expect(el.querySelector('.capital .cross')).not.toBeNull(); // the crosshair is shared
+    });
+
+    it('shows percent of base in the tooltip', async () => {
+      await render(DAYS, LOG);
+      click('.prices .mode button:last-child');
+      hover('prices', 0.5);
+      expect(el.querySelector('.prices .tip')!.textContent).toContain('140%');
+    });
+
+    it('says so when there are not enough days yet', async () => {
+      await render(DAYS, [LOG[0]]);
+      expect(el.querySelector('.prices .empty')!.textContent).toContain('Prices will appear');
+    });
+
+    it('has a table twin with every day', async () => {
+      await render(DAYS, LOG);
+      click('.table-toggle');
+      const rows = el.querySelectorAll('.price-table tbody tr');
+      expect(rows.length).toBe(3);
+      expect(rows[1].textContent).toContain('Heat Wave');
+      expect(rows[1].textContent).toContain('$126');
+    });
   });
 });

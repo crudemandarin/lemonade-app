@@ -63,6 +63,31 @@
           }
         </tbody>
       </table>
+      <table class="price-table">
+        <caption>
+          Daily prices
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Day</th>
+            <th scope="col">Events</th>
+            @for (r of resources; track r) {
+              <th scope="col" class="num">{{ labels[r] }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of priceLog(); track p.day) {
+            <tr>
+              <td>{{ p.day }}</td>
+              <td>{{ p.events.length ? p.events.join(', ') : 'None' }}</td>
+              @for (n of p.prices; track $index) {
+                <td class="num">{{ formatMoney(n) }}</td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
     </div>
   } @else {
     <div
@@ -294,6 +319,143 @@
                 </ul>
               </div>
             }
+          }
+        </div>
+      </figure>
+
+      <figure class="panel prices">
+        <figcaption>Prices</figcaption>
+        <div class="price-controls">
+          <ul class="legend" aria-label="Show or hide a price line">
+            @for (r of resources; track r) {
+              <li>
+                <button
+                  type="button"
+                  [attr.aria-pressed]="!priceHidden().has(r)"
+                  (click)="togglePrice(r)"
+                >
+                  <span class="key" [style.background]="'var(--series-' + r + ')'"></span>
+                  {{ labels[r] }}
+                </button>
+              </li>
+            }
+          </ul>
+          <div class="mode" role="group" aria-label="Price scale">
+            <button
+              type="button"
+              [attr.aria-pressed]="priceMode() === 'dollars'"
+              (click)="priceMode.set('dollars')"
+            >
+              $
+            </button>
+            <button
+              type="button"
+              [attr.aria-pressed]="priceMode() === 'percent'"
+              (click)="priceMode.set('percent')"
+            >
+              % of base
+            </button>
+          </div>
+        </div>
+        <div class="plot">
+          <svg
+            [attr.width]="width()"
+            [attr.height]="stockHeight()"
+            role="img"
+            [attr.aria-label]="priceSummary()"
+          >
+            @for (b of priceBands(); track $index) {
+              <rect
+                class="event-band"
+                [attr.x]="b.x"
+                y="0"
+                [attr.width]="b.width"
+                [attr.height]="stockAxisY()"
+              >
+                <title>{{ b.events }}</title>
+              </rect>
+            }
+            @for (g of priceGrid(); track g.y) {
+              <line
+                class="grid"
+                [attr.x1]="left()"
+                [attr.x2]="left() + plotWidth()"
+                [attr.y1]="g.y"
+                [attr.y2]="g.y"
+              />
+              <text class="tick" [attr.x]="left() - 6" [attr.y]="g.y + 4" text-anchor="end">
+                {{ g.label }}
+              </text>
+            }
+            @for (d of dayGrid(); track d.day) {
+              <line
+                class="grid"
+                [attr.x1]="d.x"
+                [attr.x2]="d.x"
+                [attr.y1]="0"
+                [attr.y2]="stockAxisY()"
+              />
+              <text class="tick" [attr.x]="d.x" [attr.y]="stockAxisY() + 16" text-anchor="middle">
+                {{ d.day }}
+              </text>
+            }
+            <text
+              class="tick axis-title"
+              [attr.x]="left() - 6"
+              [attr.y]="stockAxisY() + 16"
+              text-anchor="end"
+            >
+              Day
+            </text>
+            @if (priceEnough()) {
+              @for (l of priceLines(); track l.resource) {
+                <path
+                  class="line price-line"
+                  [attr.data-resource]="l.resource"
+                  [style.stroke]="l.color"
+                  [attr.d]="l.d"
+                />
+              }
+            }
+            @if (hoverX(); as hx) {
+              <line
+                class="cross"
+                [attr.x1]="hx"
+                [attr.x2]="hx"
+                [attr.y1]="0"
+                [attr.y2]="stockAxisY()"
+              />
+            }
+            <rect
+              class="hit"
+              [attr.x]="left()"
+              y="0"
+              [attr.width]="plotWidth()"
+              [attr.height]="stockAxisY()"
+              (pointermove)="onMove($event, 'price')"
+              (pointerdown)="onMove($event, 'price')"
+              (pointerleave)="onLeave($event)"
+            />
+          </svg>
+          @if (hoverChart() === 'price' && hoverPrices(); as hp) {
+            <div class="tip" [class.left]="tipSide() === 'left'" [style.left.px]="hoverX()">
+              <span class="what">{{ hp.heading }}</span>
+              <ul>
+                @for (row of hp.rows; track row.resource) {
+                  <li>
+                    <span
+                      class="key"
+                      [style.background]="'var(--series-' + row.resource + ')'"
+                    ></span>
+                    <strong class="value">{{ row.text }}</strong>
+                    <span class="name">{{ labels[row.resource] }}</span>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+          @if (!priceEnough()) {
+            <p class="empty">Prices will appear here as the days go by.</p>
           }
         </div>
       </figure>

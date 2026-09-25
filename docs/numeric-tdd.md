@@ -165,6 +165,7 @@ Two tables. Scalars a leaderboard would query are real columns; state that is on
 | `production_level` | int | 1–4 |
 | `production_qty` | int | production buildings, 1–10 |
 | `warehouse_qty` | JSONB | buildings per resource `{lemon, sugar, ice, cup, lemonade}` |
+| `price_log` | JSONB | one point per day: effective prices after the market tick, and the active event keys; NULL on older rows, seeded on load |
 | `cost_basis` | JSONB | total dollars paid for the stock of each resource; NULL on older rows, seeded on load |
 | `inventory` | JSONB | cases per resource |
 | `market` | JSONB | per resource: walked price (float), previous effective price, history (≤ 14 days) |

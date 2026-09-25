@@ -151,6 +151,10 @@ export interface GameView {
   stats: GameStats;
   /** What End day would do right now; recomputed by the server on every view. */
   projection: Projection;
+  /** One point per day, oldest first. Older saves start at the day they were upgraded. */
+  priceLog: PricePoint[];
+  /** Long-run prices in the same order as `PricePoint.prices`, for the "% of base" view. */
+  basePrices: number[];
 }
 
 /** `limitedBy` is a resource, `production`, `space`, or empty when production capacity is 0. */
@@ -158,6 +162,15 @@ export interface Projection {
   lemonadeToProduce: number;
   iceToMelt: number;
   limitedBy: Resource | 'production' | 'space' | '';
+}
+
+/** One day of the price chart: effective prices as the player saw them that day. */
+export interface PricePoint {
+  day: number;
+  /** In order: lemon, sugar, ice, cup, lemonade. */
+  prices: number[];
+  /** Names of the events active that day. */
+  events: string[];
 }
 
 export interface PriceChange {

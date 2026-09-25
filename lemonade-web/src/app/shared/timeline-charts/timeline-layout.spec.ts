@@ -1,12 +1,16 @@
+import { PricePoint } from '../../core/api.models';
 import { timelinePoint } from '../../core/testing/fixtures';
 import {
   describePoint,
+  eventBands,
   formatCompactMoney,
   dayTicks,
   markerPoints,
   nearestIndex,
   niceTicks,
   placePoints,
+  priceAt,
+  priceSeries,
   stepPath,
 } from './timeline-layout';
 
@@ -182,5 +186,40 @@ describe('formatCompactMoney', () => {
     expect(formatCompactMoney(12000)).toBe('$12k');
     expect(formatCompactMoney(2_500_000)).toBe('$2.5M');
     expect(formatCompactMoney(-500)).toBe('-$500');
+  });
+});
+
+describe('price chart helpers', () => {
+  const log: PricePoint[] = [
+    { day: 1, prices: [20, 10, 10, 10, 90], events: [] },
+    { day: 2, prices: [22, 9, 10, 11, 126], events: ['Heat Wave'] },
+    { day: 3, prices: [21, 9, 10, 10, 130], events: ['Heat Wave', 'Holiday'] },
+  ];
+  const base = [20, 10, 10, 10, 90];
+
+  it('priceSeries gives dollars, or percent of base to one decimal', () => {
+    expect(priceSeries(log, 4, 'dollars', base)).toEqual([90, 126, 130]);
+    expect(priceSeries(log, 4, 'percent', base)).toEqual([100, 140, 144.4]);
+    expect(priceSeries(log, 0, 'percent', base)).toEqual([100, 110, 105]);
+  });
+
+  it('priceSeries does not divide by a missing base', () => {
+    expect(priceSeries(log, 0, 'percent', [])).toEqual([20, 22, 21]);
+  });
+
+  it('priceAt finds the newest point that has started', () => {
+    expect(priceAt(log, 1)?.day).toBe(1);
+    expect(priceAt(log, 2.5)?.day).toBe(2);
+    expect(priceAt(log, 9)?.day).toBe(3);
+    expect(priceAt(log, 0.5)).toBeNull();
+    expect(priceAt([], 1)).toBeNull();
+  });
+
+  it('eventBands shades each event day and clips to the axis end', () => {
+    expect(eventBands(log, 3.4)).toEqual([
+      { from: 2, to: 3, events: ['Heat Wave'] },
+      { from: 3, to: 3.4, events: ['Heat Wave', 'Holiday'] },
+    ]);
+    expect(eventBands(log, 3)).toEqual([{ from: 2, to: 3, events: ['Heat Wave'] }]);
   });
 });

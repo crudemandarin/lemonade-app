@@ -9,12 +9,16 @@ import {
   signal,
 } from '@angular/core';
 
-import { Resource, TimelinePoint } from '../../core/api.models';
+import { PricePoint, Resource, TimelinePoint } from '../../core/api.models';
 import { RESOURCE_LABELS, RESOURCE_ORDER } from '../../core/resources';
 import { formatMoney } from '../money.pipe';
 import {
   describePoint,
   dayTicks,
+  eventBands,
+  PriceMode,
+  priceAt,
+  priceSeries,
   formatCompactMoney,
   markerPoints,
   nearestIndex,
@@ -29,8 +33,8 @@ const BOTTOM = 6;
 const X_BAND = 24; // day labels under the lower chart
 
 /**
- * Two charts on one shared time axis: capital (with a dot for every trade and facility
- * purchase) above, and the stock of each resource below. Two charts, never one
+ * Three charts on one shared time axis: capital (with a dot for every trade and facility
+ * purchase), the stock of each resource, and the price of each resource. Never one
  * dual-axis plot: capital is dollars in the thousands, stock is cases in the tens.
  * Pure SVG; the layout math lives in timeline-layout.ts.
  */
@@ -44,6 +48,10 @@ export class TimelineChartsComponent {
   /** Oldest first, straight from the game view. */
   readonly points = input.required<TimelinePoint[]>();
   readonly size = input<'compact' | 'large'>('compact');
+  /** One point per day; the price chart starts wherever the log does. */
+  readonly priceLog = input<PricePoint[]>([]);
+  /** Long-run prices, for the percent view. */
+  readonly basePrices = input<number[]>([]);
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
@@ -52,7 +60,9 @@ export class TimelineChartsComponent {
   protected readonly viewTable = signal(false);
   protected readonly hidden = signal<ReadonlySet<Resource>>(new Set());
   protected readonly hoverIndex = signal<number | null>(null);
-  protected readonly hoverChart = signal<'capital' | 'stock' | null>(null);
+  protected readonly hoverChart = signal<'capital' | 'stock' | 'price' | null>(null);
+  protected readonly priceMode = signal<PriceMode>('dollars');
+  protected readonly priceHidden = signal<ReadonlySet<Resource>>(new Set());
 
   protected readonly resources = RESOURCE_ORDER;
   protected readonly labels = RESOURCE_LABELS;
@@ -212,6 +222,105 @@ export class TimelineChartsComponent {
 
   protected readonly stockAxisY = computed(() => this.stockPlotHeight());
 
+  // ---- price chart ----------------------------------------------------------------
+
+  private readonly priceVisible = computed(() =>
+    this.resources.filter((r) => !this.priceHidden().has(r)),
+  );
+
+  private readonly priceValues = computed(() =>
+    this.priceVisible().map((resource) => {
+      const i = RESOURCE_ORDER.indexOf(resource);
+      return {
+        resource,
+        values: priceSeries(this.priceLog(), i, this.priceMode(), this.basePrices()),
+      };
+    }),
+  );
+
+  private readonly priceTicks = computed(() => {
+    const max = Math.max(1, ...this.priceValues().flatMap((s) => s.values));
+    return niceTicks(0, max, 3);
+  });
+
+  private priceY(v: number): number {
+    const t = this.priceTicks();
+    return (
+      TOP +
+      ((t[t.length - 1] - v) / (t[t.length - 1] - t[0])) * (this.stockPlotHeight() - TOP - BOTTOM)
+    );
+  }
+
+  protected readonly priceGrid = computed(() => {
+    const percent = this.priceMode() === 'percent';
+    return this.priceTicks().map((v) => ({
+      y: this.priceY(v),
+      label: percent ? `${v}%` : formatCompactMoney(v),
+    }));
+  });
+
+  protected readonly priceEnough = computed(() => this.priceLog().length >= 2);
+
+  protected readonly priceLines = computed(() => {
+    const log = this.priceLog();
+    if (log.length === 0) {
+      return [];
+    }
+    // The last price holds until the axis ends, so extend the line to the right edge.
+    const xs = [...log.map((p) => this.xPx(p.day)), this.xPx(this.xMax())];
+    return this.priceValues().map(({ resource, values }) => ({
+      resource,
+      color: `var(--series-${resource})`,
+      d: stepPath(
+        xs,
+        [...values, values[values.length - 1]].map((v) => this.priceY(v)),
+      ),
+    }));
+  });
+
+  protected readonly priceBands = computed(() =>
+    eventBands(this.priceLog(), this.xMax()).map((b) => ({
+      x: this.xPx(Math.max(b.from, this.xMin())),
+      width: Math.max(0, this.xPx(b.to) - this.xPx(Math.max(b.from, this.xMin()))),
+      events: b.events.join(', '),
+    })),
+  );
+
+  /** The day's prices under the crosshair, formatted for the current mode. */
+  protected readonly hoverPrices = computed(() => {
+    const h = this.hoverPoint();
+    const day = h ? priceAt(this.priceLog(), h.x) : null;
+    if (!day) {
+      return null;
+    }
+    const percent = this.priceMode() === 'percent';
+    return {
+      heading: `Day ${day.day}${day.events.length ? `: ${day.events.join(', ')}` : ''}`,
+      rows: this.resources.map((resource, i) => ({
+        resource,
+        text: percent
+          ? `${priceSeries([day], i, 'percent', this.basePrices())[0]}%`
+          : formatMoney(day.prices[i] ?? 0),
+      })),
+    };
+  });
+
+  protected readonly priceSummary = computed(() =>
+    this.priceMode() === 'percent'
+      ? 'Price of each resource over time, as a percent of its base price. Use the table view for exact values.'
+      : 'Price of each resource over time, in dollars. Use the table view for exact values.',
+  );
+
+  protected togglePrice(resource: Resource): void {
+    const next = new Set(this.priceHidden());
+    if (next.has(resource)) {
+      next.delete(resource);
+    } else if (this.priceVisible().length > 1) {
+      next.add(resource);
+    }
+    this.priceHidden.set(next);
+  }
+
   // ---- hover & keyboard -----------------------------------------------------------
 
   protected readonly hoverPoint = computed(() => {
@@ -229,7 +338,7 @@ export class TimelineChartsComponent {
     (this.hoverX() ?? 0) > this.width() / 2 ? 'left' : 'right',
   );
 
-  protected onMove(event: PointerEvent, chart: 'capital' | 'stock'): void {
+  protected onMove(event: PointerEvent, chart: 'capital' | 'stock' | 'price'): void {
     const box = (event.currentTarget as Element).getBoundingClientRect();
     const px = (event.clientX - box.left) * (this.width() / (box.width || this.width()));
     const i = nearestIndex(this.xs(), px);

@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core';
 
-import { GameStats, TimelinePoint } from '../../../../core/api.models';
+import { GameStats, PricePoint, TimelinePoint } from '../../../../core/api.models';
 import { CardComponent } from '../../../../shared/card/card.component';
 import { IconComponent } from '../../../../shared/icon/icon.component';
 import { MoneyPipe } from '../../../../shared/money.pipe';
@@ -19,6 +19,8 @@ export class GameOverComponent {
   readonly capital = input.required<number>();
   readonly stats = input.required<GameStats>();
   readonly timeline = input.required<TimelinePoint[]>();
+  readonly priceLog = input<PricePoint[]>([]);
+  readonly basePrices = input<number[]>([]);
   readonly disabled = input(false);
   readonly newGame = output<void>();
 }
