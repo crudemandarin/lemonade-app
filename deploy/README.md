@@ -40,19 +40,24 @@ Players sign in with Google through Firebase Authentication; the API verifies th
 2. **Register a web app.** Project settings → Your apps → Add app → Web. Note `apiKey` and `appId` from the config snippet (public identifiers, not secrets).
 3. **Enable Google sign-in.** Build → Authentication → Get started → Sign-in method → Google → Enable. Set the support email. This creates the OAuth web client.
 4. **Authorized domains.** Authentication → Settings → Authorized domains must list the Cloud Run web hostname (`web-….run.app`, from `terraform output` or `gcloud run services describe web`), the custom domain if `web_domain` is set, and `localhost`. Sign-in fails with `auth/unauthorized-domain` without them.
-5. **OAuth consent screen.** Google Auth Platform → Branding/Audience: user type **External**, app name, support email, scopes `email` and `profile` only. **Publish the app** (Audience → Publish app) so it is not limited to test users; basic scopes need no Google verification.
-6. **Give Terraform the two web settings.** Create `deploy/infra/terraform.tfvars` (ignored by git; Terraform loads it automatically, so re-running `bootstrap.sh` keeps the values):
+5. **Allow the web host in the Google OAuth client** (skipping this gives `Error 400: redirect_uri_mismatch`). The app signs in through its own host, so Google must know it. Google Cloud console → APIs & Services → Credentials → the client named **Web client (auto created by Google Service)** → add, for the Cloud Run web hostname and again for any custom domain:
+   - Authorized JavaScript origins: `https://<web-host>`
+   - Authorized redirect URIs: `https://<web-host>/__/auth/handler`
+
+   It can take a few minutes to apply. To avoid this step, set `firebase_auth_domain = "<project>.firebaseapp.com"` in `terraform.tfvars` instead; the catch is that redirect sign-in (installed PWA, blocked popups) then runs cross-origin and some browsers block its storage.
+6. **OAuth consent screen.** Google Auth Platform → Branding/Audience: user type **External**, app name, support email, scopes `email` and `profile` only. **Publish the app** (Audience → Publish app) so it is not limited to test users; basic scopes need no Google verification.
+7. **Give Terraform the two web settings.** Create `deploy/infra/terraform.tfvars` (ignored by git; Terraform loads it automatically, so re-running `bootstrap.sh` keeps the values):
 
    ```hcl
    firebase_api_key = "AIza..."
    firebase_app_id  = "1:1234567890:web:abc123"
    ```
 
-7. `./deploy/scripts/bootstrap.sh` (enables `identitytoolkit.googleapis.com` and `firebase.googleapis.com`, sets `AUTH_MODE=firebase` and `FIREBASE_PROJECT_ID` on `api`, and the `FIREBASE_*` variables on `web`). No service-account key file is needed: `api` only verifies tokens against Google's public keys.
+8. `./deploy/scripts/bootstrap.sh` (enables `identitytoolkit.googleapis.com` and `firebase.googleapis.com`, sets `AUTH_MODE=firebase` and `FIREBASE_PROJECT_ID` on `api`, and the `FIREBASE_*` variables on `web`). No service-account key file is needed: `api` only verifies tokens against Google's public keys.
 
 How it fits together:
 
-- `web`'s nginx renders `/config/firebase-config.json` from the `FIREBASE_*` environment variables at request time (`Cache-Control: no-store`), so one image works in any project. `authDomain` is the web host itself, and nginx proxies `/__/auth/` and `/__/firebase/` to `<project>.firebaseapp.com`, which keeps redirect sign-in (used in the installed PWA) same-origin.
+- `web`'s nginx renders `/config/firebase-config.json` from the `FIREBASE_*` environment variables at request time (`Cache-Control: no-store`), so one image works in any project. `authDomain` is the web host itself (unless overridden), and nginx proxies `/__/auth/` and `/__/firebase/` to `<project>.firebaseapp.com`, which keeps redirect sign-in (used in the installed PWA) same-origin.
 - `api` starts only if `AUTH_MODE=firebase` has a `FIREBASE_PROJECT_ID`, and refuses `AUTH_MODE=dev` on Cloud Run, so the `X-Username` bypass cannot be switched on in production.
 - **Cutover:** after the deploy, old username-only clients get 401 and land on the sign-in page. Existing players sign in with Google once and choose "I already have a username" to link their old account, keeping runs and scores. First come, first served: see Known limitations in the root README.
 - **Smoke test after deploy:** sign in with a real Google account on the real domain, choose a username, play a day, reload, sign out, and repeat inside the installed PWA (desktop Chrome).

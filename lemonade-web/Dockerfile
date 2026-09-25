@@ -18,6 +18,7 @@ ENV API_UPSTREAM=http://api:8080 \
     FIREBASE_API_KEY="" \
     FIREBASE_PROJECT_ID="" \
     FIREBASE_APP_ID="" \
+    FIREBASE_AUTH_DOMAIN="" \
     FIREBASE_USE_EMULATOR=false \
     FIREBASE_EMULATOR_URL=""
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template

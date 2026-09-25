@@ -135,6 +135,10 @@ resource "google_cloud_run_v2_service" "web" {
         name  = "FIREBASE_APP_ID"
         value = var.firebase_app_id
       }
+      env {
+        name  = "FIREBASE_AUTH_DOMAIN"
+        value = var.firebase_auth_domain
+      }
     }
   }
 }

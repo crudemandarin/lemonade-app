@@ -27,12 +27,20 @@ server {
     # Firebase web settings, rendered per deployment from environment variables, so one
     # image serves any GCP project. Never cached (a redeploy to another project must not
     # see the old one), and kept out of the service worker's asset groups. authDomain is
-    # this host: /__/auth/ below is proxied to Firebase, which keeps the redirect
+    # this host by default: /__/auth/ below is proxied to Firebase, which keeps the redirect
     # sign-in same-origin (browsers block the third-party storage it would need otherwise).
+    # That host's /__/auth/handler must be an authorized redirect URI of the Google OAuth
+    # client, or Google answers redirect_uri_mismatch (deploy/README.md, step 5).
     location = /config/firebase-config.json {
         default_type application/json;
         add_header Cache-Control "no-store";
-        return 200 '{"apiKey":"${FIREBASE_API_KEY}","authDomain":"$http_host","projectId":"${FIREBASE_PROJECT_ID}","appId":"${FIREBASE_APP_ID}","useEmulator":${FIREBASE_USE_EMULATOR},"emulatorUrl":"${FIREBASE_EMULATOR_URL}"}';
+        # FIREBASE_AUTH_DOMAIN overrides it (for example <project>.firebaseapp.com, which
+        # Google's OAuth client already allows, so no console step is needed).
+        set $firebase_auth_domain "${FIREBASE_AUTH_DOMAIN}";
+        if ($firebase_auth_domain = "") {
+            set $firebase_auth_domain $http_host;
+        }
+        return 200 '{"apiKey":"${FIREBASE_API_KEY}","authDomain":"$firebase_auth_domain","projectId":"${FIREBASE_PROJECT_ID}","appId":"${FIREBASE_APP_ID}","useEmulator":${FIREBASE_USE_EMULATOR},"emulatorUrl":"${FIREBASE_EMULATOR_URL}"}';
     }
 
     # Firebase's sign-in helper pages and scripts, served from this origin.

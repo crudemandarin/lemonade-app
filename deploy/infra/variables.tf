@@ -72,6 +72,12 @@ variable "firebase_api_key" {
   default     = ""
 }
 
+variable "firebase_auth_domain" {
+  description = "Optional override of Firebase authDomain. Empty (default) uses the web host, which needs its /__/auth/handler added to the OAuth client (deploy/README.md). Set to <project>.firebaseapp.com to skip that."
+  type        = string
+  default     = ""
+}
+
 variable "firebase_app_id" {
   description = "App ID of the Firebase web app (looks like 1:123456789:web:abc123)."
   type        = string
