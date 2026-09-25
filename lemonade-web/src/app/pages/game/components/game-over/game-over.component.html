@@ -10,6 +10,9 @@
       {{ capital() | money }}.
     </p>
   }
+  @if (newBest()) {
+    <p class="new-best" role="status">New personal best</p>
+  }
   @if (netWorth(); as nw) {
     <div class="score" aria-label="Final score">
       <span class="label">Final score</span>
@@ -38,38 +41,7 @@
 
 <div class="report">
   <app-card title="Your game">
-    @if (stats(); as s) {
-      <dl class="stats">
-        <div>
-          <dt>Peak cash</dt>
-          <dd>{{ s.peakCapital | money }} on day {{ s.peakDay }}</dd>
-        </div>
-        <div>
-          <dt>Earned from sales</dt>
-          <dd>{{ s.earned | money }}</dd>
-        </div>
-        <div>
-          <dt>Spent on stock</dt>
-          <dd>{{ s.spent | money }}</dd>
-        </div>
-        <div>
-          <dt>Built</dt>
-          <dd>
-            {{ s.facilitiesBought }} {{ s.facilitiesBought === 1 ? 'building' : 'buildings' }} and
-            {{ s.upgrades }} {{ s.upgrades === 1 ? 'upgrade' : 'upgrades' }} for
-            {{ s.facilitySpend | money }}
-          </dd>
-        </div>
-        <div>
-          <dt>Upkeep paid</dt>
-          <dd>{{ s.upkeepPaid | money }}</dd>
-        </div>
-        <div>
-          <dt>Lemonade produced</dt>
-          <dd>{{ s.produced }}</dd>
-        </div>
-      </dl>
-    }
+    <app-run-stats [stats]="stats()" />
     <app-timeline-charts
       [points]="timeline()"
       [priceLog]="priceLog()"

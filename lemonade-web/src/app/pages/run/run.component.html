@@ -1,0 +1,65 @@
+<a class="back" routerLink="/scores">Back to scores</a>
+
+@switch (state()) {
+  @case ('loading') {
+    <p class="note">Loading this run…</p>
+  }
+  @case ('missing') {
+    <p class="note missing" role="alert">
+      That run wasn't found. You can only open your own finished runs.
+    </p>
+  }
+  @case ('error') {
+    <p class="note" role="alert">
+      Couldn't load this run.
+      <button type="button" class="btn btn-sm retry" (click)="load()">Try again</button>
+    </p>
+  }
+  @default {
+    @if (run(); as r) {
+      <section class="hero">
+        <h1>{{ title(r) }}</h1>
+        <p class="when">Finished {{ r.createdAt | date: 'mediumDate' }}</p>
+        <div class="score">
+          <span class="label">Final score</span>
+          <strong class="value">{{ r.score | money }}</strong>
+          <span class="day">on day {{ r.days }}</span>
+          @if (r.isBest) {
+            <span class="best">Personal best</span>
+          }
+        </div>
+        <dl class="worth">
+          <div>
+            <dt>Cash</dt>
+            <dd>{{ r.capital | money }}</dd>
+          </div>
+          <div>
+            <dt>Stock and buildings</dt>
+            <dd>{{ r.netWorth - r.capital | money }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <app-card title="Your game">
+        <app-run-stats [stats]="r.stats" />
+        <app-timeline-charts
+          [points]="r.timeline"
+          [priceLog]="r.priceLog"
+          [basePrices]="r.basePrices"
+          size="large"
+        />
+      </app-card>
+
+      <app-card title="Day by day">
+        <app-report-stepper
+          [days]="r.reports"
+          [selected]="selectedDay()"
+          [report]="dayReport()"
+          [failed]="reportFailed()"
+          emptyText="No day reports were kept for this run. Reports are kept from the day they were introduced."
+          (selectDay)="selectDay($event)"
+        />
+      </app-card>
+    }
+  }
+}

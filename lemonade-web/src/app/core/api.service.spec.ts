@@ -22,6 +22,10 @@ describe('ApiService', () => {
   const cases: [string, () => Observable<unknown>, string, string, unknown][] = [
     ['login', () => api.login('lemonjoe'), 'POST', '/api/login', { username: 'lemonjoe' }],
     ['getGame', () => api.getGame(), 'GET', '/api/game', null],
+    ['scores', () => api.scores(), 'GET', '/api/scores', null],
+    ['scores with a limit', () => api.scores(5), 'GET', '/api/scores?limit=5', null],
+    ['runs', () => api.runs(), 'GET', '/api/runs', null],
+    ['run', () => api.run('abc-123'), 'GET', '/api/runs/abc-123', null],
     ['newGame', () => api.newGame(), 'POST', '/api/game/new', {}],
     ['buy', () => api.buy('lemon', 3), 'POST', '/api/game/buy', { resource: 'lemon', qty: 3 }],
     [

@@ -45,6 +45,36 @@ describe('GameComponent', () => {
     expect(el.querySelector('.dashboard')).toBeNull();
   });
 
+  describe('personal best', () => {
+    it('shows the best score and its day while playing', async () => {
+      const el = await render({ best: { score: 2100, days: 9, runId: 'old-run' } });
+      expect(el.querySelector('.best-chip')!.textContent).toContain('Best: $2,100 on day 9');
+    });
+
+    it('shows no chip before a first finished run', async () => {
+      const el = await render({ best: null });
+      expect(el.querySelector('.best-chip')).toBeNull();
+    });
+
+    it('calls out a new personal best on the result screen', async () => {
+      const el = await render({
+        status: 'gave_up',
+        runId: 'this-run',
+        best: { score: 1500, days: 3, runId: 'this-run' },
+      });
+      expect(el.querySelector('.new-best')!.textContent).toContain('New personal best');
+    });
+
+    it('does not, when an earlier run is still the best', async () => {
+      const el = await render({
+        status: 'gave_up',
+        runId: 'this-run',
+        best: { score: 9000, days: 30, runId: 'old-run' },
+      });
+      expect(el.querySelector('.new-best')).toBeNull();
+    });
+  });
+
   describe('give up', () => {
     async function open() {
       const el = await render();

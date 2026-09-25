@@ -31,4 +31,16 @@ describe('NavBarComponent', () => {
 
     expect(count).toBe(1);
   });
+
+  it('links to the scores page when signed in', () => {
+    render('lemonjoe');
+    expect(el.querySelector<HTMLAnchorElement>('a.scores-link')!.getAttribute('href')).toBe(
+      '/scores',
+    );
+  });
+
+  it('has no scores link when signed out', () => {
+    render(null);
+    expect(el.querySelector('a.scores-link')).toBeNull();
+  });
 });

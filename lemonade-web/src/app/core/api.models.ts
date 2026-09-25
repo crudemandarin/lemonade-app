@@ -143,6 +143,13 @@ export interface NetWorth {
   total: number;
 }
 
+/** The player's top finished run so far. */
+export interface Best {
+  score: number;
+  days: number;
+  runId: string;
+}
+
 export interface GameView {
   day: number;
   capital: number;
@@ -166,6 +173,53 @@ export interface GameView {
   /** Long-run prices in the same order as `PricePoint.prices`, for the "% of base" view. */
   basePrices: number[];
   netWorth: NetWorth;
+  /** Names this playthrough. */
+  runId: string;
+  /** The player's top finished run, or null before they have finished one. */
+  best: Best | null;
+}
+
+export type EndedBy = 'bankrupt' | 'gave_up';
+
+/** One line of the global board: a player's best run. Other players' runs are not viewable. */
+export interface ScoreRow {
+  rank: number;
+  username: string;
+  score: number;
+  days: number;
+  netWorth: number;
+  createdAt: string;
+  /** The caller's own row. */
+  isMe: boolean;
+}
+
+export interface ScoresResponse {
+  rows: ScoreRow[];
+  /** The caller's own best row and rank, even below the rows shown; null with no finished run. */
+  me: ScoreRow | null;
+}
+
+/** One line of the caller's record history. */
+export interface RunSummary {
+  runId: string;
+  score: number;
+  days: number;
+  netWorth: number;
+  capital: number;
+  endedBy: EndedBy;
+  createdAt: string;
+  /** The caller's top run (an earlier finish wins a tie). */
+  isBest: boolean;
+}
+
+/** A finished run in full; readable only by its owner. */
+export interface RunDetail extends RunSummary {
+  stats: GameStats;
+  timeline: TimelinePoint[];
+  priceLog: PricePoint[];
+  basePrices: number[];
+  /** The run's ended days, as the past-days list returns them. */
+  reports: ReportSummary[];
 }
 
 /** `limitedBy` is a resource, `production`, `space`, or empty when production capacity is 0. */

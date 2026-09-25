@@ -8,6 +8,14 @@
   gap: 1rem;
 }
 
+.best-chip {
+  margin-right: auto;
+  align-self: center;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .page-tools {
   display: flex;
   justify-content: flex-end;

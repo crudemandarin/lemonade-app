@@ -15,6 +15,7 @@
     <app-game-over
       [status]="game.status"
       [netWorth]="game.netWorth"
+      [newBest]="game.best?.runId === game.runId"
       [day]="game.day"
       [capital]="game.capital"
       [stats]="game.stats"
@@ -37,6 +38,9 @@
       />
 
       <div class="page-tools">
+        @if (game.best; as best) {
+          <span class="best-chip">Best: {{ best.score | money }} on day {{ best.days }}</span>
+        }
         <button type="button" class="btn btn-ghost past-days" (click)="openPastDays()">
           Past days
         </button>

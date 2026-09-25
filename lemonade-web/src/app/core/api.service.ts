@@ -9,6 +9,9 @@ import {
   GameView,
   ReportSummary,
   Resource,
+  RunDetail,
+  RunSummary,
+  ScoresResponse,
   User,
 } from './api.models';
 
@@ -84,6 +87,23 @@ export class ApiService {
     return this.http.get<DayReport>(`${API_URL}/game/reports/${day}`, {
       params: runId ? { runId } : {},
     });
+  }
+
+  /** The global board: each player's best run. `me` is the caller's own row. */
+  scores(limit?: number): Observable<ScoresResponse> {
+    return this.http.get<ScoresResponse>(`${API_URL}/scores`, {
+      params: limit ? { limit } : {},
+    });
+  }
+
+  /** The caller's finished runs, newest first. */
+  runs(): Observable<RunSummary[]> {
+    return this.http.get<RunSummary[]>(`${API_URL}/runs`);
+  }
+
+  /** One of the caller's finished runs in full. */
+  run(runId: string): Observable<RunDetail> {
+    return this.http.get<RunDetail>(`${API_URL}/runs/${encodeURIComponent(runId)}`);
   }
 
   endDay(): Observable<EndDayResponse> {

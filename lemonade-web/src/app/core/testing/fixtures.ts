@@ -2,6 +2,9 @@ import {
   DayReport,
   GameStats,
   GameView,
+  RunDetail,
+  RunSummary,
+  ScoreRow,
   Resource,
   ResourceView,
   SaleInfo,
@@ -88,6 +91,8 @@ export function newGameView(overrides: Partial<GameView> = {}): GameView {
     priceLog: [{ day: 1, prices: [20, 10, 10, 10, 90], events: [] }],
     basePrices: [20, 10, 10, 10, 90],
     netWorth: { cash: 1000, stock: 0, facilities: 500, total: 1500 },
+    runId: 'run-current',
+    best: null,
     ...overrides,
   };
 }
@@ -152,4 +157,46 @@ export function gameStats(overrides: Partial<GameStats> = {}): GameStats {
 /** Sale info for a lone building: it is the last one, so it cannot be sold. */
 export function noSale(sellValue: number): SaleInfo {
   return { sellValue, canSell: false, sellBlockedReason: 'min_facility', casesToSell: 0 };
+}
+
+export function scoreRow(overrides: Partial<ScoreRow> = {}): ScoreRow {
+  return {
+    rank: 1,
+    username: 'lemonjoe',
+    score: 2500,
+    days: 14,
+    netWorth: 2500,
+    createdAt: '2026-09-20T12:00:00Z',
+    isMe: false,
+    ...overrides,
+  };
+}
+
+export function runSummary(overrides: Partial<RunSummary> = {}): RunSummary {
+  return {
+    runId: 'run-1',
+    score: 1500,
+    days: 6,
+    netWorth: 1500,
+    capital: 900,
+    endedBy: 'gave_up',
+    createdAt: '2026-09-20T12:00:00Z',
+    isBest: false,
+    ...overrides,
+  };
+}
+
+export function runDetail(overrides: Partial<RunDetail> = {}): RunDetail {
+  return {
+    ...runSummary(),
+    stats: gameStats(),
+    timeline: [timelinePoint(), timelinePoint({ kind: 'end_day', day: 1 })],
+    priceLog: [
+      { day: 1, prices: [20, 10, 10, 10, 90], events: [] },
+      { day: 2, prices: [22, 9, 10, 11, 100], events: ['Heat Wave'] },
+    ],
+    basePrices: [20, 10, 10, 10, 90],
+    reports: [],
+    ...overrides,
+  };
 }
