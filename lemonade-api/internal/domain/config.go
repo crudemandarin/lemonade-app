@@ -37,6 +37,9 @@ type Config struct {
 	ClampMin   float64
 	ClampMax   float64
 
+	// ResaleRate is the share of a building's build cost returned when it is sold.
+	ResaleRate float64
+
 	MaxLevel    int
 	MaxQuantity int
 
@@ -66,6 +69,7 @@ func DefaultConfig() Config {
 		Sigma:         0.12,
 		ClampMin:      0.25,
 		ClampMax:      4.0,
+		ResaleRate:    0.5,
 		MaxLevel:      4,
 		MaxQuantity:   10,
 		HistoryLength: 14,

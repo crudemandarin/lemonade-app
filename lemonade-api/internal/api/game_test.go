@@ -585,3 +585,48 @@ func TestClampedTrades(t *testing.T) {
 	}
 	e.wantError(e.do("POST", "/api/game/sell", "joe12", map[string]any{"resource": "lemon", "qty": 5, "clamp": true}), http.StatusConflict, "insufficient_stock")
 }
+
+func TestSellFacility(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+
+	// Every group starts at one building, so nothing is sellable yet.
+	v := e.game("joe12")
+	if v.Facilities.Production.CanSell || v.Facilities.Production.Reason != "min_facility" || v.Facilities.Production.SellValue != 250 {
+		t.Fatalf("production sale info: %+v", v.Facilities.Production.saleDTO)
+	}
+	e.wantError(e.do("POST", "/api/game/facilities/production/sell", "joe12", nil), http.StatusConflict, "min_facility")
+	e.wantError(e.do("POST", "/api/game/facilities/warehouse/sell", "joe12", map[string]any{"resource": "lemon"}), http.StatusConflict, "min_facility")
+	e.wantError(e.do("POST", "/api/game/facilities/warehouse/sell", "joe12", map[string]any{"resource": "nope"}), http.StatusBadRequest, "invalid_resource")
+
+	// Two lemon warehouses; fill them past what one holds.
+	e.do("POST", "/api/game/facilities/warehouse/expand", "joe12", map[string]any{"resource": "lemon"})
+	e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 14})
+	v = e.game("joe12")
+	lemon := v.Facilities.Warehouse.Resources[0]
+	if lemon.CanSell || lemon.Reason != "stock_exceeds_capacity" || lemon.CasesToSell != 4 {
+		t.Fatalf("lemon sale info: %+v", lemon.saleDTO)
+	}
+	rec := e.do("POST", "/api/game/facilities/warehouse/sell", "joe12", map[string]any{"resource": "lemon"})
+	e.wantError(rec, http.StatusConflict, "stock_exceeds_capacity")
+	if !strings.Contains(rec.Body.String(), "Sell 4 cases first") {
+		t.Fatalf("message: %s", rec.Body)
+	}
+
+	e.do("POST", "/api/game/sell", "joe12", map[string]any{"resource": "lemon", "qty": 4})
+	before := e.game("joe12")
+	rec = e.do("POST", "/api/game/facilities/warehouse/sell", "joe12", map[string]any{"resource": "lemon"})
+	v = decode[gameViewDTO](t, rec)
+	if rec.Code != 200 || v.Capital != before.Capital+50 || v.Facilities.Warehouse.Resources[0].Count != 1 {
+		t.Fatalf("sell: %d capital %d -> %d", rec.Code, before.Capital, v.Capital)
+	}
+	if v.UpkeepPerDay != before.UpkeepPerDay-2 || v.Stats.FacilitiesSold != 1 || v.Stats.FacilityProceeds != 50 {
+		t.Fatalf("upkeep=%d stats=%+v", v.UpkeepPerDay, v.Stats)
+	}
+	if last := v.Timeline[len(v.Timeline)-1]; last.Kind != "facility_sold" || last.Resource != "lemon" || last.Amount != 50 {
+		t.Fatalf("timeline: %+v", last)
+	}
+	if !strings.Contains(rec.Body.String(), `"sellBlockedReason":"min_facility"`) {
+		t.Fatalf("view lacks flattened sale fields: %s", rec.Body)
+	}
+}

@@ -56,6 +56,11 @@ Time estimates are rough and cumulative.
   - [x] 9c: header projection (lemonade to be made, ice to melt)
   - [x] 9d: bulk trade bar (amount selector, `clamp` on buy and sell)
 
+- [ ] **Slice 10: Economy state (see `HANDOFF-A-economy-and-runs.md`)**
+  - [x] 10a: sell facilities (quantity only, resale at half build cost)
+  - [ ] 10b: average purchase price (cost basis)
+  - [ ] 10c: all-commodities price chart
+
 ## Hold points
 - **≈2:30 elapsed:** first Reviewer pass (see kickoff prompt 3). Fix only SPEC gaps and bugs.
 - **≈3:30 elapsed:** second Reviewer pass plus fresh-clone check; then walkthrough prep.

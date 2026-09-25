@@ -25,6 +25,12 @@
         </svg>
         Upgraded
       </li>
+      <li>
+        <svg width="16" height="16" viewBox="-8 -8 16 16" aria-hidden="true">
+          <polygon class="m-facility-sold" points="0,6 6,-5 -6,-5" />
+        </svg>
+        Building sold
+      </li>
     </ul>
     <button type="button" class="btn btn-ghost table-toggle" (click)="viewTable.set(!viewTable())">
       {{ viewTable() ? 'View charts' : 'View as table' }}
@@ -108,6 +114,10 @@
                 [attr.transform]="'translate(' + m.x + ' ' + m.y + ')'"
               >
                 @switch (m.kind) {
+                  @case ('facility_sold') {
+                    <polygon class="halo" points="0,9 8,-7 -8,-7" />
+                    <polygon class="m-facility-sold" points="0,6 6,-5 -6,-5" />
+                  }
                   @case ('buy') {
                     <circle class="halo" r="7" />
                     <circle class="m-buy" r="5" />

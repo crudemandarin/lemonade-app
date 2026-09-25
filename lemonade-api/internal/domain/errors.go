@@ -13,4 +13,16 @@ var (
 	ErrMaxQuantity       = errors.New("facility already at max quantity")
 	ErrMaxLevel          = errors.New("facility already at max level")
 	ErrInvalidFacility   = errors.New("unknown facility type")
+	// ErrMinFacility: the last production building and each resource's last warehouse stay.
+	ErrMinFacility = errors.New("cannot sell the last building")
+	// ErrStockExceedsCapacity: the remaining warehouses could not hold the current stock.
+	ErrStockExceedsCapacity = errors.New("stock would exceed remaining capacity")
 )
+
+// StockExceedsCapacityError says how many cases must be sold before a warehouse can be.
+type StockExceedsCapacityError struct{ Excess int }
+
+func (e *StockExceedsCapacityError) Error() string { return ErrStockExceedsCapacity.Error() }
+func (e *StockExceedsCapacityError) Is(target error) bool {
+	return target == ErrStockExceedsCapacity
+}

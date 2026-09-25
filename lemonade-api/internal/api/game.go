@@ -63,6 +63,7 @@ func (h *Game) Register(router gin.IRouter) {
 	g.POST("/sell", h.trade(domain.Sell, domain.SellClamped))
 	g.POST("/facilities/:kind/expand", h.expand)
 	g.POST("/facilities/:kind/upgrade", h.upgrade)
+	g.POST("/facilities/:kind/sell", h.sellFacility)
 	g.POST("/end-day", h.endDay)
 }
 
@@ -189,22 +190,42 @@ func (h *Game) expand(c *gin.Context) {
 		return
 	}
 
-	var resource domain.Resource
-	if kind == domain.Warehouse {
-		var req struct {
-			Resource domain.Resource `json:"resource"`
-		}
-		if err := c.ShouldBindJSON(&req); err != nil {
-			abort(c, http.StatusBadRequest, "invalid_request", "Request body must be JSON with a resource.")
-			return
-		}
-		if !req.Resource.Valid() {
-			abort(c, http.StatusBadRequest, "invalid_resource", "Unknown resource.")
-			return
-		}
-		resource = req.Resource
+	resource, ok := warehouseResource(c, kind)
+	if !ok {
+		return
 	}
 	h.mutate(c, func(g *domain.Game) error { return domain.Expand(g, h.cfg, kind, resource) })
+}
+
+// warehouseResource reads the {resource} body a warehouse action needs; production takes none.
+func warehouseResource(c *gin.Context, kind domain.FacilityType) (domain.Resource, bool) {
+	if kind != domain.Warehouse {
+		return "", true
+	}
+	var req struct {
+		Resource domain.Resource `json:"resource"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		abort(c, http.StatusBadRequest, "invalid_request", "Request body must be JSON with a resource.")
+		return "", false
+	}
+	if !req.Resource.Valid() {
+		abort(c, http.StatusBadRequest, "invalid_resource", "Unknown resource.")
+		return "", false
+	}
+	return req.Resource, true
+}
+
+func (h *Game) sellFacility(c *gin.Context) {
+	kind, ok := facilityKind(c)
+	if !ok {
+		return
+	}
+	resource, ok := warehouseResource(c, kind)
+	if !ok {
+		return
+	}
+	h.mutate(c, func(g *domain.Game) error { return domain.SellFacility(g, h.cfg, kind, resource) })
 }
 
 func (h *Game) upgrade(c *gin.Context) {

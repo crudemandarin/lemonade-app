@@ -1,0 +1,18 @@
+<div class="backdrop fade-in">
+  <div
+    class="dialog"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="confirm-title"
+    aria-describedby="confirm-message"
+  >
+    <h2 id="confirm-title">{{ title() }}</h2>
+    <p id="confirm-message">{{ message() }}</p>
+    <div class="actions">
+      <button type="button" class="btn cancel" (click)="cancelled.emit()">Cancel</button>
+      <button type="button" class="btn danger" (click)="confirmed.emit()">
+        {{ confirmLabel() }}
+      </button>
+    </div>
+  </div>
+</div>

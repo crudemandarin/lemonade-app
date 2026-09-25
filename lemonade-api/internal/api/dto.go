@@ -1,6 +1,10 @@
 package api
 
-import "lemonade-api/internal/domain"
+import (
+	"errors"
+
+	"lemonade-api/internal/domain"
+)
 
 // These types mirror lemonade-web/src/app/core/api.models.ts exactly.
 
@@ -29,10 +33,21 @@ type upgradeOptionDTO struct {
 	UpkeepIncrease int `json:"upkeepIncrease"`
 }
 
+// saleDTO says what selling one building would return and whether it is allowed now.
+// Reason is empty when CanSell, else min_facility or stock_exceeds_capacity.
+type saleDTO struct {
+	SellValue int    `json:"sellValue"`
+	CanSell   bool   `json:"canSell"`
+	Reason    string `json:"sellBlockedReason"`
+	// CasesToSell is how many cases must go first when Reason is stock_exceeds_capacity.
+	CasesToSell int `json:"casesToSell"`
+}
+
 type warehouseResourceDTO struct {
 	Resource domain.Resource `json:"resource"`
 	Count    int             `json:"count"`
 	Capacity int             `json:"capacity"`
+	saleDTO
 }
 
 type warehouseViewDTO struct {
@@ -59,6 +74,7 @@ type productionViewDTO struct {
 	UpkeepPerDay    int               `json:"upkeepPerDay"`
 	Upgrade         *upgradeOptionDTO `json:"upgrade"`
 	RatePerDay      int               `json:"ratePerDay"`
+	saleDTO
 }
 
 type facilitiesDTO struct {
@@ -96,6 +112,8 @@ type statsDTO struct {
 	FacilitiesBought int `json:"facilitiesBought"`
 	Upgrades         int `json:"upgrades"`
 	FacilitySpend    int `json:"facilitySpend"`
+	FacilitiesSold   int `json:"facilitiesSold"`
+	FacilityProceeds int `json:"facilityProceeds"`
 	Produced         int `json:"produced"`
 	UpkeepPaid       int `json:"upkeepPaid"`
 	PeakCapital      int `json:"peakCapital"`
@@ -210,6 +228,23 @@ func toTimelineDTOs(g domain.Game) []timelinePointDTO {
 	return out
 }
 
+func toSale(g domain.Game, cfg domain.Config, kind domain.FacilityType, r domain.Resource) saleDTO {
+	value := domain.ResaleValue(cfg, cfg.ProductionTiers[g.ProductionLevel-1])
+	if kind == domain.Warehouse {
+		value = domain.ResaleValue(cfg, cfg.WarehouseTiers[g.WarehouseLevel-1])
+	}
+	s := saleDTO{SellValue: value, CanSell: true}
+	var excess *domain.StockExceedsCapacityError
+	switch err := domain.CanSellFacility(g, cfg, kind, r); {
+	case err == nil:
+	case errors.As(err, &excess):
+		s.CanSell, s.Reason, s.CasesToSell = false, "stock_exceeds_capacity", excess.Excess
+	default:
+		s.CanSell, s.Reason = false, "min_facility"
+	}
+	return s
+}
+
 func toWarehouseView(g domain.Game, cfg domain.Config) warehouseViewDTO {
 	tier := cfg.WarehouseTiers[g.WarehouseLevel-1]
 
@@ -221,6 +256,7 @@ func toWarehouseView(g domain.Game, cfg domain.Config) warehouseViewDTO {
 			Resource: r,
 			Count:    g.WarehouseQty[r],
 			Capacity: domain.Capacity(g, cfg, r),
+			saleDTO:  toSale(g, cfg, domain.Warehouse, r),
 		})
 	}
 
@@ -251,6 +287,7 @@ func toProductionView(g domain.Game, cfg domain.Config) productionViewDTO {
 		UpkeepPerDay:    domain.ProductionUpkeep(g, cfg),
 		Upgrade:         upgradeOption(cfg.ProductionTiers, g.ProductionLevel, cfg.MaxLevel, g.ProductionQty),
 		RatePerDay:      domain.ProductionCapacity(g, cfg),
+		saleDTO:         toSale(g, cfg, domain.Production, ""),
 	}
 }
 

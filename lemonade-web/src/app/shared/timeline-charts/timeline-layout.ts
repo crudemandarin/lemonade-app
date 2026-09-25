@@ -109,7 +109,9 @@ export function nearestIndex(xs: number[], px: number): number {
 
 /** The points worth a dot on the capital chart: trades and facility purchases. */
 export function markerPoints(placed: PlotPoint[]): PlotPoint[] {
-  return placed.filter((p) => ['buy', 'sell', 'expand', 'upgrade'].includes(p.point.kind));
+  return placed.filter((p) =>
+    ['buy', 'sell', 'expand', 'upgrade', 'facility_sold'].includes(p.point.kind),
+  );
 }
 
 const NOUN: Record<Resource, string> = {
@@ -142,6 +144,12 @@ export function describePoint(p: TimelinePoint): string {
       return p.facility === 'warehouse'
         ? `Upgraded all warehouses for ${formatMoney(p.amount)}`
         : `Upgraded production for ${formatMoney(p.amount)}`;
+    case 'facility_sold':
+      if (p.facility === 'warehouse' && p.resource) {
+        const noun = NOUN[p.resource];
+        return `Sold ${article(noun)} ${noun} warehouse for ${formatMoney(p.amount)}`;
+      }
+      return `Sold a production building for ${formatMoney(p.amount)}`;
     case 'end_day':
       return `Day ${p.day} ended: made ${p.produced} lemonade, paid ${formatMoney(p.amount)} upkeep`;
   }

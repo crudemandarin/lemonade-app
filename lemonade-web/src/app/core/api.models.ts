@@ -54,7 +54,18 @@ export interface FacilityTypeView {
   upgrade: UpgradeOption | null;
 }
 
-export interface WarehouseResourceView {
+/** What selling one building would do; part of every warehouse row and of production. */
+export interface SaleInfo {
+  /** What one building sells for now (build cost at the current level × the resale rate). */
+  sellValue: number;
+  canSell: boolean;
+  /** Empty when `canSell`. */
+  sellBlockedReason: '' | 'min_facility' | 'stock_exceeds_capacity';
+  /** Cases to sell first when the reason is `stock_exceeds_capacity`, else 0. */
+  casesToSell: number;
+}
+
+export interface WarehouseResourceView extends SaleInfo {
   resource: Resource;
   count: number;
   capacity: number;
@@ -64,7 +75,7 @@ export interface WarehouseView extends FacilityTypeView {
   resources: WarehouseResourceView[];
 }
 
-export interface ProductionView extends FacilityTypeView {
+export interface ProductionView extends FacilityTypeView, SaleInfo {
   /** Lemonade per day: buildings × sizePerBuilding. */
   ratePerDay: number;
 }
@@ -77,7 +88,8 @@ export interface GameEvent {
   daysLeft: number;
 }
 
-export type PointKind = 'start' | 'buy' | 'sell' | 'expand' | 'upgrade' | 'end_day';
+export type PointKind =
+  'start' | 'buy' | 'sell' | 'expand' | 'upgrade' | 'facility_sold' | 'end_day';
 
 /** The state right after one action, for the history charts. */
 export interface TimelinePoint {
@@ -108,6 +120,9 @@ export interface GameStats {
   facilitiesBought: number;
   upgrades: number;
   facilitySpend: number;
+  facilitiesSold: number;
+  /** Cash from selling buildings. */
+  facilityProceeds: number;
   produced: number;
   upkeepPaid: number;
   peakCapital: number;

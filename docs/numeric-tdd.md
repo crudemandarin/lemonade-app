@@ -186,6 +186,7 @@ JSON, camelCase. The contract is `lemonade-web/src/app/core/api.models.ts`.
 | `POST /api/game/buy \| sell {resource, qty, clamp?}` | trade at ask · bid; with `clamp`, trades as many as cash, space or stock allow (up to `qty`) instead of failing |
 | `POST /api/game/facilities/warehouse/expand {resource}` · `.../production/expand` | add one building |
 | `POST /api/game/facilities/{warehouse\|production}/upgrade` | upgrade whole type |
+| `POST /api/game/facilities/warehouse/sell {resource}` · `.../production/sell` | sell one building back at `ResaleRate` of its build cost; 409 `min_facility` or `stock_exceeds_capacity` |
 | `POST /api/game/end-day` | `{report, game}` |
 | `GET /api/health` | liveness only (Cloud Run reserves `/healthz`) |
 
@@ -237,6 +238,7 @@ Every balance number lives in one struct, `DefaultConfig()` in `lemonade-api/int
 | `RevertRate` | 0.15 | How strongly prices are pulled back toward their base (15% of the gap per day) |
 | `ClampMin` / `ClampMax` | 0.25× / 4× | Hard floor and ceiling on the walked price |
 | `EventChance` | 25% | Chance per day that a new market event starts |
+| `ResaleRate` | 50% | Share of a building's build cost returned when it is sold (quantity only; levels are never sold) |
 | `MaxLevel` / `MaxQuantity` | 4 / 10 | Highest facility level, and most buildings per warehouse resource (and for production) |
 | `HistoryLength` | 14 | Days of price history kept per resource |
 
@@ -349,4 +351,4 @@ Shows a warning when capital ends at $0 but the game continues.
 |                       [ New game (primary) ]                           |
 ```
 
-**Component map:** `nav-bar` (sign in/out) · `stats-strip` (day, capital, upkeep, end-of-day projection; end day) · `events-banner` · `market-panel` (shared trade amount: 10/50/100/All, then Buy and Sell per row) · `facilities-panel` (expandWarehouse, expandProduction, upgrade) · `day-report-modal` · `game-over` · `offline-banner`. Open UX: signed-in users are not auto-redirected from `/`; mobile stacks each market row as a card.
+**Component map:** `nav-bar` (sign in/out) · `stats-strip` (day, capital, upkeep, end-of-day projection; end day) · `events-banner` · `market-panel` (shared trade amount: 10/50/100/All, then Buy and Sell per row) · `facilities-panel` (expandWarehouse, expandProduction, upgrade, sell with confirmation) · `day-report-modal` · `game-over` · `offline-banner`. Open UX: signed-in users are not auto-redirected from `/`; mobile stacks each market row as a card.

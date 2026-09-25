@@ -70,6 +70,10 @@ export class GameStore {
     return this.update(this.api.expandProduction());
   }
 
+  sellFacility(type: FacilityType, resource?: Resource): Promise<void> {
+    return this.update(this.api.sellFacility(type, resource));
+  }
+
   upgrade(type: FacilityType): Promise<void> {
     return this.update(this.api.upgrade(type));
   }

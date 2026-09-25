@@ -48,6 +48,14 @@ export class ApiService {
     return this.http.post<GameView>(`${API_URL}/game/facilities/production/expand`, {});
   }
 
+  /** Sells one building; `resource` picks the warehouse (ignored for production). */
+  sellFacility(type: FacilityType, resource?: Resource): Observable<GameView> {
+    return this.http.post<GameView>(
+      `${API_URL}/game/facilities/${type}/sell`,
+      type === 'warehouse' ? { resource } : {},
+    );
+  }
+
   upgrade(type: FacilityType): Observable<GameView> {
     return this.http.post<GameView>(`${API_URL}/game/facilities/${type}/upgrade`, {});
   }

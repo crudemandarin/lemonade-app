@@ -46,6 +46,8 @@ type statsRow struct {
 	FacilitiesBought int `json:"facilitiesBought"`
 	Upgrades         int `json:"upgrades"`
 	FacilitySpend    int `json:"facilitySpend"`
+	FacilitiesSold   int `json:"facilitiesSold"`
+	FacilityProceeds int `json:"facilityProceeds"`
 	Produced         int `json:"produced"`
 	UpkeepPaid       int `json:"upkeepPaid"`
 	PeakCapital      int `json:"peakCapital"`

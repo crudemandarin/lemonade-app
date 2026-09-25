@@ -46,6 +46,20 @@ describe('ApiService', () => {
       { resource: 'lemon', qty: 100, clamp: true },
     ],
     [
+      'sell a warehouse',
+      () => api.sellFacility('warehouse', 'ice'),
+      'POST',
+      '/api/game/facilities/warehouse/sell',
+      { resource: 'ice' },
+    ],
+    [
+      'sell a production building',
+      () => api.sellFacility('production'),
+      'POST',
+      '/api/game/facilities/production/sell',
+      {},
+    ],
+    [
       'expandWarehouse',
       () => api.expandWarehouse('ice'),
       'POST',

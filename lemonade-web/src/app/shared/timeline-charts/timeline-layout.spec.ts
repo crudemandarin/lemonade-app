@@ -119,6 +119,7 @@ describe('markerPoints', () => {
       timelinePoint({ kind: 'sell', day: 1 }),
       timelinePoint({ kind: 'expand', day: 1 }),
       timelinePoint({ kind: 'upgrade', day: 1 }),
+      timelinePoint({ kind: 'facility_sold', day: 1 }),
       timelinePoint({ kind: 'end_day', day: 1 }),
     ]);
     expect(markerPoints(placed).map((p) => p.point.kind)).toEqual([
@@ -126,6 +127,7 @@ describe('markerPoints', () => {
       'sell',
       'expand',
       'upgrade',
+      'facility_sold',
     ]);
   });
 });
@@ -153,6 +155,19 @@ describe('describePoint', () => {
     expect(
       describePoint(timelinePoint({ kind: 'upgrade', facility: 'production', amount: 1000 })),
     ).toBe('Upgraded production for $1,000');
+    expect(
+      describePoint(
+        timelinePoint({
+          kind: 'facility_sold',
+          facility: 'warehouse',
+          resource: 'ice',
+          amount: 50,
+        }),
+      ),
+    ).toBe('Sold an ice warehouse for $50');
+    expect(
+      describePoint(timelinePoint({ kind: 'facility_sold', facility: 'production', amount: 250 })),
+    ).toBe('Sold a production building for $250');
     expect(
       describePoint(timelinePoint({ kind: 'end_day', day: 4, produced: 10, amount: 30 })),
     ).toBe('Day 4 ended: made 10 lemonade, paid $30 upkeep');

@@ -4,6 +4,7 @@ import {
   GameView,
   Resource,
   ResourceView,
+  SaleInfo,
   TimelinePoint,
 } from '../api.models';
 
@@ -55,6 +56,7 @@ export function newGameView(overrides: Partial<GameView> = {}): GameView {
           resource,
           count: 1,
           capacity: 10,
+          ...noSale(50),
         })),
       },
       production: {
@@ -67,6 +69,7 @@ export function newGameView(overrides: Partial<GameView> = {}): GameView {
         expandCost: 500,
         upkeepPerDay: 10,
         ratePerDay: 10,
+        ...noSale(250),
         upgrade: {
           tierName: 'Food Truck',
           costPerBuilding: 1000,
@@ -131,10 +134,17 @@ export function gameStats(overrides: Partial<GameStats> = {}): GameStats {
     facilitiesBought: 0,
     upgrades: 0,
     facilitySpend: 0,
+    facilitiesSold: 0,
+    facilityProceeds: 0,
     produced: 0,
     upkeepPaid: 0,
     peakCapital: 1000,
     peakDay: 1,
     ...overrides,
   };
+}
+
+/** Sale info for a lone building: it is the last one, so it cannot be sold. */
+export function noSale(sellValue: number): SaleInfo {
+  return { sellValue, canSell: false, sellBlockedReason: 'min_facility', casesToSell: 0 };
 }

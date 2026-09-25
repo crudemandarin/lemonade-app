@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { FacilityType, Resource } from '../../../../core/api.models';
-import { newGameView } from '../../../../core/testing/fixtures';
+import { newGameView, noSale } from '../../../../core/testing/fixtures';
 import { FacilitiesPanelComponent } from './facilities-panel.component';
 
 describe('FacilitiesPanelComponent', () => {
@@ -78,7 +78,7 @@ describe('FacilitiesPanelComponent', () => {
     fixture.detectChanges();
 
     const buttons = Array.from(el.querySelectorAll<HTMLButtonElement>('button'));
-    expect(buttons.length).toBe(8);
+    expect(buttons.length).toBe(14);
     expect(buttons.every((b) => b.disabled)).toBeTrue();
   });
 
@@ -105,5 +105,96 @@ describe('FacilitiesPanelComponent', () => {
     expect(text(fixture.nativeElement.querySelector('.production .upgrade'))).toContain(
       '(increase $15 upkeep)',
     );
+  });
+
+  describe('selling buildings', () => {
+    function withSellable() {
+      const game = newGameView();
+      const sellable = {
+        sellValue: 50,
+        canSell: true,
+        sellBlockedReason: '' as const,
+        casesToSell: 0,
+      };
+      game.facilities.warehouse.resources[1] = {
+        ...game.facilities.warehouse.resources[1],
+        count: 2,
+        ...sellable,
+      };
+      game.facilities.production = {
+        ...game.facilities.production,
+        buildings: 2,
+        ...sellable,
+        sellValue: 250,
+      };
+      return game;
+    }
+
+    const sellButton = (card: HTMLElement, selector = '') =>
+      card.querySelector<HTMLButtonElement>(`${selector} .sell-building`.trim())!;
+
+    it('disables Sell for a last building, with the reason', () => {
+      const button = sellButton(warehouseCard(), '[data-resource=lemon]');
+      expect(button.disabled).toBeTrue();
+      expect(button.title).toBe('Keep at least one');
+    });
+
+    it('explains when stock is in the way', () => {
+      const game = newGameView();
+      game.facilities.warehouse.resources[0] = {
+        ...game.facilities.warehouse.resources[0],
+        canSell: false,
+        sellBlockedReason: 'stock_exceeds_capacity',
+        casesToSell: 4,
+      };
+      render(game);
+      expect(sellButton(warehouseCard(), '[data-resource=lemon]').title).toBe('Sell 4 cases first');
+    });
+
+    it('asks for confirmation, then emits the sale', () => {
+      render(withSellable());
+      const emitted: unknown[] = [];
+      fixture.componentInstance.sellFacility.subscribe((s) => emitted.push(s));
+
+      sellButton(warehouseCard(), '[data-resource=sugar]').click();
+      fixture.detectChanges();
+      expect(emitted).toEqual([]);
+      expect(el.querySelector('[role=alertdialog]')!.textContent).toContain('Sell a Pantry?');
+
+      el.querySelector<HTMLButtonElement>('[role=alertdialog] .danger')!.click();
+      fixture.detectChanges();
+      expect(emitted).toEqual([{ type: 'warehouse', resource: 'sugar' }]);
+      expect(el.querySelector('[role=alertdialog]')).toBeNull();
+    });
+
+    it('cancel closes the dialog without selling', () => {
+      render(withSellable());
+      const emitted: unknown[] = [];
+      fixture.componentInstance.sellFacility.subscribe((s) => emitted.push(s));
+
+      sellButton(productionCard()).click();
+      fixture.detectChanges();
+      el.querySelector<HTMLButtonElement>('[role=alertdialog] .cancel')!.click();
+      fixture.detectChanges();
+
+      expect(emitted).toEqual([]);
+      expect(el.querySelector('[role=alertdialog]')).toBeNull();
+    });
+
+    it('sells production without a resource', () => {
+      render(withSellable());
+      const emitted: unknown[] = [];
+      fixture.componentInstance.sellFacility.subscribe((s) => emitted.push(s));
+      sellButton(productionCard()).click();
+      fixture.detectChanges();
+      el.querySelector<HTMLButtonElement>('[role=alertdialog] .danger')!.click();
+      expect(emitted).toEqual([{ type: 'production', resource: undefined }]);
+    });
+
+    it('a lone production building cannot be sold', () => {
+      const game = newGameView();
+      expect(game.facilities.production).toEqual(jasmine.objectContaining(noSale(250)));
+      expect(sellButton(productionCard()).disabled).toBeTrue();
+    });
   });
 });

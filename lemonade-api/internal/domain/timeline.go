@@ -14,7 +14,9 @@ const (
 	PointSell    PointKind = "sell"
 	PointExpand  PointKind = "expand"
 	PointUpgrade PointKind = "upgrade"
-	PointEndDay  PointKind = "end_day"
+	// PointSellFacility is a building sold back (Resource set for warehouses).
+	PointSellFacility PointKind = "facility_sold"
+	PointEndDay       PointKind = "end_day"
 )
 
 // TimelinePoint is the state right after one action. Day is the day the action
@@ -41,6 +43,8 @@ type Stats struct {
 	FacilitiesBought int
 	Upgrades         int
 	FacilitySpend    int // expansions and upgrades
+	FacilitiesSold   int
+	FacilityProceeds int // cash from selling buildings
 	Produced         int
 	UpkeepPaid       int
 	PeakCapital      int
