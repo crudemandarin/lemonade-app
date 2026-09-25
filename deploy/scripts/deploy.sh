@@ -3,7 +3,7 @@
 # Run bootstrap.sh once first; this only updates images, never infrastructure.
 #
 # Usage: ./deploy/scripts/deploy.sh [api|web|all]   (default: all)
-# Env:   PROJECT_ID (default lemonade-app-dev), REGION (default us-central1)
+# Env:   PROJECT_ID (default lemonade-app-509618), REGION (default us-central1)
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 
