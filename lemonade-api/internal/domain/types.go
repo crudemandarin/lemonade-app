@@ -55,6 +55,9 @@ type Game struct {
 	// Timeline and Stats record how the game went; see timeline.go.
 	Timeline []TimelinePoint
 	Stats    Stats
+
+	// Goals are run-scoped facts only achievements read; see goals.go.
+	Goals GoalStats
 }
 
 // User identifies a player. Login is username-only (SPEC rule 22).
@@ -149,5 +152,6 @@ func (g Game) Clone() Game {
 		}
 		c.Events = append(c.Events, ec)
 	}
+	c.Goals = g.Goals.clone()
 	return c
 }
