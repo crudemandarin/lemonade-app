@@ -79,6 +79,7 @@ export function newGameView(overrides: Partial<GameView> = {}): GameView {
     events: [],
     timeline: [timelinePoint()],
     stats: gameStats(),
+    projection: { lemonadeToProduce: 0, iceToMelt: 0, limitedBy: 'lemon' },
     ...overrides,
   };
 }

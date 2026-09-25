@@ -32,6 +32,23 @@ dd {
   font-variant-numeric: tabular-nums;
 }
 
+.projection {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+
+  strong {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
 @media (max-width: 720px) {
   .strip {
     padding: 0.875rem 1rem;

@@ -69,25 +69,66 @@ func EndDay(g *Game, cfg Config) (DayReport, error) {
 	return report, nil
 }
 
-// produce converts inputs to lemonade: 1 lemon + 1 sugar + 1 ice + 1 cup -> 1 lemonade,
-// limited by daily capacity, stock of each input, and free lemonade warehouse space.
-func produce(g *Game, cfg Config) int {
-	n := ProductionCapacity(*g, cfg)
+// Limiting factors reported by produceQty.
+const (
+	LimitProduction = "production"
+	LimitSpace      = "space"
+)
+
+// produceQty is how many lemonade a day's production makes, and what limited it:
+// daily capacity, stock of each input (named by resource), or free lemonade
+// warehouse space. On a tie the more actionable factor wins, so production is
+// named only when nothing else binds. LimitedBy is empty when the game has no
+// production capacity at all. Shared by produce and PreviewEndDay so the
+// preview cannot drift from what EndDay does.
+func produceQty(g Game, cfg Config) (qty int, limitedBy string) {
+	capacity := ProductionCapacity(g, cfg)
+	if capacity <= 0 {
+		return 0, ""
+	}
+	first := true
 	for _, in := range Inputs {
-		if g.Inventory[in] < n {
-			n = g.Inventory[in]
+		if first || g.Inventory[in] < qty {
+			qty, limitedBy, first = g.Inventory[in], string(in), false
 		}
 	}
-	if free := Capacity(*g, cfg, Lemonade) - g.Inventory[Lemonade]; free < n {
-		n = free
+	if free := Capacity(g, cfg, Lemonade) - g.Inventory[Lemonade]; free < qty {
+		qty, limitedBy = free, LimitSpace
 	}
-	if n < 0 {
-		n = 0
+	if capacity < qty {
+		qty, limitedBy = capacity, LimitProduction
 	}
+	if qty < 0 {
+		qty = 0
+	}
+	return qty, limitedBy
+}
 
+// produce converts inputs to lemonade: 1 lemon + 1 sugar + 1 ice + 1 cup -> 1 lemonade.
+func produce(g *Game, cfg Config) int {
+	n, _ := produceQty(*g, cfg)
 	for _, in := range Inputs {
 		g.Inventory[in] -= n
 	}
 	g.Inventory[Lemonade] += n
 	return n
+}
+
+// Projection is what End day would do to the current state, without doing it.
+type Projection struct {
+	LemonadeToProduce int
+	// IceToMelt is the ice left over after production has used its share.
+	IceToMelt int
+	LimitedBy string
+}
+
+// PreviewEndDay reports the production and ice melt EndDay would give now.
+// It does not modify the game.
+func PreviewEndDay(g Game, cfg Config) Projection {
+	qty, limitedBy := produceQty(g, cfg)
+	return Projection{
+		LemonadeToProduce: qty,
+		IceToMelt:         g.Inventory[Ice] - qty,
+		LimitedBy:         limitedBy,
+	}
 }

@@ -538,3 +538,26 @@ func (e *testEnv) setGame(user string, edit func(g *domain.Game)) {
 		e.t.Fatal(err)
 	}
 }
+
+func TestGameViewCarriesTheProjection(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+
+	v := e.game("joe12")
+	if v.Projection.LemonadeToProduce != 0 || v.Projection.IceToMelt != 0 || v.Projection.LimitedBy != "lemon" {
+		t.Fatalf("empty warehouse: %+v", v.Projection)
+	}
+
+	// 4 of each input; 3 more ice than the recipe needs would be wasted.
+	for _, r := range []string{"lemon", "sugar", "cup"} {
+		e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": r, "qty": 4})
+	}
+	rec := e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "ice", "qty": 7})
+	v = decode[gameViewDTO](t, rec)
+	if v.Projection.LemonadeToProduce != 4 || v.Projection.IceToMelt != 3 || v.Projection.LimitedBy != "lemon" {
+		t.Fatalf("after buying: %+v", v.Projection)
+	}
+	if !strings.Contains(rec.Body.String(), `"projection":{"lemonadeToProduce":4,"iceToMelt":3,"limitedBy":"lemon"}`) {
+		t.Fatalf("unexpected JSON shape: %s", rec.Body)
+	}
+}

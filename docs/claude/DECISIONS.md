@@ -123,3 +123,8 @@ Deviations from DESIGN.md and real tradeoffs made during the build. Newest last.
 - **Why:** the hand-written `Excludes` covered only Heat Wave and Rainy Week, so Holiday (lemonade ×1.35) could overlap Rainy Week (×0.75) and cancel it out. Deriving the rule means a new event row is checked automatically.
 - **Trade-off:** Holiday and Rainy Week are now mutually exclusive, which shifts the balance slightly (the `TestBalance*` bands still pass). Games saved with overlapping events just let them expire. No random numbers are drawn differently on the no-conflict path.
 
+## 22. The header projection shares `produceQty` with `EndDay` (slice 9c)
+- **Did:** production is computed by one pure function, `produceQty` in `internal/domain/endday.go`, used by both `produce()` and `PreviewEndDay`. The game view carries `projection {lemonadeToProduce, iceToMelt, limitedBy}`, recomputed on every view. `iceToMelt` is the ice left after production has used its share.
+- **Why:** the preview cannot drift from the real end of day, and a property test (500 random games) checks it against `EndDay` on the same state.
+- **Choices:** on a tie the input or storage space is named, not production (it is the thing a player can act on); `limitedBy` is empty only when there is no production capacity. The UI hides the ice figure when 0.
+

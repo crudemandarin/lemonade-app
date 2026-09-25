@@ -17,4 +17,14 @@
     <app-icon name="end-day" />
     End day
   </button>
+  <p class="projection" [attr.aria-label]="reading()" [title]="limitedBy()">
+    <span aria-hidden="true"
+      >Makes <strong>{{ projection().lemonadeToProduce }}</strong> lemonade</span
+    >
+    @if (projection().iceToMelt > 0) {
+      <span aria-hidden="true"
+        ><strong>{{ projection().iceToMelt }}</strong> ice will melt</span
+      >
+    }
+  </p>
 </section>

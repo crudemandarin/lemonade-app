@@ -130,6 +130,15 @@ export interface GameView {
   /** Oldest first. Old days are compacted to milestones only. */
   timeline: TimelinePoint[];
   stats: GameStats;
+  /** What End day would do right now; recomputed by the server on every view. */
+  projection: Projection;
+}
+
+/** `limitedBy` is a resource, `production`, `space`, or empty when production capacity is 0. */
+export interface Projection {
+  lemonadeToProduce: number;
+  iceToMelt: number;
+  limitedBy: Resource | 'production' | 'space' | '';
 }
 
 export interface PriceChange {

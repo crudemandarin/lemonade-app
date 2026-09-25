@@ -53,7 +53,7 @@ Time estimates are rough and cumulative.
 - [ ] **Slice 9: P0 update (see `HANDOFF-P0.md`)**
   - [x] 9a: the day report always lists all five prices (lemonade first; unchanged rows say "no change")
   - [x] 9b: conflicting events never overlap (derived from multipliers)
-  - [ ] 9c: header projection (lemonade to be made, ice to melt)
+  - [x] 9c: header projection (lemonade to be made, ice to melt)
   - [ ] 9d: bulk trade bar (amount selector, `clamp` on buy and sell)
 
 ## Hold points

@@ -112,6 +112,7 @@ type gameViewDTO struct {
 	Events       []gameEventDTO     `json:"events"`
 	Timeline     []timelinePointDTO `json:"timeline"`
 	Stats        statsDTO           `json:"stats"`
+	Projection   projectionDTO      `json:"projection"`
 }
 
 type priceChangeDTO struct {
@@ -146,6 +147,13 @@ type errorDTO struct {
 	Message string `json:"message"`
 }
 
+// projectionDTO is what End day would do right now: see domain.PreviewEndDay.
+type projectionDTO struct {
+	LemonadeToProduce int    `json:"lemonadeToProduce"`
+	IceToMelt         int    `json:"iceToMelt"`
+	LimitedBy         string `json:"limitedBy"`
+}
+
 func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 	quotes := domain.Quotes(g, cfg)
 
@@ -175,9 +183,10 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 			Warehouse:  toWarehouseView(g, cfg),
 			Production: toProductionView(g, cfg),
 		},
-		Events:   toEventDTOs(g.Events),
-		Timeline: toTimelineDTOs(g),
-		Stats:    statsDTO(g.Stats),
+		Events:     toEventDTOs(g.Events),
+		Timeline:   toTimelineDTOs(g),
+		Stats:      statsDTO(g.Stats),
+		Projection: projectionDTO(domain.PreviewEndDay(g, cfg)),
 	}
 }
 
