@@ -112,7 +112,7 @@ Google Cloud (Cloud Run + Cloud SQL), see [deploy/](deploy/README.md). Pushes to
 
 ## Achievements and leaderboards
 
-Cosmetic achievements (about 40 goals across wealth, survival, production, facilities, trading and oddities, some hidden) unlock as you play and stay with your account. A toast announces each unlock, the Awards page lists them with progress, a run's page lists what it unlocked, and the global board shows each player's count. The board has two views: all-time best run, and best net worth on arriving at day 100. The achievement table is data in [lemonade-api/internal/domain/content/achievements.go](lemonade-api/internal/domain/content/achievements.go), with typed checks evaluated in `internal/domain/achievements.go`. On first start the API grants what already-finished runs prove (see the design doc, section 4).
+Cosmetic achievements (42 goals across wealth, survival, production, facilities, trading and oddities, some hidden) unlock as you play and stay with your account. A toast announces each unlock, the Awards page lists them with progress, a run's page lists what it unlocked, and the global board shows each player's count. The board has two views: all-time best run, and best net worth on arriving at day 100. The achievement table is data in [lemonade-api/internal/domain/content/achievements.go](lemonade-api/internal/domain/content/achievements.go), with typed checks evaluated in `internal/domain/achievements.go`. On first start the API grants what already-finished runs prove (see the design doc, section 4).
 
 ## Tuning the game
 
