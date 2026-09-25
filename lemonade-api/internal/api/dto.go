@@ -254,6 +254,8 @@ type gameViewDTO struct {
 	BasePrices []int `json:"basePrices"`
 	// Commodities is the catalog, in display order.
 	Commodities []commodityDTO `json:"commodities"`
+	// Unlocked are the achievements this response's mutation just earned ([] otherwise).
+	Unlocked []unlockedDTO `json:"unlocked"`
 }
 
 type priceChangeDTO struct {
@@ -367,6 +369,7 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 		BasePrices: basePrices(cfg),
 
 		Commodities: toCommodityDTOs(cfg),
+		Unlocked:    []unlockedDTO{},
 	}
 }
 
