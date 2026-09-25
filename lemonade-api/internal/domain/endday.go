@@ -16,7 +16,7 @@ func EndDay(g *Game, cfg Config) (DayReport, error) {
 	report.Produced = produce(g, cfg)
 
 	report.IceMelted = g.Inventory[Ice]
-	g.Inventory[Ice] = 0
+	g.removeStock(Ice, g.Inventory[Ice])
 
 	paid, soldCases, soldProceeds, insolvent := settleUpkeep(g, cfg)
 	report.UpkeepPaid = paid
@@ -107,10 +107,12 @@ func produceQty(g Game, cfg Config) (qty int, limitedBy string) {
 // produce converts inputs to lemonade: 1 lemon + 1 sugar + 1 ice + 1 cup -> 1 lemonade.
 func produce(g *Game, cfg Config) int {
 	n, _ := produceQty(*g, cfg)
+	cost := 0
 	for _, in := range Inputs {
-		g.Inventory[in] -= n
+		cost += g.removeStock(in, n)
 	}
 	g.Inventory[Lemonade] += n
+	g.addBasis(Lemonade, cost) // lemonade costs what its inputs cost
 	return n
 }
 

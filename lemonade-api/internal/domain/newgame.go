@@ -24,6 +24,7 @@ func NewGame(cfg Config, seed int64) Game {
 		Capital:         cfg.StartingCapital,
 		Status:          StatusActive,
 		Inventory:       inventory,
+		CostBasis:       make(map[Resource]int, len(Resources)),
 		WarehouseLevel:  1,
 		WarehouseQty:    warehouseQty,
 		ProductionLevel: 1,

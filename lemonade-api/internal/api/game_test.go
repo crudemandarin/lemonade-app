@@ -630,3 +630,25 @@ func TestSellFacility(t *testing.T) {
 		t.Fatalf("view lacks flattened sale fields: %s", rec.Body)
 	}
 }
+
+func TestGameViewShowsAverageCost(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+
+	e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 4})
+	v := e.game("joe12")
+	lemon := v.Resources[0]
+	// 4 × $22 ask = $88 → $22 each; the bid is $18, so 4 × 18 - 88 = -16.
+	if lemon.AvgCost != 22 || lemon.UnrealizedGain != -16 {
+		t.Fatalf("lemon: avg=%d gain=%d", lemon.AvgCost, lemon.UnrealizedGain)
+	}
+	if sugar := v.Resources[1]; sugar.AvgCost != 0 || sugar.UnrealizedGain != 0 {
+		t.Fatalf("sugar with no stock: %+v", sugar)
+	}
+
+	// Sell everything: no stock, no cost.
+	e.do("POST", "/api/game/sell", "joe12", map[string]any{"resource": "lemon", "qty": 4})
+	if l := e.game("joe12").Resources[0]; l.AvgCost != 0 || l.UnrealizedGain != 0 {
+		t.Fatalf("after selling out: %+v", l)
+	}
+}

@@ -158,3 +158,54 @@ func TestPostgresRepository(t *testing.T) {
 	t.Cleanup(cleanup)
 	repoContract(t, repo, "pguser")
 }
+
+// A row written before cost basis existed has NULL in that column. It must load,
+// with a basis seeded from the stock and current prices, and save back cleanly.
+func TestPostgresLoadsAnOldShapeRow(t *testing.T) {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		t.Skip("DATABASE_URL not set")
+	}
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := NewPostgres(db)
+	if err := repo.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	cleanup := func() {
+		db.Exec("DELETE FROM games WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'pgold%')")
+		db.Exec("DELETE FROM users WHERE username LIKE 'pgold%'")
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	ctx := context.Background()
+	cfg := domain.DefaultConfig()
+	game := domain.NewGame(cfg, 5)
+	if err := domain.Buy(&game, cfg, domain.Lemon, 3); err != nil {
+		t.Fatal(err)
+	}
+	user, err := repo.CreateUserWithGame(ctx, "pgold1", game)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec("UPDATE games SET cost_basis = NULL WHERE user_id = ?", user.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := repo.GetGame(ctx, user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.CostBasis[domain.Lemon] != 3*20 { // 3 cases at the walked price of $20
+		t.Fatalf("seeded basis = %v", got.CostBasis)
+	}
+	if _, err := repo.Mutate(ctx, user.ID, func(g *domain.Game) error { return domain.Sell(g, cfg, domain.Lemon, 1) }); err != nil {
+		t.Fatal(err)
+	}
+	if after, _ := repo.GetGame(ctx, user.ID); after.CostBasis[domain.Lemon] != 40 {
+		t.Fatalf("basis after a sale = %v", after.CostBasis)
+	}
+}

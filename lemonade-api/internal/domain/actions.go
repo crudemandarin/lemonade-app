@@ -20,6 +20,7 @@ func Buy(g *Game, cfg Config, r Resource, qty int) error {
 
 	g.Capital -= cost
 	g.Inventory[r] += qty
+	g.addBasis(r, cost)
 	g.Stats.CasesBought += qty
 	g.Stats.Spent += cost
 	g.record(TimelinePoint{Day: g.Day, Kind: PointBuy, Resource: r, Qty: qty, Amount: cost})
@@ -40,7 +41,7 @@ func Sell(g *Game, cfg Config, r Resource, qty int) error {
 
 	bid := Quotes(*g, cfg)[r].Bid
 	g.Capital += bid * qty
-	g.Inventory[r] -= qty
+	g.removeStock(r, qty)
 	g.Stats.CasesSold += qty
 	g.Stats.Earned += bid * qty
 	g.record(TimelinePoint{Day: g.Day, Kind: PointSell, Resource: r, Qty: qty, Amount: bid * qty})

@@ -28,6 +28,9 @@ type Game struct {
 	Status  Status
 
 	Inventory map[Resource]int
+	// CostBasis is the total dollars paid for the stock of each resource (for
+	// lemonade, the cost of the inputs it was made from). Average cost is basis / stock.
+	CostBasis map[Resource]int
 
 	WarehouseLevel int
 	// WarehouseQty is the building count per resource's warehouse.
@@ -88,6 +91,11 @@ func (g Game) Clone() Game {
 	c.Inventory = make(map[Resource]int, len(g.Inventory))
 	for k, v := range g.Inventory {
 		c.Inventory[k] = v
+	}
+
+	c.CostBasis = make(map[Resource]int, len(g.CostBasis))
+	for k, v := range g.CostBasis {
+		c.CostBasis[k] = v
 	}
 
 	c.WarehouseQty = make(map[Resource]int, len(g.WarehouseQty))

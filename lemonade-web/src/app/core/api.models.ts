@@ -22,6 +22,10 @@ export interface ResourceView {
   ask: number;
   /** Effective prices, oldest first, at most 14. */
   history: number[];
+  /** Average paid per case held (for lemonade, the cost to make one); 0 when none is held. */
+  avgCost: number;
+  /** Stock value at the bid minus what it cost; negative is a loss. 0 when none is held. */
+  unrealizedGain: number;
 }
 
 export interface UpgradeOption {

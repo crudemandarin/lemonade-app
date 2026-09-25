@@ -58,7 +58,7 @@ Time estimates are rough and cumulative.
 
 - [ ] **Slice 10: Economy state (see `HANDOFF-A-economy-and-runs.md`)**
   - [x] 10a: sell facilities (quantity only, resale at half build cost)
-  - [ ] 10b: average purchase price (cost basis)
+  - [x] 10b: average purchase price (cost basis)
   - [ ] 10c: all-commodities price chart
 
 ## Hold points

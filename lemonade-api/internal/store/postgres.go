@@ -74,7 +74,9 @@ type gameRow struct {
 	ProductionLevel int    `gorm:"not null"`
 	ProductionQty   int    `gorm:"not null"`
 
-	Inventory    map[string]int       `gorm:"type:jsonb;serializer:json"`
+	Inventory map[string]int `gorm:"type:jsonb;serializer:json"`
+	// CostBasis is NULL on rows saved before it existed; fromRow seeds those.
+	CostBasis    map[string]int       `gorm:"type:jsonb;serializer:json"`
 	WarehouseQty map[string]int       `gorm:"type:jsonb;serializer:json"`
 	Market       map[string]marketRow `gorm:"type:jsonb;serializer:json"`
 	Events       []eventRow           `gorm:"type:jsonb;serializer:json"`
@@ -213,6 +215,7 @@ func toRow(g domain.Game) gameRow {
 		ProductionQty:   g.ProductionQty,
 		Inventory:       make(map[string]int, len(g.Inventory)),
 		WarehouseQty:    make(map[string]int, len(g.WarehouseQty)),
+		CostBasis:       make(map[string]int, len(g.CostBasis)),
 		Market:          make(map[string]marketRow, len(g.Market)),
 		Events:          make([]eventRow, 0, len(g.Events)),
 		Timeline:        make([]pointRow, 0, len(g.Timeline)),
@@ -229,6 +232,9 @@ func toRow(g domain.Game) gameRow {
 	}
 	for r, n := range g.WarehouseQty {
 		row.WarehouseQty[string(r)] = n
+	}
+	for r, n := range g.CostBasis {
+		row.CostBasis[string(r)] = n
 	}
 	for r, m := range g.Market {
 		row.Market[string(r)] = marketRow{
@@ -279,6 +285,12 @@ func fromRow(row gameRow) domain.Game {
 	for r, n := range row.WarehouseQty {
 		g.WarehouseQty[domain.Resource(r)] = n
 	}
+	if row.CostBasis != nil {
+		g.CostBasis = make(map[domain.Resource]int, len(row.CostBasis))
+		for r, n := range row.CostBasis {
+			g.CostBasis[domain.Resource(r)] = n
+		}
+	}
 	for r, m := range row.Market {
 		g.Market[domain.Resource(r)] = &domain.ResourceMarket{
 			Price:             m.Price,
@@ -299,5 +311,7 @@ func fromRow(row gameRow) domain.Game {
 			DaysLeft:    e.DaysLeft,
 		})
 	}
+	// Games saved before cost basis existed get an approximate one.
+	domain.SeedCostBasis(&g)
 	return g
 }

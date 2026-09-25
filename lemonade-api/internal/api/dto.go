@@ -22,6 +22,10 @@ type resourceViewDTO struct {
 	Bid           int             `json:"bid"`
 	Ask           int             `json:"ask"`
 	History       []int           `json:"history"`
+	// AvgCost is the average paid per case held (for lemonade, the cost to make one); 0 when none.
+	AvgCost int `json:"avgCost"`
+	// UnrealizedGain is stock value at the bid minus what it cost; negative is a loss.
+	UnrealizedGain int `json:"unrealizedGain"`
 }
 
 type upgradeOptionDTO struct {
@@ -180,14 +184,16 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 		q := quotes[r]
 		m := g.Market[r]
 		resources = append(resources, resourceViewDTO{
-			Resource:      r,
-			Stock:         g.Inventory[r],
-			Capacity:      domain.Capacity(g, cfg, r),
-			Price:         q.Price,
-			PreviousPrice: m.PreviousEffective,
-			Bid:           q.Bid,
-			Ask:           q.Ask,
-			History:       append([]int{}, m.History...),
+			Resource:       r,
+			Stock:          g.Inventory[r],
+			Capacity:       domain.Capacity(g, cfg, r),
+			Price:          q.Price,
+			PreviousPrice:  m.PreviousEffective,
+			Bid:            q.Bid,
+			Ask:            q.Ask,
+			History:        append([]int{}, m.History...),
+			AvgCost:        domain.AvgCost(g, r),
+			UnrealizedGain: domain.UnrealizedGain(g, cfg, r),
 		})
 	}
 

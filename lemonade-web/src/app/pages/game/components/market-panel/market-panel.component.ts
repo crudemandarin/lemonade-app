@@ -4,7 +4,7 @@ import { Resource, ResourceView } from '../../../../core/api.models';
 import { RESOURCE_LABELS } from '../../../../core/resources';
 import { CardComponent } from '../../../../shared/card/card.component';
 import { IconComponent } from '../../../../shared/icon/icon.component';
-import { MoneyPipe } from '../../../../shared/money.pipe';
+import { formatMoney, MoneyPipe } from '../../../../shared/money.pipe';
 import { PriceSparklineComponent } from '../../../../shared/price-sparkline/price-sparkline.component';
 
 export interface TradeRequest {
@@ -93,6 +93,21 @@ export class MarketPanelComponent {
       return 'flat';
     }
     return row.price > row.previousPrice ? 'up' : 'down';
+  }
+
+  /** Signed text (not colour alone) for the gain against the current bid. */
+  protected gainText(gain: number): string {
+    if (gain === 0) {
+      return 'even';
+    }
+    return `${gain > 0 ? '+' : '-'}${formatMoney(Math.abs(gain))}`;
+  }
+
+  protected gainLabel(gain: number): string {
+    if (gain === 0) {
+      return 'breaking even at the current bid';
+    }
+    return `${gain > 0 ? 'up' : 'down'} ${formatMoney(Math.abs(gain))} at the current bid`;
   }
 
   protected fill(row: ResourceView): number {

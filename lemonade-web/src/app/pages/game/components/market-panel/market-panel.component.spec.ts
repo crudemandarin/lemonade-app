@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
+import { ResourceView } from '../../../../core/api.models';
 import { newGameView } from '../../../../core/testing/fixtures';
 import { ALL_QTY, MarketPanelComponent, TradeRequest } from './market-panel.component';
 
@@ -145,5 +146,40 @@ describe('MarketPanelComponent', () => {
     const stock = row('lemon').querySelector('.stock')!;
     expect(stock.textContent).toContain('4 / 10');
     expect(stock.querySelector('[role=progressbar]')).not.toBeNull();
+  });
+
+  describe('average cost', () => {
+    function withStock(overrides: Partial<ResourceView>) {
+      const resources = newGameView().resources;
+      resources[0] = { ...resources[0], stock: 4, ...overrides };
+      fixture.componentRef.setInput('resources', resources);
+      fixture.detectChanges();
+      return row('lemon').querySelector('.cost-text')!.textContent!.replace(/\s+/g, ' ').trim();
+    }
+
+    it('shows the average and a signed gain for a profit', () => {
+      expect(withStock({ avgCost: 18, unrealizedGain: 12 })).toBe('avg $18 +$12');
+      expect(row('lemon').querySelector('.gain.up')).not.toBeNull();
+    });
+
+    it('shows a signed loss', () => {
+      expect(withStock({ avgCost: 22, unrealizedGain: -16 })).toBe('avg $22 -$16');
+      expect(row('lemon').querySelector('.gain.down')).not.toBeNull();
+    });
+
+    it('says even at zero, and names the cost to make on lemonade', () => {
+      expect(withStock({ avgCost: 20, unrealizedGain: 0 })).toBe('avg $20 even');
+      const resources = newGameView().resources;
+      resources[4] = { ...resources[4], stock: 2, avgCost: 55, unrealizedGain: 30 };
+      fixture.componentRef.setInput('resources', resources);
+      fixture.detectChanges();
+      expect(row('lemonade').querySelector('.cost-text')!.textContent).toContain(
+        'cost to make $55',
+      );
+    });
+
+    it('shows nothing when no stock is held', () => {
+      expect(row('sugar').querySelector('.cost-text')).toBeNull();
+    });
   });
 });

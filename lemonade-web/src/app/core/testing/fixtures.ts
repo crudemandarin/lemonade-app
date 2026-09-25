@@ -18,6 +18,8 @@ function row(resource: Resource, price: number, stock = 0): ResourceView {
     bid: Math.max(1, Math.floor(price * 0.9)),
     ask: Math.ceil(price * 1.1),
     history: [price],
+    avgCost: 0,
+    unrealizedGain: 0,
   };
 }
 
