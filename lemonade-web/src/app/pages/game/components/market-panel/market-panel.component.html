@@ -80,6 +80,11 @@
               <app-icon class="trend flat" name="trend-flat" [size]="14" />
             }
           }
+          @if (impactNote(row); as note) {
+            <span class="impact" role="img" [attr.title]="note" [attr.aria-label]="note">
+              <app-icon name="alert" [size]="14" />
+            </span>
+          }
         </span>
 
         <span class="spark" role="cell">
@@ -87,10 +92,16 @@
         </span>
 
         <span class="trade buy" role="cell">
-          <button type="button" [disabled]="!canBuy(row)" class="btn" (click)="onBuy(row)">
-            @if (buyPreview(row); as p) {
-              @if (p.qty > 0) {
-                Buy {{ p.qty }} · {{ p.total | money }}
+          <button
+            type="button"
+            [disabled]="!canBuy(row)"
+            class="btn"
+            [attr.title]="slippageNote(buyQuote(row), 'buy') || null"
+            (click)="onBuy(row)"
+          >
+            @if (buyQuote(row); as q) {
+              @if (q.qty > 0) {
+                Buy {{ q.qty }} · {{ q.total | money }}
               } @else {
                 Buy {{ row.ask | money }}
               }
@@ -99,10 +110,16 @@
         </span>
 
         <span class="trade sell" role="cell">
-          <button type="button" [disabled]="!canSell(row)" class="btn" (click)="onSell(row)">
-            @if (sellPreview(row); as p) {
-              @if (p.qty > 0) {
-                Sell {{ p.qty }} · {{ p.total | money }}
+          <button
+            type="button"
+            [disabled]="!canSell(row)"
+            class="btn"
+            [attr.title]="slippageNote(sellQuote(row), 'sell') || null"
+            (click)="onSell(row)"
+          >
+            @if (sellQuote(row); as q) {
+              @if (q.qty > 0) {
+                Sell {{ q.qty }} · {{ q.total | money }}
               } @else {
                 Sell {{ row.bid | money }}
               }

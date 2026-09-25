@@ -1,6 +1,7 @@
 package domain
 
-// Buy purchases qty cases of r at the current ask price (SPEC rule 5).
+// Buy purchases qty cases of r at the current ask price, plus any price impact from the
+// player's own recent buying (SPEC rule 5; see impact.go). It is all or nothing.
 func Buy(g *Game, cfg Config, r Resource, qty int) error {
 	if g.Status != StatusActive {
 		return ErrGameOver
@@ -9,8 +10,7 @@ func Buy(g *Game, cfg Config, r Resource, qty int) error {
 		return ErrInvalidQuantity
 	}
 
-	ask := Quotes(*g, cfg)[r].Ask
-	cost := ask * qty
+	cost := buyCost(*g, cfg, r, qty, g.Capital)
 	if cost > g.Capital {
 		return ErrInsufficientFunds
 	}
@@ -21,13 +21,15 @@ func Buy(g *Game, cfg Config, r Resource, qty int) error {
 	g.Capital -= cost
 	g.Inventory[r] += qty
 	g.addBasis(r, cost)
+	g.addPressure(true, r, qty)
 	g.Stats.CasesBought += qty
 	g.Stats.Spent += cost
 	g.record(TimelinePoint{Day: g.Day, Kind: PointBuy, Resource: r, Qty: qty, Amount: cost})
 	return nil
 }
 
-// Sell sells qty cases of r at the current bid price (SPEC rule 6).
+// Sell sells qty cases of r at the current bid price, less any price impact from the
+// player's own recent selling (SPEC rule 6; see impact.go).
 func Sell(g *Game, cfg Config, r Resource, qty int) error {
 	if g.Status != StatusActive {
 		return ErrGameOver
@@ -39,12 +41,13 @@ func Sell(g *Game, cfg Config, r Resource, qty int) error {
 		return ErrInsufficientStock
 	}
 
-	bid := Quotes(*g, cfg)[r].Bid
-	g.Capital += bid * qty
+	proceeds := QuoteSell(*g, cfg, r, qty, false).Total
+	g.Capital += proceeds
 	g.removeStock(r, qty)
+	g.addPressure(false, r, qty)
 	g.Stats.CasesSold += qty
-	g.Stats.Earned += bid * qty
-	g.record(TimelinePoint{Day: g.Day, Kind: PointSell, Resource: r, Qty: qty, Amount: bid * qty})
+	g.Stats.Earned += proceeds
+	g.record(TimelinePoint{Day: g.Day, Kind: PointSell, Resource: r, Qty: qty, Amount: proceeds})
 	return nil
 }
 
@@ -119,9 +122,9 @@ func Upgrade(g *Game, cfg Config, kind FacilityType) error {
 	return nil
 }
 
-// BuyClamped buys as many cases as it can, up to qty: limited by cash at the
-// ask and by free warehouse space. If none can be bought it returns the error
-// for the binding limit (cash first), like Buy. It exists for "buy max".
+// BuyClamped buys as many cases as it can, up to qty: limited by cash (counting price
+// impact) and by free warehouse space. If none can be bought it returns the error for the
+// binding limit (cash first), like Buy. It exists for "buy max".
 func BuyClamped(g *Game, cfg Config, r Resource, qty int) error {
 	if g.Status != StatusActive {
 		return ErrGameOver
@@ -129,19 +132,14 @@ func BuyClamped(g *Game, cfg Config, r Resource, qty int) error {
 	if qty <= 0 {
 		return ErrInvalidQuantity
 	}
-	if affordable := g.Capital / Quotes(*g, cfg)[r].Ask; affordable < qty {
-		if affordable == 0 {
+	n := QuoteBuy(*g, cfg, r, qty, true).Qty
+	if n == 0 {
+		if MarginalAsk(*g, cfg, r) > g.Capital {
 			return ErrInsufficientFunds
 		}
-		qty = affordable
+		return ErrCapacityExceeded
 	}
-	if free := Capacity(*g, cfg, r) - g.Inventory[r]; free < qty {
-		if free <= 0 {
-			return ErrCapacityExceeded
-		}
-		qty = free
-	}
-	return Buy(g, cfg, r, qty)
+	return Buy(g, cfg, r, n)
 }
 
 // SellClamped sells up to qty cases, limited by stock; ErrInsufficientStock

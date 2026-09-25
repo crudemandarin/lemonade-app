@@ -31,6 +31,10 @@ type Game struct {
 	Status  Status
 
 	Inventory map[Resource]int
+	// BuyPressure and SellPressure are the cases the player recently bought and sold, per
+	// resource, which the market remembers and forgets overnight; see impact.go.
+	BuyPressure  map[Resource]float64
+	SellPressure map[Resource]float64
 	// CostBasis is the total dollars paid for the stock of each resource (for
 	// lemonade, the cost of the inputs it was made from). Average cost is basis / stock.
 	CostBasis map[Resource]int
@@ -97,6 +101,15 @@ func (g Game) Clone() Game {
 	c.Inventory = make(map[Resource]int, len(g.Inventory))
 	for k, v := range g.Inventory {
 		c.Inventory[k] = v
+	}
+
+	c.BuyPressure = make(map[Resource]float64, len(g.BuyPressure))
+	for k, v := range g.BuyPressure {
+		c.BuyPressure[k] = v
+	}
+	c.SellPressure = make(map[Resource]float64, len(g.SellPressure))
+	for k, v := range g.SellPressure {
+		c.SellPressure[k] = v
 	}
 
 	c.CostBasis = make(map[Resource]int, len(g.CostBasis))

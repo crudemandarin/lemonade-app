@@ -18,7 +18,9 @@
 
 .page-tools {
   display: flex;
+  flex-wrap: wrap; // a long best-score chip drops onto its own line instead of widening the page
   justify-content: flex-end;
+  gap: 0.25rem 0.75rem;
   margin-bottom: -0.5rem;
 }
 

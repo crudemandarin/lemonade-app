@@ -1112,3 +1112,115 @@ func TestGameViewCarriesTheRunIDAndPersonalBest(t *testing.T) {
 		t.Fatalf("a worse run replaced the best: %+v", v.Best)
 	}
 }
+
+func TestGameViewCarriesMarginalPricesAndTheTradeLadder(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+	v := e.game("joe12")
+	lemon := v.Resources[0]
+	// A fresh market is the plain one: no impact, all free depth left.
+	if lemon.Ask != 22 || lemon.Bid != 18 || lemon.BuyImpactPercent != 0 || lemon.SellImpactPercent != 0 {
+		t.Fatalf("fresh lemon: %+v", lemon)
+	}
+	if lemon.BuyDepthLeft != 80 || lemon.SellDepthLeft != 80 {
+		t.Fatalf("depth left: %d / %d", lemon.BuyDepthLeft, lemon.SellDepthLeft)
+	}
+	// The ladder: a Pantry holds 10, so "50" and "all" buy 10 for 10 x $22.
+	for _, key := range []string{"1", "10", "50", "100", "all"} {
+		if _, ok := lemon.Trade.Buy[key]; !ok {
+			t.Fatalf("no buy quote for %q: %+v", key, lemon.Trade.Buy)
+		}
+	}
+	if q := lemon.Trade.Buy["1"]; q.Qty != 1 || q.Total != 22 || q.SlippagePercent != 0 {
+		t.Fatalf("buy 1: %+v", q)
+	}
+	if q := lemon.Trade.Buy["50"]; q.Qty != 10 || q.Total != 220 || q.AveragePrice != 22 {
+		t.Fatalf("buy 50 is clamped to the 10 that fit: %+v", q)
+	}
+	if q := lemon.Trade.Sell["10"]; q.Qty != 0 || q.Total != 0 {
+		t.Fatalf("nothing to sell yet: %+v", q)
+	}
+}
+
+func TestPriceImpactShowsUpInTheViewAfterHeavyTrading(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+	e.setGame("joe12", func(g *domain.Game) {
+		g.Capital = 1_000_000
+		g.WarehouseLevel = 4
+		g.WarehouseQty[domain.Lemon] = 10
+	})
+	plain := e.game("joe12").Resources[0].Ask
+
+	e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 120})
+	lemon := e.game("joe12").Resources[0]
+	if lemon.Ask <= plain || lemon.BuyImpactPercent <= 0 || lemon.BuyDepthLeft != 0 {
+		t.Fatalf("after buying 120: ask %d (plain %d), impact %d%%, depth left %d", lemon.Ask, plain, lemon.BuyImpactPercent, lemon.BuyDepthLeft)
+	}
+	if lemon.SellImpactPercent != 0 || lemon.Bid != 18 {
+		t.Fatalf("buying moved the bid: %+v", lemon)
+	}
+	if q := lemon.Trade.Buy["10"]; q.SlippagePercent <= 0 || q.AveragePrice <= float64(plain) {
+		t.Fatalf("the next 10 should show slippage: %+v", q)
+	}
+	// It wears off overnight.
+	e.do("POST", "/api/game/end-day", "joe12", nil)
+	if after := e.game("joe12").Resources[0]; after.BuyDepthLeft <= 0 || after.BuyImpactPercent >= lemon.BuyImpactPercent {
+		t.Fatalf("pressure did not recover: %+v", after)
+	}
+}
+
+func TestQuoteEndpoint(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+	e.setGame("joe12", func(g *domain.Game) {
+		g.Capital = 1_000_000
+		g.WarehouseLevel = 4
+		g.WarehouseQty[domain.Lemon] = 10
+	})
+
+	rec := e.do("GET", "/api/game/quote?resource=lemon&side=buy&qty=200", "joe12", nil)
+	if rec.Code != 200 {
+		t.Fatal(rec.Body)
+	}
+	q := decode[quoteDTO](t, rec)
+	if q.Resource != "lemon" || q.Side != "buy" || q.Qty != 200 || q.Total <= 200*22 || q.SlippagePercent <= 0 || q.AveragePrice <= 22 {
+		t.Fatalf("deep quote: %+v", q)
+	}
+	free := decode[quoteDTO](t, e.do("GET", "/api/game/quote?resource=lemon&side=buy&qty=50", "joe12", nil))
+	if free.Total != 50*22 || free.SlippagePercent != 0 {
+		t.Fatalf("a quote inside the free depth is the plain price: %+v", free)
+	}
+
+	// A quote does not trade: nothing was bought.
+	if v := e.game("joe12"); v.Resources[0].Stock != 0 || v.Capital != 1_000_000 {
+		t.Fatalf("quoting changed the game: %+v", v.Resources[0])
+	}
+	// It matches what buying really costs.
+	before := e.game("joe12").Capital
+	e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 200})
+	if paid := before - e.game("joe12").Capital; paid != q.Total {
+		t.Fatalf("quoted $%d, paid $%d", q.Total, paid)
+	}
+
+	// Selling with nothing held is quoted for exactly qty unless clamped.
+	if s := decode[quoteDTO](t, e.do("GET", "/api/game/quote?resource=sugar&side=sell&qty=5", "joe12", nil)); s.Qty != 5 {
+		t.Fatalf("unclamped sell quote: %+v", s)
+	}
+	if s := decode[quoteDTO](t, e.do("GET", "/api/game/quote?resource=sugar&side=sell&qty=5&clamp=true", "joe12", nil)); s.Qty != 0 {
+		t.Fatalf("clamped sell quote with no stock: %+v", s)
+	}
+}
+
+func TestQuoteValidation(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+	e.wantError(e.do("GET", "/api/game/quote?resource=nope&side=buy&qty=1", "joe12", nil), 400, "invalid_resource")
+	e.wantError(e.do("GET", "/api/game/quote?resource=lemon&side=swap&qty=1", "joe12", nil), 400, "invalid_side")
+	for _, q := range []string{"0", "-3", "abc", "", "100001"} {
+		e.wantError(e.do("GET", "/api/game/quote?resource=lemon&side=buy&qty="+q, "joe12", nil), 400, "invalid_quantity")
+	}
+	if rec := e.do("GET", "/api/game/quote?resource=lemon&side=buy&qty=1", "", nil); rec.Code != 401 {
+		t.Fatalf("no username: %d", rec.Code)
+	}
+}

@@ -191,7 +191,7 @@ func TestPostgresLoadsAnOldShapeRow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Exec("UPDATE games SET cost_basis = NULL, price_log = NULL WHERE user_id = ?", user.ID).Error; err != nil {
+	if err := db.Exec("UPDATE games SET cost_basis = NULL, price_log = NULL, buy_pressure = NULL, sell_pressure = NULL WHERE user_id = ?", user.ID).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -201,6 +201,9 @@ func TestPostgresLoadsAnOldShapeRow(t *testing.T) {
 	}
 	if got.CostBasis[domain.Lemon] != 3*20 { // 3 cases at the walked price of $20
 		t.Fatalf("seeded basis = %v", got.CostBasis)
+	}
+	if len(got.BuyPressure) != 0 || len(got.SellPressure) != 0 {
+		t.Fatalf("an old row should load with no pressure: %v %v", got.BuyPressure, got.SellPressure)
 	}
 	if len(got.PriceLog) != 1 || got.PriceLog[0].Day != 1 {
 		t.Fatalf("seeded price log = %+v", got.PriceLog)
@@ -481,4 +484,39 @@ func TestPostgresScores(t *testing.T) {
 	cleanup()
 	t.Cleanup(cleanup)
 	scoresContract(t, repo, "pgsc")
+}
+
+// The market remembers what the player traded, so it has to survive a save.
+func TestPostgresKeepsPricePressure(t *testing.T) {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		t.Skip("DATABASE_URL not set")
+	}
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := NewPostgres(db)
+	if err := repo.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	cleanup := func() {
+		db.Exec("DELETE FROM games WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'pgpr%')")
+		db.Exec("DELETE FROM users WHERE username LIKE 'pgpr%'")
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	ctx := context.Background()
+	game := domain.NewGame(domain.DefaultConfig(), 2)
+	game.BuyPressure[domain.Lemon] = 12.5
+	game.SellPressure[domain.Lemonade] = 3
+	user, err := repo.CreateUserWithGame(ctx, "pgpr1", game)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.GetGame(ctx, user.ID)
+	if err != nil || got.BuyPressure[domain.Lemon] != 12.5 || got.SellPressure[domain.Lemonade] != 3 {
+		t.Fatalf("pressure after a round trip: %v %v (%v)", got.BuyPressure, got.SellPressure, err)
+	}
 }

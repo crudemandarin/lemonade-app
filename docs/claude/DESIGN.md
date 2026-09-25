@@ -42,7 +42,7 @@ Rationale: the domain loads and saves a whole `Game` in one transaction, so JSON
 
 Persistence rule: every mutating request does `load game -> domain call -> save game` in one transaction with a row lock (`SELECT ... FOR UPDATE`) to prevent double-submit races.
 
-## 5. API (all JSON; `Authorization: Bearer` Firebase ID token, see DECISIONS 32)
+## 5. API (all JSON; `Authorization: Bearer` Firebase ID token, see DECISIONS 34)
 | Method & path | Purpose |
 |---|---|
 | `POST /api/login` `{username}` | Dev mode only: create-or-get user. Normal mode: `GET /api/me`, `POST /api/me/username`, `POST /api/me/claim` |

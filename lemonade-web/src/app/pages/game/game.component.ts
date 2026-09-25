@@ -5,7 +5,6 @@ import { GameStore } from '../../core/game.store';
 import { OnlineService } from '../../core/online.service';
 import { CardComponent } from '../../shared/card/card.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
-import { HelpPanelComponent } from '../../shared/help/help-panel.component';
 import { IconComponent } from '../../shared/icon/icon.component';
 import { MoneyPipe } from '../../shared/money.pipe';
 import { TimelineChartsComponent } from '../../shared/timeline-charts/timeline-charts.component';
@@ -36,7 +35,6 @@ function loadTimelineOpen(): boolean {
     ConfirmDialogComponent,
     IconComponent,
     MoneyPipe,
-    HelpPanelComponent,
     TimelineChartsComponent,
     StatsStripComponent,
     EventsBannerComponent,

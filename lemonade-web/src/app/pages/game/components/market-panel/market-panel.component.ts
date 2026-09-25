@@ -1,6 +1,6 @@
 import { Component, input, output, signal } from '@angular/core';
 
-import { Resource, ResourceView } from '../../../../core/api.models';
+import { Resource, ResourceView, TradeQuote } from '../../../../core/api.models';
 import { RESOURCE_LABELS } from '../../../../core/resources';
 import { CardComponent } from '../../../../shared/card/card.component';
 import { HelpLinkComponent } from '../../../../shared/help/help-link.component';
@@ -82,20 +82,35 @@ export class MarketPanelComponent {
     return amount === 'all' ? ALL_QTY : Number(amount);
   }
 
-  /**
-   * Cases a Buy would trade, and what they cost: the selected amount, cut down to what
-   * cash and warehouse space allow (the server applies the same limits with `clamp`).
-   * Only for the button label; the server decides the real trade.
-   */
-  protected buyPreview(row: ResourceView): { qty: number; total: number } {
-    const affordable = Math.floor(this.capital() / row.ask);
-    const qty = Math.max(0, Math.min(this.wanted(), affordable, row.capacity - row.stock));
-    return { qty, total: qty * row.ask };
+  /** What the server says the selected amount would cost or raise, with price impact. */
+  protected buyQuote(row: ResourceView): TradeQuote {
+    return row.trade.buy[this.amount()];
   }
 
-  protected sellPreview(row: ResourceView): { qty: number; total: number } {
-    const qty = Math.min(this.wanted(), row.stock);
-    return { qty, total: qty * row.bid };
+  protected sellQuote(row: ResourceView): TradeQuote {
+    return row.trade.sell[this.amount()];
+  }
+
+  /** Words for a quote's slippage, or empty when the trade is at the plain price. */
+  protected slippageNote(quote: TradeQuote, side: 'buy' | 'sell'): string {
+    if (quote.slippagePercent <= 0) {
+      return '';
+    }
+    return `Average ${formatMoney(quote.averagePrice)} a case, ${quote.slippagePercent}% ${side === 'buy' ? 'above' : 'below'} the plain price`;
+  }
+
+  /** Text (not colour alone) for when the player's own trades have moved this market. */
+  protected impactNote(row: ResourceView): string {
+    const parts: string[] = [];
+    if (row.buyImpactPercent > 0) {
+      parts.push(`ask +${row.buyImpactPercent}%`);
+    }
+    if (row.sellImpactPercent > 0) {
+      parts.push(`bid -${row.sellImpactPercent}%`);
+    }
+    return parts.length
+      ? `Your recent trades moved this price: ${parts.join(', ')}. It wears off overnight.`
+      : '';
   }
 
   protected canBuy(row: ResourceView): boolean {

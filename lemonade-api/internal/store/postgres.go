@@ -88,6 +88,9 @@ type gameRow struct {
 	RunID           string // empty on rows saved before runs existed
 
 	Inventory map[string]int `gorm:"type:jsonb;serializer:json"`
+	// BuyPressure and SellPressure are NULL on rows saved before market depth existed (zero).
+	BuyPressure  map[string]float64 `gorm:"type:jsonb;serializer:json"`
+	SellPressure map[string]float64 `gorm:"type:jsonb;serializer:json"`
 	// CostBasis is NULL on rows saved before it existed; fromRow seeds those.
 	CostBasis    map[string]int       `gorm:"type:jsonb;serializer:json"`
 	WarehouseQty map[string]int       `gorm:"type:jsonb;serializer:json"`
@@ -405,6 +408,8 @@ func toRow(g domain.Game) gameRow {
 		Inventory:       make(map[string]int, len(g.Inventory)),
 		WarehouseQty:    make(map[string]int, len(g.WarehouseQty)),
 		CostBasis:       make(map[string]int, len(g.CostBasis)),
+		BuyPressure:     make(map[string]float64, len(g.BuyPressure)),
+		SellPressure:    make(map[string]float64, len(g.SellPressure)),
 		Market:          make(map[string]marketRow, len(g.Market)),
 		Events:          make([]eventRow, 0, len(g.Events)),
 		Timeline:        make([]pointRow, 0, len(g.Timeline)),
@@ -428,6 +433,12 @@ func toRow(g domain.Game) gameRow {
 	}
 	for r, n := range g.CostBasis {
 		row.CostBasis[string(r)] = n
+	}
+	for r, v := range g.BuyPressure {
+		row.BuyPressure[string(r)] = v
+	}
+	for r, v := range g.SellPressure {
+		row.SellPressure[string(r)] = v
 	}
 	for r, m := range g.Market {
 		row.Market[string(r)] = marketRow{
@@ -481,6 +492,14 @@ func fromRow(row gameRow) domain.Game {
 	}
 	for r, n := range row.WarehouseQty {
 		g.WarehouseQty[domain.Resource(r)] = n
+	}
+	g.BuyPressure = make(map[domain.Resource]float64, len(row.BuyPressure))
+	for r, v := range row.BuyPressure {
+		g.BuyPressure[domain.Resource(r)] = v
+	}
+	g.SellPressure = make(map[domain.Resource]float64, len(row.SellPressure))
+	for r, v := range row.SellPressure {
+		g.SellPressure[domain.Resource(r)] = v
 	}
 	if row.CostBasis != nil {
 		g.CostBasis = make(map[domain.Resource]int, len(row.CostBasis))

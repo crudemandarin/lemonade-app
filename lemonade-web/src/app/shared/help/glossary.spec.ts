@@ -52,3 +52,18 @@ describe('HelpLinkComponent', () => {
     expect(help.open()).toBeTrue();
   });
 });
+
+describe('HelpPanelComponent', () => {
+  it('opens on the quick start and lists every event on its own tab', () => {
+    const fixture = TestBed.createComponent(HelpPanelComponent);
+    const help = TestBed.inject(HelpService);
+    help.open.set(true);
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelectorAll('.steps li').length).toBe(5);
+
+    help.section.set('events');
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.events li').length).toBe(6);
+  });
+});

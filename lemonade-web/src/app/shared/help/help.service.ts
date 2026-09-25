@@ -6,7 +6,7 @@ import { HELP_TERMS, HelpSection } from './glossary';
 @Injectable({ providedIn: 'root' })
 export class HelpService {
   readonly open = signal(false);
-  readonly section = signal<HelpSection>('basics');
+  readonly section = signal<HelpSection>('quickstart');
   /** Term to scroll to and highlight; cleared shortly after. */
   readonly target = signal<string | null>(null);
 
