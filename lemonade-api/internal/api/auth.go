@@ -171,7 +171,7 @@ func (h *Game) createProfile(c *gin.Context) {
 		return
 	}
 	id := currentIdentity(c)
-	user, err := h.repo.CreateProfile(c.Request.Context(), username, id.UID, id.Email, h.freshGame())
+	user, err := h.repo.CreateProfile(c.Request.Context(), username, id.UID, strings.ToLower(id.Email), h.freshGame())
 	if err != nil {
 		h.abortProfileErr(c, err)
 		return
@@ -191,7 +191,7 @@ func (h *Game) claim(c *gin.Context) {
 		abort(c, http.StatusTooManyRequests, "rate_limited", "Too many attempts. Try again in a few minutes.")
 		return
 	}
-	user, err := h.repo.ClaimUser(c.Request.Context(), username, id.UID, id.Email)
+	user, err := h.repo.ClaimUser(c.Request.Context(), username, id.UID, strings.ToLower(id.Email))
 	if err != nil {
 		h.abortProfileErr(c, err)
 		return
