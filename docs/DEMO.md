@@ -2,6 +2,10 @@
 
 A 5-minute demo script, then the decisions and trade-offs to defend, what I'd do next, and likely questions. Live app: https://lemonade.nyko.run (local: `docker compose up -d --build`, then http://localhost:4200).
 
+Live App: https://lemonade.nyko.run
+
+Code Repository: https://github.com/crudemandarin/lemonade-app
+
 **Contents**
 1. [Before you start](#1-before-you-start)
 2. [The 5-minute script](#2-the-5-minute-script)

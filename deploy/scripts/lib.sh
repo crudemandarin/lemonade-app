@@ -2,7 +2,7 @@
 # Sourced, not run. Every gcloud call goes through g(), which passes --project
 # explicitly, so the scripts never change your gcloud default project.
 
-PROJECT_ID="${PROJECT_ID:-lemonade-app-509618}"
+PROJECT_ID="${PROJECT_ID:-lemonade-app-dev}"
 REGION="${REGION:-us-central1}"
 STATE_BUCKET="${PROJECT_ID}-tfstate"
 

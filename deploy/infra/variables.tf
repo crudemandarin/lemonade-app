@@ -1,7 +1,7 @@
 variable "project_id" {
   description = "Google Cloud project to deploy into."
   type        = string
-  default     = "lemonade-app-509618"
+  default     = "lemonade-app-dev"
 }
 
 variable "region" {
@@ -57,11 +57,11 @@ locals {
 variable "web_domain" {
   description = "Custom domain for the web service. Must be under a domain verified in Google Search Console. Empty to disable."
   type        = string
-  default     = "lemonade.nyko.run"
+  default     = ""
 }
 
 variable "api_domain" {
   description = "Custom domain for the api service. Empty to disable."
   type        = string
-  default     = "lemonade-api.nyko.run"
+  default     = ""
 }

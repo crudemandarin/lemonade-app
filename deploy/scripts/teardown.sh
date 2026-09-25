@@ -8,7 +8,7 @@
 #   4. verification: exits non-zero if anything remains
 #
 # Usage: ./deploy/scripts/teardown.sh [--yes] [--keep-state]
-# Env:   PROJECT_ID (default lemonade-app-509618), REGION (default us-central1)
+# Env:   PROJECT_ID (default lemonade-app-dev), REGION (default us-central1)
 set -uo pipefail
 source "$(dirname "$0")/lib.sh"
 
