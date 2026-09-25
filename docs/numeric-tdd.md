@@ -137,7 +137,7 @@ Bankruptcy is only checked here, so spending to $0 mid-day is legal. After game 
 | Holiday | lemonade ×1.35 | 1 |
 | Cup Shortage | cup ×1.5 | 2 |
 
-Multipliers stack. Events are visible the day they start, an active event never re-spawns, and `Excludes` blocks pairs (Heat Wave ↔ Rainy Week).
+Multipliers stack. Events are visible the day they start, an active event never re-spawns, and events that push the same resource's price in opposite directions never overlap (Heat Wave ↔ Rainy Week, Holiday ↔ Rainy Week). This is derived from the multipliers, so a new row in the table is checked automatically; `Excludes` can still add an explicit pair.
 
 ## 4. Data model
 

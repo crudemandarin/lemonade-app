@@ -50,6 +50,12 @@ Time estimates are rough and cumulative.
   - Acceptance: rule 27; README documents the config tables and how to tune them.
   - Tests: sparkline component renders N points for N history entries.
 
+- [ ] **Slice 9: P0 update (see `HANDOFF-P0.md`)**
+  - [x] 9a: the day report always lists all five prices (lemonade first; unchanged rows say "no change")
+  - [x] 9b: conflicting events never overlap (derived from multipliers)
+  - [ ] 9c: header projection (lemonade to be made, ice to melt)
+  - [ ] 9d: bulk trade bar (amount selector, `clamp` on buy and sell)
+
 ## Hold points
 - **≈2:30 elapsed:** first Reviewer pass (see kickoff prompt 3). Fix only SPEC gaps and bugs.
 - **≈3:30 elapsed:** second Reviewer pass plus fresh-clone check; then walkthrough prep.
