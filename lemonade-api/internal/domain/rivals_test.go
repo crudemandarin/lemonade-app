@@ -20,11 +20,11 @@ func shareTotal(g Game, cfg Config, territory string) float64 {
 	return total
 }
 
-func rich(g *Game) { g.Capital = 500_000_000 }
+func flush(g *Game) { g.Capital = 500_000_000 }
 
 func enterAll(t *testing.T, g *Game, cfg Config, keys ...string) {
 	t.Helper()
-	rich(g)
+	flush(g)
 	for _, k := range keys {
 		if err := EnterTerritory(g, cfg, k); err != nil {
 			t.Fatalf("enter %s: %v", k, err)
@@ -111,7 +111,7 @@ func TestBuyoutNeedsCash(t *testing.T) {
 
 func TestSourSamRefusesUntilTheLeaderHasSixtyPercent(t *testing.T) {
 	g, cfg := newTestGame()
-	rich(&g)
+	flush(&g)
 	var refuse *RivalRefusesError
 	if err := BuyOut(&g, cfg, "sour_sam", false); !errors.As(err, &refuse) || refuse.NeedShare != 60 {
 		t.Fatalf("friendly buyout: %v", err)
@@ -147,7 +147,7 @@ func TestMergerOfferDiscountsTheBuyout(t *testing.T) {
 
 func TestCampaign(t *testing.T) {
 	g, cfg := newTestGame()
-	rich(&g)
+	flush(&g)
 	cost := CampaignCost(cfg, "neighborhood", 1)
 	before := g.Capital
 	if err := RunCampaign(&g, cfg, "neighborhood", 1); err != nil {
@@ -169,7 +169,7 @@ func TestCampaign(t *testing.T) {
 		if _, err := EndDay(&g, cfg); err != nil {
 			t.Fatal(err)
 		}
-		rich(&g)
+		flush(&g)
 	}
 	if g.Territories["neighborhood"].CampaignDaysLeft != 0 || g.Territories["neighborhood"].CampaignBonus != 0 {
 		t.Fatalf("the campaign should have ended: %+v", g.Territories["neighborhood"])
@@ -180,12 +180,12 @@ func TestCampaign(t *testing.T) {
 // phase 0 game is unchanged for anyone who never touches the empire.
 func TestAPassivePlayerKeepsTheNeighborhood(t *testing.T) {
 	g, cfg := newTestGame()
-	rich(&g)
+	flush(&g)
 	for i := 0; i < 60; i++ {
 		if _, err := EndDay(&g, cfg); err != nil {
 			t.Fatal(err)
 		}
-		rich(&g)
+		flush(&g)
 		if s := g.Territories["neighborhood"].Share; s != 40 {
 			t.Fatalf("day %d: share %v", g.Day, s)
 		}
@@ -200,7 +200,7 @@ func TestRivalsPushAnUnderdefendedTerritoryDownToTheFloorNoFurther(t *testing.T)
 		if _, err := EndDay(&g, cfg); err != nil {
 			t.Fatal(err)
 		}
-		rich(&g)
+		flush(&g)
 		s := g.Territories["city"].Share
 		if prev-s > cfg.MaxShareShiftPerDay+1e-9 || s-prev > cfg.MaxShareShiftPerDay+1e-9 {
 			t.Fatalf("day %d: moved %v points", g.Day, s-prev)
@@ -229,7 +229,7 @@ func TestACampaignHoldsAndGainsShare(t *testing.T) {
 		if _, err := EndDay(&g, cfg); err != nil {
 			t.Fatal(err)
 		}
-		rich(&g)
+		flush(&g)
 	}
 	if g.Territories["city"].Share <= start+3 {
 		t.Fatalf("a constant ad blitz moved the share from %v to only %v", start, g.Territories["city"].Share)
@@ -255,7 +255,7 @@ func TestSharesAlwaysAddUpTo100(t *testing.T) {
 			if _, err := EndDay(&g, cfg); err != nil {
 				t.Fatal(err)
 			}
-			rich(&g)
+			flush(&g)
 			for _, d := range cfg.Territories {
 				if !g.Territories[d.Key].Entered {
 					continue
@@ -284,8 +284,8 @@ func TestRivalsNeverChangeMarketPrices(t *testing.T) {
 	busy := NewGame(cfg, 42)
 	enterAll(t, &busy, cfg, "city", "region")
 	for day := 0; day < 80; day++ {
-		rich(&plain)
-		rich(&busy)
+		flush(&plain)
+		flush(&busy)
 		if _, err := EndDay(&plain, cfg); err != nil {
 			t.Fatal(err)
 		}
@@ -305,8 +305,8 @@ func TestRivalsNeverChangeMarketPrices(t *testing.T) {
 	for i := 0; i < 60; i++ {
 		_, _ = EndDay(&a, cfg)
 		_, _ = EndDay(&b, cfg)
-		rich(&a)
-		rich(&b)
+		flush(&a)
+		flush(&b)
 	}
 	if a.Rivals["zest_express"] != b.Rivals["zest_express"] || a.Territories["city"] != b.Territories["city"] {
 		t.Fatal("rivals are not deterministic")
@@ -327,7 +327,7 @@ func TestARivalDoesWhatItTelegraphed(t *testing.T) {
 		g.Territories["city"] = city
 		for day := 0; day < 80; day++ {
 			before := g.Clone()
-			rich(&g)
+			flush(&g)
 			if _, err := EndDay(&g, cfg); err != nil {
 				t.Fatal(err)
 			}
@@ -379,7 +379,7 @@ func TestPriceWarsAreOrdinaryEventsAndNeverTouchStock(t *testing.T) {
 
 func TestOpportunistOffersAMergerAfterLosingShare(t *testing.T) {
 	g, cfg := newTestGame()
-	rich(&g)
+	flush(&g)
 	// Give the player a strong presence so rivals keep losing share.
 	for i := 0; i < 30; i++ {
 		g.SellPressure[Lemonade] = 500
@@ -387,7 +387,7 @@ func TestOpportunistOffersAMergerAfterLosingShare(t *testing.T) {
 			_ = RunCampaign(&g, cfg, "neighborhood", 3)
 		}
 		_, _ = EndDay(&g, cfg)
-		rich(&g)
+		flush(&g)
 		if g.Rivals["squeeze_box"].OfferDaysLeft > 0 {
 			return
 		}
@@ -397,14 +397,14 @@ func TestOpportunistOffersAMergerAfterLosingShare(t *testing.T) {
 
 func TestASqueezedRivalFoldsAndItsShareIsHandedOut(t *testing.T) {
 	g, cfg := newTestGame()
-	rich(&g)
+	flush(&g)
 	r := g.Rivals["squeeze_box"]
 	r.Valuation = 100 // far under the fold threshold
 	g.Rivals["squeeze_box"] = r
 	folded := false
 	for i := 0; i < 20; i++ {
 		_, _ = EndDay(&g, cfg)
-		rich(&g)
+		flush(&g)
 		if g.Rivals["squeeze_box"].Status == RivalFolded {
 			folded = true
 		}
