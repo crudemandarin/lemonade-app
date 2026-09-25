@@ -1,8 +1,120 @@
-# Lemonade Tycoon
+<p align="center">
+  <img src="lemonade-web/src/assets/ui/logo.svg" width="96" alt="Lemonade Tycoon logo">
+</p>
 
-A turn-based lemonade business game: buy ingredients, run your facilities, sell lemonade, and survive the market one day at a time. Angular frontend, Gin (Go) REST API, PostgreSQL.
+<h1 align="center">Lemonade Tycoon</h1>
+
+<p align="center">
+  <em>Buy low, squeeze smart, sell high, and survive the market one day at a time.</em>
+</p>
+
+<p align="center">
+  <img alt="Angular 17" src="https://img.shields.io/badge/Angular-17-dd0031?logo=angular&logoColor=white">
+  <img alt="Go 1.27" src="https://img.shields.io/badge/Go-1.27-00add8?logo=go&logoColor=white">
+  <img alt="Gin" src="https://img.shields.io/badge/API-Gin-008ecf">
+  <img alt="PostgreSQL 16" src="https://img.shields.io/badge/PostgreSQL-16-4169e1?logo=postgresql&logoColor=white">
+  <img alt="Google Cloud Run" src="https://img.shields.io/badge/Cloud%20Run-deployed-4285f4?logo=googlecloud&logoColor=white">
+</p>
+
+<p align="center">
+  <img src="lemonade-web/src/assets/resources/lemon.svg" width="48" alt="Lemon">
+  <img src="lemonade-web/src/assets/resources/sugar.svg" width="48" alt="Sugar">
+  <img src="lemonade-web/src/assets/resources/ice.svg" width="48" alt="Ice">
+  <img src="lemonade-web/src/assets/resources/cup.svg" width="48" alt="Cup">
+  <img src="lemonade-web/src/assets/ui/end-day.svg" width="32" alt="becomes">
+  <img src="lemonade-web/src/assets/resources/lemonade.svg" width="48" alt="Lemonade">
+</p>
+
+A turn-based lemonade business game. Buy ingredients, grow your facilities, sell lemonade, and try not to go bankrupt. Angular frontend, Gin (Go) REST API, PostgreSQL.
 
 > **Design:** the technical design doc, [docs/numeric-tdd.md](docs/numeric-tdd.md), covers architecture, game rules, data model, API, balance and tuning, and trade-offs. Start there.
+
+## The game in 30 seconds
+
+1 lemon + 1 sugar + 1 ice + 1 cup = 1 lemonade. Nothing happens until you press **End day**, so take your time.
+
+| | Step | What happens |
+| :-: | ---- | ------------ |
+| <img src="lemonade-web/src/assets/ui/coin.svg" width="24" alt=""> | **Trade** | Prices wander every day. Buy at the ask, sell at the bid, and mind the 10% spread. |
+| <img src="lemonade-web/src/assets/ui/factory.svg" width="24" alt=""> | **Produce** | At end of day your production facility turns ingredients into lemonade. |
+| <img src="lemonade-web/src/assets/ui/event.svg" width="24" alt=""> | **Ride the events** | Heat waves, rainy weeks, lemon blights and more push prices around for a few days. |
+| <img src="lemonade-web/src/assets/ui/upgrade.svg" width="24" alt=""> | **Grow** | Expand and upgrade warehouses and production, but every building costs daily upkeep. |
+| <img src="lemonade-web/src/assets/ui/sad-face.svg" width="24" alt=""> | **Survive** | If you cannot pay upkeep, stock is sold off to cover it. If that is not enough, the run ends. |
+
+<p align="center">
+  <img src="lemonade-web/src/assets/facilities/warehouse-1.svg" width="56" alt="Pantry">
+  <img src="lemonade-web/src/assets/facilities/warehouse-2.svg" width="56" alt="Garage">
+  <img src="lemonade-web/src/assets/facilities/warehouse-3.svg" width="56" alt="Barn">
+  <img src="lemonade-web/src/assets/facilities/warehouse-4.svg" width="56" alt="Industrial warehouse">
+  &nbsp;&nbsp;
+  <img src="lemonade-web/src/assets/facilities/production-1.svg" width="56" alt="Kitchen">
+  <img src="lemonade-web/src/assets/facilities/production-2.svg" width="56" alt="Food truck">
+  <img src="lemonade-web/src/assets/facilities/production-3.svg" width="56" alt="Bottling plant">
+  <img src="lemonade-web/src/assets/facilities/production-4.svg" width="56" alt="Lemonade factory">
+</p>
+
+The game has a built-in **How to play** menu in the top bar, with a quick start and a glossary.
+
+## Highlights
+
+- **Server is the source of truth.** The UI renders server state; every action returns the full game view.
+- **Pure, deterministic domain.** All rules live in `internal/domain` with no I/O, and randomness is seeded, so the same seed and actions give the same game.
+- **Safe concurrency.** Every action is `load, domain call, save` in one transaction with a row lock.
+- **Play as a guest or with Google.** A username is enough to play; Google sign-in secures the account.
+- **Installable PWA** with an offline banner, scores board, and per-run history.
+- **One-command deploy** to Google Cloud with Terraform and keyless GitHub Actions.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  user([Player's browser<br/>Angular PWA])
+  dns[Cloudflare DNS<br/>lemonade.nyko.run]
+
+  subgraph gcp[Google Cloud project]
+    web[Cloud Run: web<br/>nginx serves SPA,<br/>proxies /api/*]
+    api[Cloud Run: api<br/>Go + Gin]
+    sql[(Cloud SQL<br/>Postgres 16)]
+    sm[Secret Manager<br/>db-password]
+    ar[Artifact Registry<br/>images]
+    cb[Cloud Build]
+  end
+
+  gh[GitHub Actions<br/>push to main]
+
+  user -->|HTTPS| dns --> web
+  web -->|/api/* HTTPS| api
+  api -->|/cloudsql unix socket| sql
+  sm -.->|secret at startup| api
+  gh -->|keyless login via<br/>Workload Identity| cb
+  cb -->|push images| ar
+  ar -.->|deploy new revision| web
+  ar -.->|deploy new revision| api
+```
+
+The browser only ever talks to `web`; its nginx forwards `/api/*` to `api`, so there is no CORS. Locally, Docker Compose runs the same three pieces.
+
+Inside the API, dependencies point inward:
+
+```mermaid
+flowchart LR
+  http[internal/api<br/>Gin handlers, DTOs, auth] --> domain[internal/domain<br/>pure game rules]
+  http --> store[internal/store<br/>Repository interface]
+  store --> pg[(Postgres)]
+  store -.->|in-memory fake for tests| domain
+```
+
+More detail is in [the technical design doc](docs/numeric-tdd.md#2-architecture).
+
+## Quick start
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+open http://localhost:4200
+```
+
+Full instructions (auth emulator, hot reload, tests) are further down.
 
 | Service | Source | URL |
 | ------- | ------ | --- |
