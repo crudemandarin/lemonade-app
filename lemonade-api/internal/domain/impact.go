@@ -141,7 +141,7 @@ func (g *Game) addPressure(buy bool, r Resource, qty int) {
 		m = &g.BuyPressure
 	}
 	if *m == nil {
-		*m = make(map[Resource]float64, len(Resources))
+		*m = make(map[Resource]float64)
 	}
 	(*m)[r] += float64(qty)
 }

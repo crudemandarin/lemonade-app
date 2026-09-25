@@ -155,8 +155,40 @@ type gameEventDTO struct {
 	DaysLeft    int                         `json:"daysLeft"`
 }
 
-// timelinePointDTO is the state right after one action; stock is in the order
-// lemon, sugar, ice, cup, lemonade.
+// commodityDTO is one catalog entry. The view lists them in display order, and every
+// per-commodity array in the view (timeline stock, price log prices, base prices)
+// follows that order.
+type commodityDTO struct {
+	Key          domain.Resource `json:"key"`
+	Name         string          `json:"name"`
+	Category     string          `json:"category"`
+	StorageClass string          `json:"storageClass"`
+	IsProduct    bool            `json:"isProduct"`
+	Order        int             `json:"order"`
+}
+
+func toCommodityDTOs(cfg domain.Config) []commodityDTO {
+	out := make([]commodityDTO, 0, len(cfg.Commodities))
+	for _, c := range cfg.Commodities {
+		out = append(out, commodityDTO{
+			Key: c.Key, Name: c.Name, Category: c.Category, StorageClass: c.StorageClass,
+			IsProduct: c.Product, Order: c.Order,
+		})
+	}
+	return out
+}
+
+// inCatalogOrder lists a per-commodity map as an array in catalog order.
+func inCatalogOrder(m map[domain.Resource]int, cfg domain.Config) []int {
+	out := make([]int, 0, len(cfg.Commodities))
+	for _, r := range cfg.Resources() {
+		out = append(out, m[r])
+	}
+	return out
+}
+
+// timelinePointDTO is the state right after one action; stock is in catalog order
+// (see commodities).
 type timelinePointDTO struct {
 	Day      int    `json:"day"`
 	Kind     string `json:"kind"`
@@ -185,8 +217,8 @@ type statsDTO struct {
 	PeakDay          int `json:"peakDay"`
 }
 
-// pricePointDTO is one day of the price chart: prices in the order lemon, sugar,
-// ice, cup, lemonade, and the names of the events active that day.
+// pricePointDTO is one day of the price chart: prices in catalog order, and the
+// names of the events active that day.
 type pricePointDTO struct {
 	Day    int      `json:"day"`
 	Prices []int    `json:"prices"`
@@ -218,8 +250,10 @@ type gameViewDTO struct {
 	// RunID names this playthrough; Best is the player's top finished run so far (null if none).
 	RunID string   `json:"runId"`
 	Best  *bestDTO `json:"best"`
-	// BasePrices are the long-run prices (lemon, sugar, ice, cup, lemonade), for the "% of base" view.
+	// BasePrices are the long-run prices in catalog order, for the "% of base" view.
 	BasePrices []int `json:"basePrices"`
+	// Commodities is the catalog, in display order.
+	Commodities []commodityDTO `json:"commodities"`
 }
 
 type priceChangeDTO struct {
@@ -290,8 +324,8 @@ type projectionDTO struct {
 func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 	quotes := domain.Quotes(g, cfg)
 
-	resources := make([]resourceViewDTO, 0, len(domain.Resources))
-	for _, r := range domain.Resources {
+	resources := make([]resourceViewDTO, 0, len(cfg.Commodities))
+	for _, r := range cfg.Resources() {
 		q := quotes[r]
 		m := g.Market[r]
 		resources = append(resources, resourceViewDTO{
@@ -324,47 +358,42 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 			Production: toProductionView(g, cfg),
 		},
 		Events:     toEventDTOs(g.Events),
-		Timeline:   toTimelineDTOs(g),
+		Timeline:   toTimelineDTOs(g, cfg),
 		Stats:      statsDTO(g.Stats),
 		Projection: projectionDTO(domain.PreviewEndDay(g, cfg)),
 		PriceLog:   toPriceLogDTOs(g, cfg),
 		NetWorth:   netWorthDTO(domain.NetWorthBreakdown(g, cfg)),
 		RunID:      g.RunID,
 		BasePrices: basePrices(cfg),
+
+		Commodities: toCommodityDTOs(cfg),
 	}
 }
 
 // toTimelineDTOs maps the timeline. A game saved before the timeline existed has none,
 // so it gets a start point from its current state and the charts always have something.
-func toTimelineDTOs(g domain.Game) []timelinePointDTO {
+func toTimelineDTOs(g domain.Game, cfg domain.Config) []timelinePointDTO {
 	if len(g.Timeline) == 0 {
-		stock := make([]int, 0, len(domain.Resources))
-		for _, r := range domain.Resources {
-			stock = append(stock, g.Inventory[r])
-		}
+		stock := inCatalogOrder(g.Inventory, cfg)
 		return []timelinePointDTO{{Day: g.Day, Kind: string(domain.PointStart), Capital: g.Capital, Stock: stock}}
 	}
-	return timelinePointDTOs(g.Timeline)
+	return timelinePointDTOs(g.Timeline, cfg)
 }
 
 // timelinePointDTOs maps timeline points, for a live game or a finished run.
-func timelinePointDTOs(points []domain.TimelinePoint) []timelinePointDTO {
+func timelinePointDTOs(points []domain.TimelinePoint, cfg domain.Config) []timelinePointDTO {
 	out := make([]timelinePointDTO, 0, len(points))
 	for _, p := range points {
 		out = append(out, timelinePointDTO{
 			Day: p.Day, Kind: string(p.Kind), Resource: string(p.Resource), Facility: string(p.Facility),
-			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: p.Stock[:],
+			Qty: p.Qty, Amount: p.Amount, Produced: p.Produced, Capital: p.Capital, Stock: inCatalogOrder(p.Stock, cfg),
 		})
 	}
 	return out
 }
 
 func basePrices(cfg domain.Config) []int {
-	out := make([]int, 0, len(domain.Resources))
-	for _, r := range domain.Resources {
-		out = append(out, cfg.BasePrice[r])
-	}
-	return out
+	return inCatalogOrder(cfg.BasePrice, cfg)
 }
 
 // toPriceLogDTOs maps the price log, turning event keys into display names.
@@ -387,7 +416,7 @@ func priceLogDTOs(log []domain.PricePoint, cfg domain.Config) []pricePointDTO {
 				events = append(events, key)
 			}
 		}
-		out = append(out, pricePointDTO{Day: p.Day, Prices: append([]int{}, p.Prices[:]...), Events: events})
+		out = append(out, pricePointDTO{Day: p.Day, Prices: inCatalogOrder(p.Prices, cfg), Events: events})
 	}
 	return out
 }
@@ -413,8 +442,8 @@ func toWarehouseView(g domain.Game, cfg domain.Config) warehouseViewDTO {
 	tier := cfg.WarehouseTiers[g.WarehouseLevel-1]
 
 	buildings := 0
-	resources := make([]warehouseResourceDTO, 0, len(domain.Resources))
-	for _, r := range domain.Resources {
+	resources := make([]warehouseResourceDTO, 0, len(cfg.Commodities))
+	for _, r := range cfg.Resources() {
 		buildings += g.WarehouseQty[r]
 		resources = append(resources, warehouseResourceDTO{
 			Resource: r,

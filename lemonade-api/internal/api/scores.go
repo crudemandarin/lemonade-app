@@ -60,6 +60,8 @@ type runDetailDTO struct {
 	Timeline   []timelinePointDTO `json:"timeline"`
 	PriceLog   []pricePointDTO    `json:"priceLog"`
 	BasePrices []int              `json:"basePrices"`
+	// Commodities is the catalog the arrays above follow.
+	Commodities []commodityDTO `json:"commodities"`
 	// Reports is the light list of the run's ended days, as GET /game/reports returns.
 	Reports []reportSummaryDTO `json:"reports"`
 }
@@ -161,7 +163,7 @@ func (h *Game) myRun(c *gin.Context) {
 			Capital: run.Capital, EndedBy: run.EndedBy, CreatedAt: run.CreatedAt,
 		}, best),
 		Stats:      statsDTO(run.Stats),
-		Timeline:   timelinePointDTOs(run.Timeline),
+		Timeline:   timelinePointDTOs(run.Timeline, h.cfg),
 		PriceLog:   priceLogDTOs(run.PriceLog, h.cfg),
 		BasePrices: basePrices(h.cfg),
 		Reports:    summaries,

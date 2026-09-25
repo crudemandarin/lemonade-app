@@ -6,7 +6,7 @@ package domain
 
 func (g *Game) addBasis(r Resource, dollars int) {
 	if g.CostBasis == nil {
-		g.CostBasis = make(map[Resource]int, len(Resources))
+		g.CostBasis = make(map[Resource]int)
 	}
 	g.CostBasis[r] += dollars
 }
@@ -60,9 +60,9 @@ func SeedCostBasis(g *Game) {
 	if g.CostBasis != nil {
 		return
 	}
-	g.CostBasis = make(map[Resource]int, len(Resources))
-	for _, r := range Resources {
-		if held := g.Inventory[r]; held > 0 && g.Market[r] != nil {
+	g.CostBasis = make(map[Resource]int, len(g.Inventory))
+	for r, held := range g.Inventory {
+		if held > 0 && g.Market[r] != nil {
 			g.CostBasis[r] = held * int(g.Market[r].Price+0.5)
 		}
 	}

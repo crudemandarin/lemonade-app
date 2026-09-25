@@ -241,7 +241,7 @@ func (h *Game) trade(exact, clamped func(*domain.Game, domain.Config, domain.Res
 			abort(c, http.StatusBadRequest, "invalid_request", "Request body must be JSON with a resource and qty.")
 			return
 		}
-		if !req.Resource.Valid() {
+		if !h.cfg.Valid(req.Resource) {
 			abort(c, http.StatusBadRequest, "invalid_resource", "Unknown resource.")
 			return
 		}
@@ -268,7 +268,7 @@ func (h *Game) expand(c *gin.Context) {
 		return
 	}
 
-	resource, ok := warehouseResource(c, kind)
+	resource, ok := h.warehouseResource(c, kind)
 	if !ok {
 		return
 	}
@@ -276,7 +276,7 @@ func (h *Game) expand(c *gin.Context) {
 }
 
 // warehouseResource reads the {resource} body a warehouse action needs; production takes none.
-func warehouseResource(c *gin.Context, kind domain.FacilityType) (domain.Resource, bool) {
+func (h *Game) warehouseResource(c *gin.Context, kind domain.FacilityType) (domain.Resource, bool) {
 	if kind != domain.Warehouse {
 		return "", true
 	}
@@ -287,7 +287,7 @@ func warehouseResource(c *gin.Context, kind domain.FacilityType) (domain.Resourc
 		abort(c, http.StatusBadRequest, "invalid_request", "Request body must be JSON with a resource.")
 		return "", false
 	}
-	if !req.Resource.Valid() {
+	if !h.cfg.Valid(req.Resource) {
 		abort(c, http.StatusBadRequest, "invalid_resource", "Unknown resource.")
 		return "", false
 	}
@@ -299,7 +299,7 @@ func (h *Game) sellFacility(c *gin.Context) {
 	if !ok {
 		return
 	}
-	resource, ok := warehouseResource(c, kind)
+	resource, ok := h.warehouseResource(c, kind)
 	if !ok {
 		return
 	}
@@ -391,7 +391,7 @@ type quoteDTO struct {
 // clamp=true it is cut down to what cash, space (buy) or stock (sell) allow, like a bulk trade.
 func (h *Game) quote(c *gin.Context) {
 	r := domain.Resource(c.Query("resource"))
-	if !r.Valid() {
+	if !h.cfg.Valid(r) {
 		abort(c, http.StatusBadRequest, "invalid_resource", "Unknown resource.")
 		return
 	}
