@@ -3,78 +3,52 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 
+import { SessionService } from './session.service';
 import { unauthorizedInterceptor } from './unauthorized.interceptor';
-import { SessionService, USERNAME_KEY } from './session.service';
-import { FakeAuthPort, provideFakeAuth, signInForTest } from './testing/fake-auth';
 
 describe('unauthorizedInterceptor', () => {
   let http: HttpClient;
   let mock: HttpTestingController;
-  let port: FakeAuthPort;
+  let session: SessionService;
   let navigate: jasmine.Spy;
 
   beforeEach(() => {
-    port = new FakeAuthPort();
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
         provideHttpClient(withInterceptors([unauthorizedInterceptor])),
         provideHttpClientTesting(),
-        provideFakeAuth(port),
       ],
     });
     http = TestBed.inject(HttpClient);
     mock = TestBed.inject(HttpTestingController);
+    session = TestBed.inject(SessionService);
     navigate = spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
-    signInForTest('lemonjoe');
+    session.signIn('lemonjoe');
   });
 
   afterEach(() => {
     mock.verify();
-    localStorage.removeItem(USERNAME_KEY);
+    session.signOut();
   });
 
-  function fail(status: number, body: object) {
+  it('signs out and routes to /signin on a 401 from the game API', () => {
     http.get('/api/game').subscribe({ error: () => undefined });
-    mock.expectOne('/api/game').flush(body, { status, statusText: '' });
-  }
+    mock
+      .expectOne('/api/game')
+      .flush({ error: 'unauthorized', message: 'x' }, { status: 401, statusText: '' });
 
-  it('signs out of Firebase and routes to /signin on a 401', () => {
-    fail(401, { error: 'unauthorized', message: 'x' });
-
-    expect(port.signOutCalls).toBe(1);
+    expect(session.username()).toBeNull();
     expect(navigate).toHaveBeenCalledWith('/signin');
   });
 
-  it('forgets a guest name that was secured elsewhere, without touching Google, and says why', () => {
-    fail(401, { error: 'account_secured', message: 'x' });
-
-    expect(TestBed.inject(SessionService).username()).toBeNull();
-    expect(port.signOutCalls).toBe(0);
-    expect(navigate).toHaveBeenCalledWith('/signin?reason=secured');
-  });
-
-  it('sends a player with no username to onboarding on 403 profile_required, staying signed in', () => {
-    fail(403, { error: 'profile_required', message: 'x' });
-
-    expect(port.signOutCalls).toBe(0);
-    expect(navigate).toHaveBeenCalledWith('/signin/username');
-  });
-
-  it('does not redirect on the profile probe itself, or the guard and the redirect would chase each other', () => {
-    http.get('/api/me').subscribe({ error: () => undefined });
-    mock
-      .expectOne('/api/me')
-      .flush({ error: 'profile_required', message: 'x' }, { status: 403, statusText: '' });
-
-    expect(navigate).not.toHaveBeenCalled();
-    expect(port.signOutCalls).toBe(0);
-  });
-
   it('leaves the session alone on other errors', () => {
-    fail(409, { error: 'insufficient_funds', message: 'x' });
+    http.get('/api/game').subscribe({ error: () => undefined });
+    mock
+      .expectOne('/api/game')
+      .flush({ error: 'insufficient_funds', message: 'x' }, { status: 409, statusText: '' });
 
-    expect(port.signOutCalls).toBe(0);
+    expect(session.username()).toBe('lemonjoe');
     expect(navigate).not.toHaveBeenCalled();
   });
 });

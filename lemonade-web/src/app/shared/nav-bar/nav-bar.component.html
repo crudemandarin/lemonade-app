@@ -17,15 +17,6 @@
         >
         <app-icon name="user" />
         <span class="name">{{ name }}</span>
-        @if (secured()) {
-          <span class="secured" title="Only your Google account can play this username"
-            >Secured</span
-          >
-        } @else if (canSecure()) {
-          <a class="btn btn-ghost secure-link" routerLink="/secure" aria-label="Secure account">
-            Secure<span class="wide-only"> account</span>
-          </a>
-        }
         <button type="button" class="btn btn-ghost log-out" (click)="logOut.emit()">
           <app-icon name="log-out" [size]="14" />
           Log out

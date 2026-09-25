@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, firstValueFrom, from } from 'rxjs';
+import { Observable, firstValueFrom } from 'rxjs';
 
 import { apiErrorMessage } from './api-error';
 import {
@@ -11,7 +11,7 @@ import {
   UpgradesResponse,
 } from './api.models';
 import { ApiService } from './api.service';
-import { AuthService } from './auth.service';
+import { SessionService } from './session.service';
 import { ToastService } from './toast.service';
 
 /**
@@ -21,7 +21,7 @@ import { ToastService } from './toast.service';
 @Injectable({ providedIn: 'root' })
 export class GameStore {
   private readonly api = inject(ApiService);
-  private readonly auth = inject(AuthService);
+  private readonly session = inject(SessionService);
   private readonly toasts = inject(ToastService);
 
   private readonly _game = signal<GameView | null>(null);
@@ -37,19 +37,18 @@ export class GameStore {
   readonly loading = this._loading.asReadonly();
   readonly isBankrupt = computed(() => this._game()?.status === 'bankrupt');
 
-  /** Username-only play. Resolves false, with `error` set, when it fails (for example a protected name). */
   async signIn(username: string): Promise<boolean> {
-    const signedIn = await this.run(from(this.auth.guestSignIn(username)));
-    if (signedIn === undefined) {
+    const user = await this.run(this.api.login(username));
+    if (!user) {
       return false;
     }
     this._game.set(null);
+    this.session.signIn(user.username);
     return true;
   }
 
-  /** Signs out of Firebase and forgets everything held for this player. */
   signOut(): void {
-    void this.auth.signOut();
+    this.session.signOut();
     this._game.set(null);
     this._report.set(null);
     this._error.set(null);

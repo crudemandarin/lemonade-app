@@ -16,12 +16,6 @@ type userRow struct {
 	ID        uint   `gorm:"primaryKey"`
 	Username  string `gorm:"uniqueIndex;not null"`
 	CreatedAt time.Time
-
-	// Set when the player signs in with Firebase. NULL for legacy accounts, and
-	// Postgres allows many NULLs under a unique index. Email is private: no DTO has it.
-	FirebaseUID *string `gorm:"uniqueIndex"`
-	Email       *string
-	ClaimedAt   *time.Time
 }
 
 func (userRow) TableName() string { return "users" }
@@ -219,102 +213,6 @@ func (p *Postgres) CreateUserWithGame(ctx context.Context, username string, game
 		return nil
 	})
 	return user, err
-}
-
-func (p *Postgres) FindGuestUser(ctx context.Context, username string) (domain.User, error) {
-	var row userRow
-	err := p.db.WithContext(ctx).Where("username = ?", username).First(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return domain.User{}, ErrNotFound
-	}
-	if err != nil {
-		return domain.User{}, err
-	}
-	if row.FirebaseUID != nil {
-		return domain.User{}, ErrAlreadyClaimed
-	}
-	return domain.User{ID: row.ID, Username: row.Username}, nil
-}
-
-func (p *Postgres) FindUserByUID(ctx context.Context, uid string) (domain.User, error) {
-	if uid == "" {
-		return domain.User{}, ErrNotFound
-	}
-	var row userRow
-	err := p.db.WithContext(ctx).Where("firebase_uid = ?", uid).First(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return domain.User{}, ErrNotFound
-	}
-	if err != nil {
-		return domain.User{}, err
-	}
-	return domain.User{ID: row.ID, Username: row.Username}, nil
-}
-
-func (p *Postgres) CreateProfile(ctx context.Context, username, uid, email string, game domain.Game) (domain.User, error) {
-	var user domain.User
-	err := p.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		row := userRow{Username: username, FirebaseUID: &uid, Email: optional(email)}
-		res := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&row)
-		if res.Error != nil {
-			return res.Error
-		}
-		if res.RowsAffected == 0 {
-			// A unique index refused it: the UID or the username, whichever it was.
-			var n int64
-			if err := tx.Model(&userRow{}).Where("firebase_uid = ?", uid).Count(&n).Error; err != nil {
-				return err
-			}
-			if n > 0 {
-				return ErrAlreadyLinked
-			}
-			return ErrUsernameTaken
-		}
-		g := toRow(game)
-		g.UserID = row.ID
-		if err := tx.Create(&g).Error; err != nil {
-			return err
-		}
-		user = domain.User{ID: row.ID, Username: row.Username}
-		return nil
-	})
-	return user, err
-}
-
-func (p *Postgres) ClaimUser(ctx context.Context, username, uid, email string) (domain.User, error) {
-	if _, err := p.FindUserByUID(ctx, uid); err == nil {
-		return domain.User{}, ErrAlreadyLinked
-	} else if !errors.Is(err, ErrNotFound) {
-		return domain.User{}, err
-	}
-	now := time.Now()
-	// The conditional update is the whole race guard: of two claims only one sees
-	// firebase_uid still NULL, because the row lock serializes them.
-	res := p.db.WithContext(ctx).Model(&userRow{}).
-		Where("username = ? AND firebase_uid IS NULL", username).
-		Updates(map[string]any{"firebase_uid": uid, "email": optional(email), "claimed_at": now})
-	if res.Error != nil {
-		// The same UID claiming two usernames at once trips the unique index.
-		if _, err := p.FindUserByUID(ctx, uid); err == nil {
-			return domain.User{}, ErrAlreadyLinked
-		}
-		return domain.User{}, res.Error
-	}
-	if res.RowsAffected == 0 {
-		if _, err := p.FindUser(ctx, username); err != nil {
-			return domain.User{}, err // ErrNotFound when the username does not exist
-		}
-		return domain.User{}, ErrAlreadyClaimed
-	}
-	return p.FindUser(ctx, username)
-}
-
-// optional maps an empty string to NULL.
-func optional(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
 }
 
 func (p *Postgres) GetGame(ctx context.Context, userID uint) (domain.Game, error) {

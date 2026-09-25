@@ -1,6 +1,6 @@
 # Technical Design: Lemonade Tycoon
 
-Turn-based lemonade business game. One loop: a **day**. Score = capital. Angular frontend, Gin (Go) backend, PostgreSQL. Username-only play with optional Google sign-in (Firebase Auth) to secure an account, installable PWA.
+Turn-based lemonade business game. One loop: a **day**. Score = capital. Angular frontend, Gin (Go) backend, PostgreSQL. Username-only login, installable PWA.
 
 Sources: `docs/claude/` (SPEC, DESIGN, PLAN, DECISIONS, UX-MOCKS). Where they conflict, DECISIONS and the UX addendum win.
 
@@ -20,7 +20,7 @@ Sources: `docs/claude/` (SPEC, DESIGN, PLAN, DECISIONS, UX-MOCKS). Where they co
 ## 1. Scope
 
 **In**
-- Username login (Google optional, to secure it), buy/sell of five resources at market bid/ask, expanding and upgrading two facility types
+- Login, buy/sell of five resources at market bid/ask, expanding and upgrading two facility types
 - End day with a report, bankruptcy, seeded price walk plus random events
 - PWA shell (no offline play)
 - README that installs, runs, and tests from a fresh clone (with the tuning knobs)
@@ -34,7 +34,7 @@ Sources: `docs/claude/` (SPEC, DESIGN, PLAN, DECISIONS, UX-MOCKS). Where they co
 - **Server is the source of truth.** The UI renders server state and never computes outcomes; every mutation returns the full game view.
 - **Layers** (dependencies point inward):
   - `internal/domain`: pure game rules. No I/O, Gin, or SQL.
-  - `internal/api`: thin Gin handlers, DTOs, error mapping, auth middleware (`internal/auth` verifies Firebase ID tokens).
+  - `internal/api`: thin Gin handlers, DTOs, error mapping, username middleware.
   - `internal/store`: `Repository` interface, Postgres/GORM implementation, in-memory fake.
   - `main.go` stays at the module root because the Dockerfile and deploy scripts build it.
 - **Determinism:** `rand.New(rand.NewSource(seed ^ int64(day)))` inside `EndDay`; no clock in the domain. The seed comes from the clock at game creation (API layer), so the same seed and actions give the same game.
@@ -156,11 +156,8 @@ Two tables. Scalars a leaderboard would query are real columns; state that is on
 | Column | Type | Notes |
 |---|---|---|
 | `id` | uint | primary key |
-| `username` | text | unique, not null; the only public identity |
+| `username` | text | unique, not null |
 | `created_at` | timestamp | |
-| `firebase_uid` | text | nullable, unique index (many NULLs allowed): NULL for a legacy account until claimed |
-| `email` | text | nullable, private: stored, never in any DTO |
-| `claimed_at` | timestamp | nullable: when a legacy account was linked |
 
 **`games`**
 
@@ -193,7 +190,7 @@ Two tables. Scalars a leaderboard would query are real columns; state that is on
 
 Two more tables hold what must outlive a game row. `day_reports(run_id, day, payload JSONB)`, primary key `(run_id, day)`, has one row per ended day and is never loaded with the game. `runs(id, user_id, run_id unique, difficulty default 3, days, score, net_worth, capital, ended_by, timeline, stats, price_log, created_at)` has one row per finished run, indexed on `(difficulty, score desc)` and `(user_id, created_at desc)`. Both are written in the same transaction as the game change that produced them. `runs` also has a nullable `net_worth_day100` (the game's snapshot, copied at the finish), which is what the day-100 board ranks; runs stored before it existed, and runs that ended earlier, have NULL and are not on that board.
 
-`achievements(user_id, key, run_id, unlocked_at)`, primary key `(user_id, key)`, holds what a player has unlocked. It is keyed by user, so it works for guests and Google accounts alike, and an insert that conflicts is ignored, which makes unlocking idempotent. Unlocks are written through `Effects.Unlocked` in the same transaction as the mutation that earned them. `backfills(name, done_at)` marks one-off data jobs (the achievements backfill) as done.
+`achievements(user_id, key, run_id, unlocked_at)`, primary key `(user_id, key)`, holds what a player has unlocked. It is keyed by user, so it works for every player, and an insert that conflicts is ignored, which makes unlocking idempotent. Unlocks are written through `Effects.Unlocked` in the same transaction as the mutation that earned them. `backfills(name, done_at)` marks one-off data jobs (the achievements backfill) as done.
 
 **Achievements** are the table `content.Achievements` (key, name, description, category, tier, hidden, check). A check is a `content.Predicate`, one of a small closed set of typed checks (net worth, day, a named stat, cash with no stock, stock totals, all warehouses full, a facility maxed, `all_of`, runs finished, a new personal best, board rank, buying or selling at a percentage of base or cost, sales during an event, profit during an event, every event seen, sales without price impact, closing cash in a range, a comeback, going bankrupt holding only one commodity, going bankrupt by a day, giving up with a net worth). `domain.Evaluate(defs, before, after, cfg, ctx)` returns the keys that became true, each once; `ValidatePredicate` checks every row. The facts the game did not keep are in `Game.Goals`: `Buy` and `Sell` update the trading ones as they happen, and `RecordDayFacts` (called by the API layer after `EndDay`, never inside it, so bots and the balance report never see it) updates the end-of-day ones. Nothing in the rules reads `Goals`.
 
@@ -203,15 +200,12 @@ Two more tables hold what must outlive a game row. `day_reports(run_id, day, pay
 
 JSON, camelCase. The contract is `lemonade-web/src/app/core/api.models.ts`.
 
-- Two ways to identify the caller on game, score and run routes. **Guest:** `X-Username`, accepted only for accounts with no Firebase UID (unknown or missing → 401 `unauthorized`; a secured account → 401 `account_secured`, and the UI forgets the name and points at Google sign-in). **Google:** `Authorization: Bearer <Firebase ID token>`; the API verifies signature, issuer, audience and expiry (Admin SDK, no per-request network call), requires provider `google.com` and a verified email, and maps the UID to a user. A request with an Authorization header is judged by the token alone. Invalid → 401 `unauthorized` (the UI refreshes the token once, then signs out); valid token with no player → 403 `profile_required` (the UI goes to onboarding). Google is off when `FIREBASE_PROJECT_ID` is unset.
+- `X-Username` header on all game routes (intentionally not secure; usernames are also public on the global score board, so anyone who types a name can act as that player). Unknown or missing → 401, and the UI then clears the session.
 - Errors: `{"error": "<code>", "message": "..."}`. Status 400 for `invalid_*` codes; 409 for `run_active`, `insufficient_funds`, `insufficient_stock`, `capacity_exceeded`, `max_level`, `max_quantity`, `game_over`.
 
 | Route | Purpose |
 |---|---|
-| `GET /api/me` | the caller's `{id, username}`, or 403 `profile_required` |
-| `POST /api/me/username {username}` | create the player and their first game (3–40 ASCII chars, case-insensitive); 409 `username_taken`, `already_linked` |
-| `POST /api/me/claim {username}` | secure an existing username by linking the caller's Google account (also how a guest secures theirs) (conditional update, so two racing claims cannot both win); 404 `unknown_username`, 409 `already_claimed`, `already_linked`, 429 `rate_limited` (5 per 10 minutes per UID, in memory) |
-| `POST /api/login {username}` | guest login: create-or-get user (+ new game); 409 `account_secured` if the name is secured with Google |
+| `POST /api/login {username}` | create-or-get user (+ new game; username 3–40 ASCII chars, case-insensitive); returns `{id, username}` |
 | `GET /api/game` · `POST /api/game/new` | view · fresh game |
 | `POST /api/game/buy \| sell {resource, qty, clamp?}` | trade at ask · bid; with `clamp`, trades as many as cash, space or stock allow (up to `qty`) instead of failing |
 | `POST /api/game/facilities/warehouse/expand {resource}` · `.../production/expand` | add one building |
@@ -261,7 +255,7 @@ The view is display-ready (tier names, bid/ask, capacities, costs, `upgrade: nul
 | Whole dollars | No cents handling | Bulk-sized prices |
 | Shared level per type | Simple upgrades | No Barn-for-lemons; upgrade cost grows with expansion |
 | Liquidation grace | A player can't sit at $0 holding stock | Harsher than "any inventory survives" |
-| Optional Google sign-in (Firebase) | Guests start with just a name; Google secures an account without passwords to store | Guest names are open to anyone until secured; securing is first come, first served |
+| Header auth | Matches the brief | Not secure (documented) |
 | PWA shell only | No stale-state bugs | No offline play |
 
 Open question: the brief mentioned three facility types but named two. They are modeled as two; a third is another type with its own level and tiers.
@@ -355,7 +349,7 @@ Changing a price, cost or upkeep also changes a few exact numbers asserted in th
 
 # Appendix: UX mocks
 
-Copy is sentence case, no emoji, one icon set, **one primary button per screen**. Routes: `/` Home, `/signin`, `/game` (also shows game over when `status = bankrupt`; redirects to `/signin` when signed out). "Log out" signs out of Firebase (its session lives in IndexedDB; the app stores no token). `/signin/username` is onboarding for a signed-in account with no player.
+Copy is sentence case, no emoji, one icon set, **one primary button per screen**. Routes: `/` Home, `/signin`, `/game` (also shows game over when `status = bankrupt`; redirects to `/signin` when signed out). "Log out" clears the stored username (there is no session).
 
 **Nav (every page)**
 ```
@@ -371,28 +365,12 @@ Signed in:  | [logo] Lemonade Tycoon                       (user) lemonjoe [Log 
 |                   [ Play game (primary) ]  [ Sign in ]                 |
 ```
 
-**Sign in** (username form is primary; Google is the quieter option, hidden when Firebase is not configured)
+**Sign in** (empty name → inline "Enter a username"; login creates or resumes, then `/game`)
 ```
 |                    Username                                            |
 |                    [ lemonjoe                    ]                     |
 |                    [ Continue (primary)          ]                     |
 |                    New name? We'll start a game for it.                |
-|                    Protected your username with Google?                |
-|                    [ Sign in with Google ]                             |
-```
-
-**Secure your account** (`/secure`, guests only; the nav shows "Secure account" to a guest and a "Secured" badge once linked)
-```
-|                    Right now anyone who types lemonjoe can play as you.|
-|                    [ Link Google account (primary) ]   Not now        |
-```
-
-**Choose a username** (`/signin/username`, for a new Google account; "I already have a username" links an existing one)
-```
-|                    Choose a username                                   |
-|                    [ lemonjoe                    ]                     |
-|                    [ Start playing (primary)    ]                     |
-|                    I already have a username                           |
 ```
 
 **Game page**

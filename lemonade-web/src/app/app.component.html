@@ -1,17 +1,9 @@
 <app-event-backdrop [events]="events()" />
 <header class="top">
-  <app-nav-bar
-    [username]="username()"
-    [secured]="auth.secured()"
-    [canSecure]="auth.googleAvailable"
-    (logOut)="logOut()"
-  />
+  <app-nav-bar [username]="username()" (logOut)="logOut()" />
   <app-offline-banner />
 </header>
 <app-toast-host />
 <main class="page">
-  @if (!auth.ready()) {
-    <p class="boot" role="status">Loading…</p>
-  }
-  <div [hidden]="!auth.ready()"><router-outlet /></div>
+  <router-outlet />
 </main>

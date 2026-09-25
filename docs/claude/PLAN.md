@@ -80,12 +80,7 @@ Time estimates are rough and cumulative.
   - [x] Depth by warehouse level, impact relative to depth, economies of scale in the tier table, upgrade cost sweep, bot cushion, `TestEachLevelPaysMoreThanTheLast`
   - Future work: phases 1 to 7 of `LATE-GAME-DESIGN.md` (territories, rivals, upgrades, recipes, managers)
 
-- [ ] **Slice 15: Sign in with Google (see `HANDOFF-AUTH.md`; DECISIONS 34, 35)**
-  - [x] 15a: backend: token verifier, `/api/me` profile and claim endpoints, store methods
-  - [x] 15b: frontend: Firebase auth service, bearer interceptor, guards, sign-in and username pages, runtime config
-  - [x] 15c: infra (APIs, env vars), emulator in Compose, docs
-  - [x] 15d: Google made optional: username-only play stays, linking Google secures an account (DECISIONS 35)
-  - [ ] Real-Google smoke test on the deployed domain and in the installed PWA (needs the Firebase console runbook in `deploy/README.md`)
+- [x] **Slice 15: Sign in with Google: built, then removed (DECISIONS 34 to 36).** The game stays username-only.
 
 - [ ] **Slice 16: Late game (see `HANDOFF-LATE-GAME-ROADMAP.md`)**
   - [x] Products A: commodities and the lemonade recipe are catalog data (`domain/content`), timeline and price log are maps, EndDay runs the roadmap's named steps, salts in `salts.go`; golden bot runs byte-identical

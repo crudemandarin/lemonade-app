@@ -11,15 +11,6 @@ import (
 // ErrNotFound is returned when a user or game does not exist.
 var ErrNotFound = errors.New("not found")
 
-var (
-	// ErrUsernameTaken: another player already uses this username.
-	ErrUsernameTaken = errors.New("username taken")
-	// ErrAlreadyLinked: this Firebase UID already has a profile.
-	ErrAlreadyLinked = errors.New("uid already linked")
-	// ErrAlreadyClaimed: this username already belongs to a Firebase account.
-	ErrAlreadyClaimed = errors.New("username already claimed")
-)
-
 // ScoreRow is one player's best finished run on the global board.
 type ScoreRow struct {
 	// Rank is 1-based: highest score first, an earlier finish wins a tie.
@@ -85,26 +76,6 @@ type Repository interface {
 
 	// CreateUserWithGame creates a user and their first game atomically.
 	CreateUserWithGame(ctx context.Context, username string, game domain.Game) (domain.User, error)
-
-	// FindGuestUser returns the user a bare username identifies: ErrNotFound if there is
-	// none, ErrAlreadyClaimed if the account is secured with Google (then only a token
-	// identifies it). Username-only play is for accounts nobody has secured.
-	FindGuestUser(ctx context.Context, username string) (domain.User, error)
-
-	// FindUserByUID returns the user linked to this Firebase UID, or ErrNotFound.
-	// An empty uid never matches (legacy users have none).
-	FindUserByUID(ctx context.Context, uid string) (domain.User, error)
-
-	// CreateProfile creates a user linked to a Firebase UID, with their first game,
-	// atomically. ErrAlreadyLinked if the UID has a profile, ErrUsernameTaken if the
-	// username is in use. The email is private: it is stored, never returned.
-	CreateProfile(ctx context.Context, username, uid, email string, game domain.Game) (domain.User, error)
-
-	// ClaimUser links a legacy user (one with no UID) to a Firebase UID, keeping their
-	// game and runs. ErrAlreadyLinked if the UID has a profile, ErrNotFound if the
-	// username does not exist, ErrAlreadyClaimed if it is already linked. Of two
-	// simultaneous claims exactly one wins.
-	ClaimUser(ctx context.Context, username, uid, email string) (domain.User, error)
 
 	// GetGame returns the user's game, or ErrNotFound.
 	GetGame(ctx context.Context, userID uint) (domain.Game, error)

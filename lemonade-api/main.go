@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"lemonade-api/internal/api"
-	"lemonade-api/internal/auth"
 	"lemonade-api/internal/domain"
 	"lemonade-api/internal/store"
 	"lemonade-api/libraries"
@@ -17,18 +16,6 @@ func main() {
 	secrets := &libraries.Secrets{}
 	if err := secrets.Init(); err != nil {
 		log.Fatalf("init secrets: %v", err)
-	}
-
-	// Google sign-in is optional: without a Firebase project only username play works.
-	var opts []api.Option
-	if secrets.FirebaseProjectID != "" {
-		verifier, err := auth.NewFirebase(context.Background(), secrets.FirebaseProjectID)
-		if err != nil {
-			log.Fatalf("init firebase auth: %v", err)
-		}
-		opts = append(opts, api.WithVerifier(verifier))
-	} else {
-		log.Print("FIREBASE_PROJECT_ID is not set: Google sign-in is off, players can only use a username")
 	}
 
 	db := &libraries.Database{}
@@ -50,7 +37,7 @@ func main() {
 
 	router := gin.Default()
 	api.RegisterHealth(router)
-	api.NewGame(gameStore, domain.DefaultConfig(), nil, opts...).Register(router)
+	api.NewGame(gameStore, domain.DefaultConfig(), nil).Register(router)
 
 	if err := router.Run(); err != nil {
 		log.Fatalf("run server: %v", err)
