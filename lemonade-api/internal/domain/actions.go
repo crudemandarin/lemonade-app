@@ -117,3 +117,46 @@ func Upgrade(g *Game, cfg Config, kind FacilityType) error {
 	}
 	return nil
 }
+
+// BuyClamped buys as many cases as it can, up to qty: limited by cash at the
+// ask and by free warehouse space. If none can be bought it returns the error
+// for the binding limit (cash first), like Buy. It exists for "buy max".
+func BuyClamped(g *Game, cfg Config, r Resource, qty int) error {
+	if g.Status != StatusActive {
+		return ErrGameOver
+	}
+	if qty <= 0 {
+		return ErrInvalidQuantity
+	}
+	if affordable := g.Capital / Quotes(*g, cfg)[r].Ask; affordable < qty {
+		if affordable == 0 {
+			return ErrInsufficientFunds
+		}
+		qty = affordable
+	}
+	if free := Capacity(*g, cfg, r) - g.Inventory[r]; free < qty {
+		if free <= 0 {
+			return ErrCapacityExceeded
+		}
+		qty = free
+	}
+	return Buy(g, cfg, r, qty)
+}
+
+// SellClamped sells up to qty cases, limited by stock; ErrInsufficientStock
+// when there is none to sell.
+func SellClamped(g *Game, cfg Config, r Resource, qty int) error {
+	if g.Status != StatusActive {
+		return ErrGameOver
+	}
+	if qty <= 0 {
+		return ErrInvalidQuantity
+	}
+	if stock := g.Inventory[r]; stock < qty {
+		if stock == 0 {
+			return ErrInsufficientStock
+		}
+		qty = stock
+	}
+	return Sell(g, cfg, r, qty)
+}

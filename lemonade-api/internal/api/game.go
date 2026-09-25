@@ -59,8 +59,8 @@ func (h *Game) Register(router gin.IRouter) {
 	g := api.Group("/game", h.requireUser)
 	g.GET("", h.getGame)
 	g.POST("/new", h.newGame)
-	g.POST("/buy", h.trade(domain.Buy))
-	g.POST("/sell", h.trade(domain.Sell))
+	g.POST("/buy", h.trade(domain.Buy, domain.BuyClamped))
+	g.POST("/sell", h.trade(domain.Sell, domain.SellClamped))
 	g.POST("/facilities/:kind/expand", h.expand)
 	g.POST("/facilities/:kind/upgrade", h.upgrade)
 	g.POST("/end-day", h.endDay)
@@ -148,10 +148,14 @@ func (h *Game) mutate(c *gin.Context, action func(g *domain.Game) error) {
 type tradeRequest struct {
 	Resource domain.Resource `json:"resource"`
 	Qty      int             `json:"qty"`
+	// Clamp trades as many cases as possible, up to Qty, instead of failing
+	// when the full quantity cannot be done.
+	Clamp bool `json:"clamp"`
 }
 
-// trade builds the buy or sell handler; both share one request shape.
-func (h *Game) trade(action func(*domain.Game, domain.Config, domain.Resource, int) error) gin.HandlerFunc {
+// trade builds the buy or sell handler; both share one request shape. The
+// all-or-nothing action is used unless the request sets clamp.
+func (h *Game) trade(exact, clamped func(*domain.Game, domain.Config, domain.Resource, int) error) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req tradeRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -161,6 +165,10 @@ func (h *Game) trade(action func(*domain.Game, domain.Config, domain.Resource, i
 		if !req.Resource.Valid() {
 			abort(c, http.StatusBadRequest, "invalid_resource", "Unknown resource.")
 			return
+		}
+		action := exact
+		if req.Clamp {
+			action = clamped
 		}
 		h.mutate(c, func(g *domain.Game) error { return action(g, h.cfg, req.Resource, req.Qty) })
 	}

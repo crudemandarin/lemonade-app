@@ -561,3 +561,27 @@ func TestGameViewCarriesTheProjection(t *testing.T) {
 		t.Fatalf("unexpected JSON shape: %s", rec.Body)
 	}
 }
+
+func TestClampedTrades(t *testing.T) {
+	e := newEnv(t)
+	e.login("joe12")
+
+	// Without clamp an oversize buy fails whole.
+	rec := e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 20})
+	e.wantError(rec, http.StatusConflict, "capacity_exceeded")
+
+	// With clamp it buys what fits: $1000 buys 45 at $22, but a Pantry holds 10.
+	rec = e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 1_000_000, "clamp": true})
+	v := decode[gameViewDTO](t, rec)
+	if rec.Code != 200 || v.Resources[0].Stock != 10 || v.Capital != 1000-10*22 {
+		t.Fatalf("clamped buy: %d stock=%d capital=%d", rec.Code, v.Resources[0].Stock, v.Capital)
+	}
+	e.wantError(e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 5, "clamp": true}), http.StatusConflict, "capacity_exceeded")
+
+	rec = e.do("POST", "/api/game/sell", "joe12", map[string]any{"resource": "lemon", "qty": 1_000_000, "clamp": true})
+	v = decode[gameViewDTO](t, rec)
+	if rec.Code != 200 || v.Resources[0].Stock != 0 {
+		t.Fatalf("clamped sell: %d stock=%d", rec.Code, v.Resources[0].Stock)
+	}
+	e.wantError(e.do("POST", "/api/game/sell", "joe12", map[string]any{"resource": "lemon", "qty": 5, "clamp": true}), http.StatusConflict, "insufficient_stock")
+}
