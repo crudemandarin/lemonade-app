@@ -52,6 +52,8 @@ func sellAll(g *Game, cfg Config, r Resource) {
 type player struct {
 	forgetIce float64 // buys the other inputs but forgets the ice, so no lemonade is made
 	overspend float64 // invests without keeping a cash cushion
+	// upgrades: also buys upgrades whose payback at base prices is short (see upgraderRule).
+	upgrades bool
 }
 
 // grower plays carefully. sloppy makes the occasional mistake, as a human might.
@@ -151,6 +153,9 @@ func owner(cfg Config, seed int64, days int, p player) simResult {
 			}
 			break
 		}
+		if p.upgrades {
+			buyPayingUpgrades(&g, cfg)
+		}
 		if res.fullL1Day == 0 && g.ProductionQty == cfg.MaxQuantity && g.ProductionLevel == 1 {
 			res.fullL1Day = d
 		}
@@ -179,6 +184,70 @@ func owner(cfg Config, seed int64, days int, p player) simResult {
 		}
 	}
 	return res
+}
+
+// upgrader is the careful grower that also buys upgrades: whenever an upgrade would pay
+// for itself within upgraderPayback days at base prices and the cash cushion allows it.
+func upgrader(cfg Config, seed int64, days int) simResult {
+	return owner(cfg, seed, days, player{upgrades: true})
+}
+
+// upgraderPayback is the longest payback, in days, at which the upgrader buys.
+const upgraderPayback = 20
+
+// upgradeDailyGain is what an upgrade would add per day at base prices, for the effects
+// a steady producer can use: extra output from a yield bonus, and the price a deeper
+// market saves on a full day's sales. Effects that only help a player who trades
+// around them (freezer, forecast, quality of life) are worth nothing to this bot.
+func upgradeDailyGain(g Game, cfg Config, u UpgradeDef) float64 {
+	gain := 0.0
+	capacity := ProductionCapacity(g, cfg)
+	bid := float64(cfg.BasePrice[Lemonade]) * (1 - cfg.Spread)
+	for _, e := range u.Effects {
+		switch e.Kind {
+		case "yield_bonus":
+			gain += e.Value / 100 * float64(capacity) * bid
+		case "depth_bonus":
+			if e.Target != string(Lemonade) {
+				continue
+			}
+			with := g.Clone()
+			with.Upgrades[u.Key] = 1
+			steady := func(x *Game) int {
+				x.SellPressure[Lemonade] = float64(capacity) // what a full day of sales leaves at dawn
+				return QuoteSell(*x, cfg, Lemonade, capacity, false).Total
+			}
+			base := g.Clone()
+			gain += float64(steady(&with) - steady(&base))
+		}
+	}
+	return gain
+}
+
+// buyPayingUpgrades buys every upgrade that pays back fast enough and leaves the same cash
+// cushion as any other reinvestment. Locked and unaffordable ones are skipped.
+func buyPayingUpgrades(g *Game, cfg Config) {
+	// The jump to level 2 (a market three and a half times deeper) comes first: a level-1
+	// business that spends its savings on gadgets stays stuck at level 1 and starves.
+	if g.WarehouseLevel < 2 {
+		return
+	}
+	for _, u := range cfg.Upgrades {
+		if g.Owns(u.Key) || u.Cost > g.Capital || UpgradeLock(*g, cfg, u) != nil {
+			continue
+		}
+		gain := upgradeDailyGain(*g, cfg, u) - float64(u.Upkeep)
+		if gain <= 0 || float64(u.Cost)/gain > upgraderPayback {
+			continue
+		}
+		after := g.Clone()
+		after.Upgrades[u.Key] = 1
+		// A long cushion (12 days of upkeep): an upgrade cannot be sold back.
+		cushion := 12*TotalUpkeep(after, cfg) + unitCost(after, cfg)*ProductionCapacity(after, cfg)*3/10
+		if g.Capital-u.Cost >= cushion {
+			_ = BuyUpgrade(g, cfg, u.Key)
+		}
+	}
 }
 
 // careless: random buys, sells, and facility spending with no plan.
@@ -297,6 +366,8 @@ func TestBalanceReport(t *testing.T) {
 	}
 	cfg := DefaultConfig()
 	report("grower", cfg, grower, 120, 200)
+	report("upgrader", cfg, upgrader, 120, 200)
+	upgraderSummary(cfg, 200)
 	report("sloppy", cfg, sloppy, 45, 200)
 	report("careless", cfg, careless, 60, 200)
 	report("idle", cfg, idle, 100, 50)
@@ -309,6 +380,27 @@ func TestBalanceReport(t *testing.T) {
 	exploitSummary(cfg, 200)
 	avg, neg, thin, p5, p50, p95 := marginStats(cfg, 300, 200)
 	fmt.Printf("margin per lemonade (bid - input asks): avg $%.1f | median $%d | p5 $%d p95 $%d | unprofitable %.1f%% of days | under $10: %.1f%%\n", avg, p50, p5, p95, neg, thin)
+}
+
+// upgraderSummary compares the upgrader with the careful grower it would otherwise be:
+// the median of the day-90 capital ratio, and how often it is ahead.
+func upgraderSummary(cfg Config, seeds int) {
+	var ratio []int
+	ahead, bankrupt := 0, 0
+	for s := int64(1); s <= int64(seeds); s++ {
+		a, b := capAt(upgrader(cfg, s, 90), 90), capAt(grower(cfg, s, 90), 90)
+		if b > 0 {
+			ratio = append(ratio, 100*a/b)
+		}
+		if a > b {
+			ahead++
+		}
+		if a == 0 {
+			bankrupt++
+		}
+	}
+	fmt.Printf("upgrader vs grower at day 90: median %d%% of the grower's capital | ahead in %d%% of seeds | upgrader bankrupt %d%%\n",
+		median(ratio), 100*ahead/seeds, 100*bankrupt/seeds)
 }
 
 // exploitSummary prints the numbers the balance targets are stated in: how often the
@@ -443,5 +535,71 @@ func TestBalancePacing(t *testing.T) {
 		if d := median(maxed); d < 45 {
 			t.Errorf("a careful player has bought everything by day %d (median), want day 45 or later: there is too little left to work toward", d)
 		}
+	}
+}
+
+// No single upgrade may carry the late game: knocking out any one of the upgrades the
+// upgrader can buy today must not delay "everything maxed" by more than 10 days, and the
+// upgrader must beat the plain grower at day 90 without going bankrupt more often.
+func TestBalanceNoSingleUpgradeIsIndispensable(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow")
+	}
+	const seeds = 20
+	medianMaxed := func(cfg Config) int {
+		var days []int
+		for s := int64(1); s <= seeds; s++ {
+			if d := upgrader(cfg, s, 120).maxedDay; d > 0 {
+				days = append(days, d)
+			} else {
+				days = append(days, 121)
+			}
+		}
+		return median(days)
+	}
+	full := DefaultConfig()
+	all := medianMaxed(full)
+	for _, u := range full.Upgrades {
+		if u.Requires.Era > Era(Game{}, full) {
+			continue // locked until Empire lands: the bot cannot buy it
+		}
+		cfg := full
+		cfg.Upgrades = nil
+		for _, o := range full.Upgrades {
+			if o.Key != u.Key {
+				cfg.Upgrades = append(cfg.Upgrades, o)
+			}
+		}
+		if without := medianMaxed(cfg); without-all > 10 {
+			t.Errorf("without %s everything maxes on day %d instead of %d: one upgrade is worth more than 10 days", u.Key, without, all)
+		}
+	}
+}
+
+func TestBalanceUpgraderBeatsTheGrowerWithoutMoreBankruptcies(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow")
+	}
+	cfg := DefaultConfig()
+	var ratio []int
+	deadU, deadG := 0, 0
+	const seeds = 60
+	for s := int64(1); s <= seeds; s++ {
+		u, g := upgrader(cfg, s, 90), grower(cfg, s, 90)
+		if u.bankrupt > 0 {
+			deadU++
+		}
+		if g.bankrupt > 0 {
+			deadG++
+		}
+		if b := capAt(g, 90); b > 0 {
+			ratio = append(ratio, 100*capAt(u, 90)/b)
+		}
+	}
+	if m := median(ratio); m < 105 || m > 145 {
+		t.Errorf("the upgrader has %d%% of the grower's day-90 capital, want about 110 to 130%%", m)
+	}
+	if deadU > deadG+seeds/20 {
+		t.Errorf("upgrader bankruptcies %d, grower %d of %d", deadU, deadG, seeds)
 	}
 }

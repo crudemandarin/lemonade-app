@@ -90,7 +90,8 @@ Time estimates are rough and cumulative.
 - [ ] **Slice 16: Late game (see `HANDOFF-LATE-GAME-ROADMAP.md`)**
   - [x] Products A: commodities and the lemonade recipe are catalog data (`domain/content`), timeline and price log are maps, EndDay runs the roadmap's named steps, salts in `salts.go`; golden bot runs byte-identical
   - [ ] Goals A: achievements; Goals B: day-100 board
-  - [ ] Upgrades A: upgrade framework and first upgrades; Empire A: territories and rivals
+  - [x] Upgrades A: upgrade framework, first 25 upgrades, Upgrades page, upgrader bot (DECISIONS TBD); achievements rows pending Goals merge
+  - [ ] Empire A: territories and rivals
     - Upgrades A framework commit (safe to merge early for Empire): 5fa8604
   - [ ] Products B: recipes, storage classes, perishables; Empire B: victory and economic cycles
   - [ ] Upgrades B: managers and fast-forward; Products C: contracts

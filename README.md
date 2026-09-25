@@ -122,6 +122,8 @@ BALANCE_REPORT=1 go test ./internal/domain -run TestBalanceReport -v # full repo
 
 The commodities and recipes are data tables in [lemonade-api/internal/domain/content/](lemonade-api/internal/domain/content/) (`commodities.go`, `recipes.go`), each with a validation test. A commodity's base price there seeds `Config.BasePrice`, which stays the tuning knob. Keep the first five commodities in their order: timelines saved before the catalog store stock as arrays in that order.
 
+Upgrades are rows in `content/upgrades.go` (key, name, category, cost, daily upkeep, requirements, typed effects, a plain-words description); a new upgrade that uses an existing effect kind is one row, and a new effect kind needs a hook in `effects.go` plus a test. Numbers to tune: cost and upkeep per row, and the effect values (yield percent, ice kept, depth bonus, discounts). The balance report prints an "upgrader" bot (the careful grower plus upgrades that pay back within 20 days) against the plain grower; a sweep test checks that no single upgrade shortens "everything maxed" by more than 10 days. `TestGoldenBotRuns` stays byte-identical because the existing bots never buy upgrades; do not re-record it.
+
 Changing a price, cost or upkeep also changes a few exact numbers asserted in the API and domain tests (for example the $775 first warehouse upgrade); update those alongside.
 
 ## Known limitations

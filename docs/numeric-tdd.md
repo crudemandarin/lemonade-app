@@ -118,10 +118,10 @@ Costs, sizes and upkeep are per building.
 One atomic step, run as twelve named functions in a fixed order (`endday.go`; the late game tracks fill in the empty ones):
 
 1. Managers act (empty until late game Upgrades B).
-2. Produce the main recipe: `min(rate, stock of each input ÷ its quantity, free output space)` batches.
-3. Freezer rotation (empty until Upgrades A).
-4. Commodities with shelf life "melts nightly" (ice) go to 0; perishables spoil (Products B).
-5. Pay upkeep `Σ buildings × upkeep(level)` (start: $30/day). Upkeep is always owed: a cash shortfall is covered by selling stock at bid (lemonade, lemon, sugar, cup, ice). If that still can't cover it, pay what's left and the game is over.
+2. Produce the main recipe: `min(rate, stock of each input ÷ its quantity, free output space)` batches (an ice machine tops up the ice first; use discounts and yield bonuses add whole cases, carrying the fraction).
+3. Freezer rotation: up to the freezer's capacity of *fresh* ice moves to the "one night old" bucket (production and sales use the oldest ice first).
+4. Commodities with shelf life "melts nightly" (ice) go to 0 except the kept ice; perishables spoil (Products B).
+5. Pay upkeep `Σ buildings × upkeep(level)` (start: $30/day) less upkeep discounts, plus each owned upgrade's upkeep. Upkeep is always owed: a cash shortfall is covered by selling stock at bid (lemonade, lemon, sugar, cup, ice). If that still can't cover it, pay what's left and the game is over.
 6. Record the day on the timeline, then the bankruptcy check.
 7. Day + 1, the market forgets part of the player's recent trading.
 8. Events expire then may spawn (economic cycles follow, Empire B).
@@ -129,6 +129,25 @@ One atomic step, run as twelve named functions in a fixed order (`endday.go`; th
 10. Rivals tick (Empire A). 11. Contract deadlines (Products C). 12. Price log.
 
 Events come before the walk because they share one random stream (`SaltMarket` in `salts.go`); each later random system gets its own salt, so adding one never changes an existing seed's prices.
+
+### Upgrades
+
+One-time purchases (`content/upgrades.go`, about 25 rows so far), bought with `POST /api/game/upgrades/{key}/buy` and listed with `GET /api/game/upgrades`. They cannot be sold and are **not counted in net worth**, so buying one lowers the score by its cost until it pays back. Each has an era, a cost, a daily upkeep, requirements (era, warehouse or production level, other upgrades) and typed **effects**. Effects are a closed set; each kind has one hook in `effects.go` and one test:
+
+| Effect | Hook | Example |
+|---|---|---|
+| `ice_keep_cases` | freezer rotation | `freezer_1` keeps 20 ice one night |
+| `event_damp`, `event_floor` | the price you see, never the event walk | awnings halve Rainy Week; insurance floors products at ×0.9 |
+| `forecast_days` | `Forecast` (exact pre-roll of the events stream) | weather radio 1 day, almanac 3 |
+| `depth_bonus(_pct)`, `input_depth_pct` | free market depth | painted stand +10 lemonade |
+| `input_discount_pct` | input asks | supplier contracts |
+| `upkeep_discount_pct` | facility upkeep | automation line, accountant |
+| `yield_bonus`, `use_discount` | production, fractions carried in `Game.Carry` | citrus press, syrup station |
+| `storage_bonus_pct` | capacity by storage class | bulk racking |
+| `make` | start of production | ice machine |
+| `shelf_life_days`, `unlock`, `qol` | queries for Products B and the app | cold room, oven, order book |
+
+Era comes from `Era(g, cfg)` (always 1 until Empire A replaces it), so era 2 and later rows show as locked ("Reach era 2 first"). Old saves have no upgrades, no kept ice and no carry.
 
 Bankruptcy is only checked here, so spending to $0 mid-day is legal. After game over every action is rejected until "New game" (replaces the row).
 
@@ -215,6 +234,7 @@ JSON, camelCase. The contract is `lemonade-web/src/app/core/api.models.ts`.
 | `POST /api/game/new` | start a fresh run; 409 `run_active` unless the last one is over (bankrupt or given up) |
 | `POST /api/game/give-up` | end the run (`status: gave_up`) and record it; the score is the net worth at that moment |
 | `POST /api/game/facilities/warehouse/sell {resource}` · `.../production/sell` | sell one building back at `ResaleRate` of its build cost; 409 `min_facility` or `stock_exceeds_capacity` |
+| `GET /api/game/upgrades` · `POST /api/game/upgrades/{key}/buy` | every upgrade with its state (owned, available, locked and why); buy one and get the game view. 404 `unknown_upgrade`, 409 `upgrade_owned`, `upgrade_locked`, `insufficient_funds` |
 | `POST /api/game/end-day` | `{report, game}` |
 | `GET /api/health` | liveness only (Cloud Run reserves `/healthz`) |
 
