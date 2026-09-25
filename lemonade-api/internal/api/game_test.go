@@ -574,7 +574,7 @@ func TestGameViewCarriesTheProjection(t *testing.T) {
 	if v.Projection.LemonadeToProduce != 4 || v.Projection.IceToMelt != 3 || v.Projection.LimitedBy != "lemon" {
 		t.Fatalf("after buying: %+v", v.Projection)
 	}
-	if !strings.Contains(rec.Body.String(), `"projection":{"lemonadeToProduce":4,"iceToMelt":3,"limitedBy":"lemon"}`) {
+	if !strings.Contains(rec.Body.String(), `"projection":{"lemonadeToProduce":4,"iceToMelt":3,"iceKept":0,"limitedBy":"lemon"}`) {
 		t.Fatalf("unexpected JSON shape: %s", rec.Body)
 	}
 }

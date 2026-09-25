@@ -12,7 +12,11 @@ func productionTier(cfg Config, level int) Tier {
 
 // Capacity returns the case capacity of one resource's warehouse.
 func Capacity(g Game, cfg Config, r Resource) int {
-	return g.WarehouseQty[r] * warehouseTier(cfg, g.WarehouseLevel).Size
+	base := g.WarehouseQty[r] * warehouseTier(cfg, g.WarehouseLevel).Size
+	if pct := storageBonusPct(g, cfg, r); pct > 0 {
+		return int(float64(base) * (1 + pct/100))
+	}
+	return base
 }
 
 // ProductionCapacity returns lemonade produced per day at full throughput.
@@ -31,17 +35,17 @@ func warehouseBuildings(g Game) int {
 
 // WarehouseUpkeep is the total daily upkeep for all warehouses.
 func WarehouseUpkeep(g Game, cfg Config) int {
-	return warehouseBuildings(g) * warehouseTier(cfg, g.WarehouseLevel).Upkeep
+	return facilityUpkeepAfterDiscount(g, cfg, "warehouse", warehouseBuildings(g)*warehouseTier(cfg, g.WarehouseLevel).Upkeep)
 }
 
 // ProductionUpkeep is the total daily upkeep for the production facility.
 func ProductionUpkeep(g Game, cfg Config) int {
-	return g.ProductionQty * productionTier(cfg, g.ProductionLevel).Upkeep
+	return facilityUpkeepAfterDiscount(g, cfg, "production", g.ProductionQty*productionTier(cfg, g.ProductionLevel).Upkeep)
 }
 
-// TotalUpkeep is the daily upkeep across both facility types.
+// TotalUpkeep is the daily upkeep across both facility types, plus upgrades.
 func TotalUpkeep(g Game, cfg Config) int {
-	return WarehouseUpkeep(g, cfg) + ProductionUpkeep(g, cfg)
+	return WarehouseUpkeep(g, cfg) + ProductionUpkeep(g, cfg) + UpgradeUpkeep(g, cfg)
 }
 
 // ResaleValue is what one building of the given tier sells for.

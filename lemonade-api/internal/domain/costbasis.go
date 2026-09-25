@@ -31,6 +31,10 @@ func (g *Game) removeStock(r Resource, n int) int {
 		removed = 0
 	}
 	g.Inventory[r] -= n
+	if r == Ice {
+		// Ice held over by a freezer is the oldest, so it goes first.
+		g.IceOld = max(0, g.IceOld-n)
+	}
 	if g.CostBasis != nil {
 		g.CostBasis[r] = basis - removed
 	}

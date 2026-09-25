@@ -46,6 +46,8 @@ export interface ResourceView {
   avgCost: number;
   /** Stock value at the bid minus what it cost; negative is a loss. 0 when none is held. */
   unrealizedGain: number;
+  /** The 7-day average price in whole dollars; null without a market analyst. */
+  movingAverage: number | null;
 }
 
 /** What a trade of some size costs (buy) or raises (sell), as the server prices it. */
@@ -222,6 +224,20 @@ export interface GameView {
   runId: string;
   /** The player's top finished run, or null before they have finished one. */
   best: Best | null;
+  /** Convenience features turned on by upgrades, for example `pnl`, `repeat_trades`, `price_alerts`. */
+  features: string[];
+  /** Cases of ice the freezers keep overnight (0 without one). */
+  iceKeepCases: number;
+  /** Events the player's upgrades let them see coming, soonest first. */
+  forecast: ForecastEntry[];
+}
+
+/** An event that will start `daysAhead` days from now (1 is tomorrow). */
+export interface ForecastEntry {
+  daysAhead: number;
+  key: string;
+  name: string;
+  duration: number;
 }
 
 export type EndedBy = 'bankrupt' | 'gave_up';
@@ -272,6 +288,8 @@ export interface RunDetail extends RunSummary {
 export interface Projection {
   lemonadeToProduce: number;
   iceToMelt: number;
+  /** Ice a freezer will keep for tomorrow (part of what would otherwise melt). */
+  iceKept: number;
   limitedBy: Resource | 'production' | 'space' | '';
 }
 
@@ -307,7 +325,16 @@ export interface DayReport {
   day: number;
   produced: number;
   iceMelted: number;
+  /** Ice the freezer kept for the next day. */
+  iceKept: number;
   upkeepPaid: number;
+  /** The part of upkeep owed for upgrades. */
+  upgradeUpkeep: number;
+  /** Ice made overnight by an ice machine, and what it cost. */
+  iceMade: number;
+  iceMadeCost: number;
+  /** The bookkeeper's profit and loss for the day; null without a bookkeeper. */
+  pnl: Pnl | null;
   /** Stock sold at bid because cash alone could not cover upkeep (0 when none). */
   forcedSaleCases: number;
   forcedSaleProceeds: number;
@@ -317,6 +344,47 @@ export interface DayReport {
   newEvents: GameEvent[];
   expiredEvents: GameEvent[];
   bankrupt: boolean;
+}
+
+export interface Pnl {
+  sales: number;
+  purchases: number;
+  facilities: number;
+  upkeep: number;
+  iceMade: number;
+  net: number;
+}
+
+export type UpgradeState = 'owned' | 'available' | 'locked';
+export type UpgradeLockCode = 'era' | 'warehouse_level' | 'production_level' | 'requires_upgrade';
+
+/** One upgrade on the Upgrades page. `lockedReason` is plain words, set only when locked. */
+export interface UpgradeItem {
+  key: string;
+  name: string;
+  category: string;
+  era: number;
+  cost: number;
+  upkeep: number;
+  text: string;
+  state: UpgradeState;
+  lockCode: UpgradeLockCode | '';
+  lockedReason: string;
+}
+
+export interface UpgradeCategory {
+  key: string;
+  name: string;
+}
+
+/** GET /api/game/upgrades. */
+export interface UpgradesResponse {
+  era: number;
+  categories: UpgradeCategory[];
+  upgrades: UpgradeItem[];
+  ownedCount: number;
+  spent: number;
+  upkeepPerDay: number;
 }
 
 export interface EndDayResponse {
