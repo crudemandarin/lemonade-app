@@ -95,6 +95,8 @@ func (h *Game) Register(router gin.IRouter) {
 	g.POST("/territories/:key/enter", h.enterTerritory)
 	g.POST("/territories/:key/campaign", h.campaign)
 	g.POST("/rivals/:key/buyout", h.buyOut)
+	g.POST("/recipes/:key/learn", h.learnRecipe)
+	g.POST("/production-plan", h.setPlan)
 	g.POST("/give-up", h.giveUp)
 	g.GET("/upgrades", h.listUpgrades)
 	g.POST("/upgrades/:key/buy", h.buyUpgrade)

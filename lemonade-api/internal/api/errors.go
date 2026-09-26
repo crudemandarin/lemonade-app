@@ -65,6 +65,21 @@ func abortErr(c *gin.Context, err error) {
 		abort(c, http.StatusBadRequest, "invalid_campaign", "Unknown campaign level.")
 	case errors.Is(err, domain.ErrCampaignRunning):
 		abort(c, http.StatusConflict, "campaign_running", "A campaign is already running there.")
+	case errors.Is(err, domain.ErrUnknownRecipe):
+		abort(c, http.StatusNotFound, "unknown_recipe", "No such recipe.")
+	case errors.Is(err, domain.ErrRecipeKnown):
+		abort(c, http.StatusConflict, "recipe_known", "You already know this recipe.")
+	case errors.Is(err, domain.ErrRecipeLocked):
+		var locked *domain.RecipeLockedError
+		msg := "That recipe is locked."
+		if errors.As(err, &locked) {
+			msg = locked.Reason + "."
+		}
+		abort(c, http.StatusConflict, "recipe_locked", msg)
+	case errors.Is(err, domain.ErrCommodityLocked):
+		abort(c, http.StatusConflict, "commodity_locked", "You have no use for that yet: learn a recipe that needs it first.")
+	case errors.Is(err, domain.ErrPlanRecipe), errors.Is(err, domain.ErrPlanDuplicate), errors.Is(err, domain.ErrPlanTarget):
+		abort(c, http.StatusBadRequest, "invalid_plan", err.Error()+".")
 	case errors.Is(err, store.ErrNotFound):
 		abort(c, http.StatusNotFound, "not_found", "No game found for this user.")
 	default:

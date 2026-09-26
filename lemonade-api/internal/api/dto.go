@@ -41,6 +41,12 @@ type resourceViewDTO struct {
 	UnrealizedGain int `json:"unrealizedGain"`
 	// MovingAverage is the 7-day average price, whole dollars; null without a market analyst.
 	MovingAverage *int `json:"movingAverage"`
+	// Unlocked is false until the player has a use for the commodity (a learned recipe);
+	// locked ones stay out of the market panel. Buyable is false for a byproduct that can
+	// only be sold. ShelfDays is how many days stock keeps (0: it does not spoil).
+	Unlocked  bool `json:"unlocked"`
+	Buyable   bool `json:"buyable"`
+	ShelfDays int  `json:"shelfDays"`
 }
 
 // tradeQuoteDTO is what a trade of some size would cost or raise.
@@ -175,6 +181,8 @@ type commodityDTO struct {
 	StorageClass string          `json:"storageClass"`
 	IsProduct    bool            `json:"isProduct"`
 	Order        int             `json:"order"`
+	// ShelfLifeDays: 0 keeps, -1 melts nightly, otherwise days before it spoils.
+	ShelfLifeDays int `json:"shelfLifeDays"`
 }
 
 func toCommodityDTOs(cfg domain.Config) []commodityDTO {
@@ -182,7 +190,7 @@ func toCommodityDTOs(cfg domain.Config) []commodityDTO {
 	for _, c := range cfg.Commodities {
 		out = append(out, commodityDTO{
 			Key: c.Key, Name: c.Name, Category: c.Category, StorageClass: c.StorageClass,
-			IsProduct: c.Product, Order: c.Order,
+			IsProduct: c.Product, Order: c.Order, ShelfLifeDays: c.ShelfLifeDays,
 		})
 	}
 	return out
@@ -277,6 +285,9 @@ type gameViewDTO struct {
 	Era      int      `json:"era"`
 	EraName  string   `json:"eraName"`
 	NextGoal *goalDTO `json:"nextGoal"`
+	// Recipes are every recipe with its state; Plan is the production plan production follows.
+	Recipes []recipeDTO  `json:"recipes"`
+	Plan    []planRowDTO `json:"plan"`
 	// Unlocked are the achievements this response's mutation just earned ([] otherwise).
 	Unlocked []unlockedDTO `json:"unlocked"`
 }
@@ -324,6 +335,16 @@ type dayReportDTO struct {
 	NewEvents          []gameEventDTO   `json:"newEvents"`
 	ExpiredEvents      []gameEventDTO   `json:"expiredEvents"`
 	Bankrupt           bool             `json:"bankrupt"`
+	// Spoiled is the cases of each perishable that went off overnight; Made is what each
+	// recipe of the plan produced.
+	Spoiled map[string]int `json:"spoiled"`
+	Made    []madeDTO      `json:"made"`
+}
+
+type madeDTO struct {
+	Recipe string          `json:"recipe"`
+	Output domain.Resource `json:"output"`
+	Cases  int             `json:"cases"`
 }
 
 // reportSummaryDTO is one row of the past-days list: enough to scan, without
@@ -368,6 +389,93 @@ type projectionDTO struct {
 	IceToMelt         int    `json:"iceToMelt"`
 	IceKept           int    `json:"iceKept"`
 	LimitedBy         string `json:"limitedBy"`
+	// Plan is what each row of the production plan would make tonight, and what limits it.
+	Plan []planProjectionDTO `json:"plan"`
+	// WillSpoil is the cases of each perishable that would go off tonight (only those that would).
+	WillSpoil map[string]int `json:"willSpoil"`
+}
+
+type planProjectionDTO struct {
+	Recipe    string          `json:"recipe"`
+	Name      string          `json:"name"`
+	Output    domain.Resource `json:"output"`
+	Cases     int             `json:"cases"`
+	LimitedBy string          `json:"limitedBy"`
+}
+
+func toProjection(p domain.Projection) projectionDTO {
+	out := projectionDTO{
+		LemonadeToProduce: p.LemonadeToProduce, IceToMelt: p.IceToMelt, IceKept: p.IceKept, LimitedBy: p.LimitedBy,
+		Plan: make([]planProjectionDTO, 0, len(p.Plan)), WillSpoil: map[string]int{},
+	}
+	for _, r := range p.Plan {
+		out.Plan = append(out.Plan, planProjectionDTO(r))
+	}
+	for r, n := range p.WillSpoil {
+		out.WillSpoil[string(r)] = n
+	}
+	return out
+}
+
+// recipeDTO is one recipe on the Production page. State is known, available (can be
+// learned now) or locked (LockedReason says why, in words).
+type recipeDTO struct {
+	Key          string           `json:"key"`
+	Name         string           `json:"name"`
+	Output       domain.Resource  `json:"output"`
+	OutputQty    int              `json:"outputQty"`
+	Inputs       []recipeInputDTO `json:"inputs"`
+	Era          int              `json:"era"`
+	LearnCost    int              `json:"learnCost"`
+	Text         string           `json:"text"`
+	State        string           `json:"state"`
+	LockCode     string           `json:"lockCode"`
+	LockedReason string           `json:"lockedReason"`
+}
+
+type recipeInputDTO struct {
+	Resource domain.Resource `json:"resource"`
+	Qty      int             `json:"qty"`
+}
+
+type planRowDTO struct {
+	Recipe string `json:"recipe"`
+	Target int    `json:"target"`
+}
+
+func toRecipeDTOs(g domain.Game, cfg domain.Config) []recipeDTO {
+	out := make([]recipeDTO, 0, len(cfg.Recipes))
+	for _, r := range cfg.Recipes {
+		d := recipeDTO{
+			Key: r.Key, Name: r.Name, Output: r.Output, OutputQty: r.OutputQty, Era: r.Era,
+			LearnCost: r.LearnCost, Text: r.Text, Inputs: make([]recipeInputDTO, 0, len(r.Inputs)), State: "known",
+		}
+		for _, in := range r.Inputs {
+			d.Inputs = append(d.Inputs, recipeInputDTO{Resource: in.Resource, Qty: in.Qty})
+		}
+		if !domain.RecipeKnown(g, r) {
+			d.State = "available"
+			if code, reason := domain.RecipeLock(g, cfg, r); code != "" {
+				d.State, d.LockCode, d.LockedReason = "locked", code, reason
+			}
+		}
+		out = append(out, d)
+	}
+	return out
+}
+
+func toPlanRows(g domain.Game, cfg domain.Config) []planRowDTO {
+	rows := domain.EffectivePlan(g, cfg)
+	out := make([]planRowDTO, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, planRowDTO(r))
+	}
+	return out
+}
+
+func commodityNotBought(cfg domain.Config, r domain.Resource) bool {
+	c, ok := cfg.Commodity(r)
+	return ok && c.NotBought
 }
 
 func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
@@ -396,6 +504,9 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 			AvgCost:           domain.AvgCost(g, r),
 			UnrealizedGain:    domain.UnrealizedGain(g, cfg, r),
 			MovingAverage:     movingAverage(g, cfg, m.History),
+			Unlocked:          domain.CommodityUnlocked(g, cfg, r),
+			Buyable:           !commodityNotBought(cfg, r),
+			ShelfDays:         domain.ShelfDays(g, cfg, r),
 		})
 	}
 
@@ -412,7 +523,7 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 		Events:     toEventDTOs(g.Events),
 		Timeline:   toTimelineDTOs(g, cfg),
 		Stats:      statsDTO(g.Stats),
-		Projection: projectionDTO(domain.PreviewEndDay(g, cfg)),
+		Projection: toProjection(domain.PreviewEndDay(g, cfg)),
 		PriceLog:   toPriceLogDTOs(g, cfg),
 		NetWorth:   netWorthDTO(domain.NetWorthBreakdown(g, cfg)),
 		RunID:      g.RunID,
@@ -425,6 +536,8 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 		Era:          domain.Era(g, cfg),
 		EraName:      domain.EraName(g, cfg),
 		NextGoal:     toGoal(g, cfg),
+		Recipes:      toRecipeDTOs(g, cfg),
+		Plan:         toPlanRows(g, cfg),
 		Unlocked:     []unlockedDTO{},
 	}
 }
@@ -631,7 +744,25 @@ func toDayReport(r domain.DayReport) dayReportDTO {
 		NewEvents:          toEventDTOs(r.NewEvents),
 		ExpiredEvents:      toEventDTOs(r.ExpiredEvents),
 		Bankrupt:           r.Bankrupt,
+		Spoiled:            spoiledMap(r.Spoiled),
+		Made:               madeDTOs(r.Made),
 	}
+}
+
+func spoiledMap(m map[domain.Resource]int) map[string]int {
+	out := make(map[string]int, len(m))
+	for r, n := range m {
+		out[string(r)] = n
+	}
+	return out
+}
+
+func madeDTOs(lines []domain.MadeLine) []madeDTO {
+	out := make([]madeDTO, 0, len(lines))
+	for _, l := range lines {
+		out = append(out, madeDTO(l))
+	}
+	return out
 }
 
 func toPnl(p *domain.PnlLine) *pnlDTO {

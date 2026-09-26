@@ -19,7 +19,8 @@ func TestConflictsDerivedFromMultipliers(t *testing.T) {
 			}
 		}
 	}
-	want := map[[2]string]bool{{"heat_wave", "rainy_week"}: true, {"rainy_week", "holiday"}: true}
+	// The bumper crop (era 2) cheapens the lemons a blight makes dear.
+	want := map[[2]string]bool{{"heat_wave", "rainy_week"}: true, {"rainy_week", "holiday"}: true, {"lemon_blight", "bumper_crop"}: true}
 	if len(got) != len(want) {
 		t.Fatalf("conflicting pairs = %v, want %v", got, want)
 	}

@@ -17,6 +17,9 @@ func shelfDays(g Game, cfg Config, r Resource) int {
 	return c.ShelfLifeDays + ExtraShelfLife(g, cfg, c.StorageClass)
 }
 
+// ShelfDays is how many days stock of r can be held before it spoils (0: it keeps).
+func ShelfDays(g Game, cfg Config, r Resource) int { return shelfDays(g, cfg, r) }
+
 // addAged records freshly bought cases of a perishable as age 0.
 func (g *Game) addAged(cfg Config, r Resource, n int) {
 	if n <= 0 || shelfDays(*g, cfg, r) == 0 {

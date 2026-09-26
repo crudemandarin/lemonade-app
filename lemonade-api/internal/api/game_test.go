@@ -179,14 +179,14 @@ func TestGameViewMatchesContract(t *testing.T) {
 	if v.Day != 1 || v.Capital != 1000 || v.Status != domain.StatusActive || v.UpkeepPerDay != 30 {
 		t.Fatalf("view = %+v", v)
 	}
-	if len(v.Resources) != 5 {
-		t.Fatalf("resources = %d", len(v.Resources))
+	if len(v.Resources) != 21 {
+		t.Fatalf("resources = %d, want the original five plus 16 launch goods", len(v.Resources))
 	}
 	wantOrder := []domain.Resource{"lemon", "sugar", "ice", "cup", "lemonade"}
 	wantPrice := []int{20, 10, 10, 10, 90}
 	wantBid := []int{18, 9, 9, 9, 81}
 	wantAsk := []int{22, 11, 11, 11, 99}
-	for i, r := range v.Resources {
+	for i, r := range v.Resources[:5] {
 		if r.Resource != wantOrder[i] || r.Price != wantPrice[i] || r.Bid != wantBid[i] || r.Ask != wantAsk[i] {
 			t.Errorf("resource %d = %+v", i, r)
 		}
@@ -283,7 +283,7 @@ func TestGameViewCarriesTheTimelineAndStats(t *testing.T) {
 	e.login("joe12")
 
 	v := e.game("joe12")
-	if len(v.Timeline) != 1 || v.Timeline[0].Kind != "start" || v.Timeline[0].Capital != 1000 || len(v.Timeline[0].Stock) != 5 {
+	if len(v.Timeline) != 1 || v.Timeline[0].Kind != "start" || v.Timeline[0].Capital != 1000 || len(v.Timeline[0].Stock) != 21 {
 		t.Fatalf("fresh timeline = %+v", v.Timeline)
 	}
 	if v.Stats.PeakCapital != 1000 || v.Stats.PeakDay != 1 {
@@ -578,7 +578,7 @@ func TestGameViewCarriesTheProjection(t *testing.T) {
 	if v.Projection.LemonadeToProduce != 4 || v.Projection.IceToMelt != 3 || v.Projection.LimitedBy != "lemon" {
 		t.Fatalf("after buying: %+v", v.Projection)
 	}
-	if !strings.Contains(rec.Body.String(), `"projection":{"lemonadeToProduce":4,"iceToMelt":3,"iceKept":0,"limitedBy":"lemon"}`) {
+	if !strings.Contains(rec.Body.String(), `"projection":{"lemonadeToProduce":4,"iceToMelt":3,"iceKept":0,"limitedBy":"lemon","plan":`) {
 		t.Fatalf("unexpected JSON shape: %s", rec.Body)
 	}
 }
@@ -679,14 +679,14 @@ func TestGameViewCarriesThePriceLog(t *testing.T) {
 	e.login("joe12")
 
 	v := e.game("joe12")
-	if len(v.PriceLog) != 1 || v.PriceLog[0].Day != 1 || len(v.PriceLog[0].Prices) != 5 || v.PriceLog[0].Prices[4] != 90 {
+	if len(v.PriceLog) != 1 || v.PriceLog[0].Day != 1 || len(v.PriceLog[0].Prices) != 21 || v.PriceLog[0].Prices[4] != 90 {
 		t.Fatalf("start log: %+v", v.PriceLog)
 	}
-	if got := v.BasePrices; len(got) != 5 || got[0] != 20 || got[4] != 90 {
+	if got := v.BasePrices; len(got) != 21 || got[0] != 20 || got[4] != 90 {
 		t.Fatalf("base prices: %v", got)
 	}
 	// The arrays follow the catalog the view carries.
-	if c := v.Commodities; len(c) != 5 || c[0].Key != domain.Lemon || c[4].Key != domain.Lemonade || !c[4].IsProduct {
+	if c := v.Commodities; len(c) != 21 || c[0].Key != domain.Lemon || c[4].Key != domain.Lemonade || !c[4].IsProduct {
 		t.Fatalf("commodities: %+v", c)
 	}
 
@@ -1069,7 +1069,7 @@ func TestRunDetailIsForItsOwnerOnly(t *testing.T) {
 	if d.RunID != run || d.EndedBy != "gave_up" || d.Days != 3 || !d.IsBest || d.Score != d.NetWorth {
 		t.Fatalf("summary: %+v", d.runSummaryDTO)
 	}
-	if len(d.Timeline) == 0 || len(d.PriceLog) != 3 || len(d.BasePrices) != 5 || len(d.Commodities) != 5 || d.Stats.CasesBought != 4 {
+	if len(d.Timeline) == 0 || len(d.PriceLog) != 3 || len(d.BasePrices) != 21 || len(d.Commodities) != 21 || d.Stats.CasesBought != 4 {
 		t.Fatalf("history missing: timeline %d, prices %d, stats %+v", len(d.Timeline), len(d.PriceLog), d.Stats)
 	}
 	if len(d.Reports) != 2 || d.Reports[0].Day != 1 || d.Reports[1].Day != 2 {

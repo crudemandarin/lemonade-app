@@ -39,6 +39,12 @@ type EventDef struct {
 	Excludes []string
 	// Kind groups events for forecasts: EventWeather, EventMarket or EventSupply.
 	Kind string
+	// Era is the first era the event can start in (0 or 1: from the start). Events that
+	// come later stay out of the draw until then, so an early game rolls exactly as before.
+	Era int
+	// Drinks spreads the lemonade multiplier to every other cold drink the player has
+	// unlocked when the event starts (lemon bars and the like are not affected).
+	Drinks bool
 }
 
 // Event kinds. A weather radio forecasts only EventWeather events.
@@ -221,6 +227,7 @@ func DefaultConfig() Config {
 				Duration:    2,
 				Multipliers: map[Resource]float64{Lemonade: 1.4, Ice: 1.3},
 				Excludes:    []string{"rainy_week"}, // no heat wave in the rain
+				Drinks:      true,
 			},
 			{
 				Key:         "rainy_week",
@@ -229,6 +236,7 @@ func DefaultConfig() Config {
 				Description: "Nobody wants lemonade in the rain.",
 				Duration:    3,
 				Multipliers: map[Resource]float64{Lemonade: 0.75},
+				Drinks:      true,
 			},
 			{
 				Key:         "lemon_blight",
@@ -253,6 +261,7 @@ func DefaultConfig() Config {
 				Description: "A local holiday brings out thirsty crowds.",
 				Duration:    1,
 				Multipliers: map[Resource]float64{Lemonade: 1.35},
+				Drinks:      true,
 			},
 			{
 				Key:         "cup_shortage",
@@ -261,6 +270,32 @@ func DefaultConfig() Config {
 				Description: "A supplier shortage drives up cup prices.",
 				Duration:    2,
 				Multipliers: map[Resource]float64{Cup: 1.5},
+			},
+			// Launch set events (late game Products B). They wait for era 2, when their goods exist.
+			{
+				Key: "strawberry_season", Kind: EventSupply, Name: "Strawberry Season", Era: 2, Duration: 5,
+				Description: "Ripe berries flood the market.",
+				Multipliers: map[Resource]float64{"strawberry": 0.6},
+			},
+			{
+				Key: "mint_frost", Kind: EventSupply, Name: "Mint Frost", Era: 2, Duration: 3,
+				Description: "A frost kills the mint.",
+				Multipliers: map[Resource]float64{"mint": 1.8},
+			},
+			{
+				Key: "bee_decline", Kind: EventSupply, Name: "Bee Decline", Era: 2, Duration: 4,
+				Description: "Fewer bees, dearer honey.",
+				Multipliers: map[Resource]float64{"honey": 1.6},
+			},
+			{
+				Key: "bumper_crop", Kind: EventSupply, Name: "Bumper Crop", Era: 2, Duration: 4,
+				Description: "A big harvest of citrus.",
+				Multipliers: map[Resource]float64{Lemon: 0.7, "lime": 0.8},
+			},
+			{
+				Key: "food_blog", Kind: EventMarket, Name: "Food Blog Feature", Era: 2, Duration: 3,
+				Description: "A blogger raves about your bakery.",
+				Multipliers: map[Resource]float64{"lemon_bars": 1.5, "candied_peel": 1.5},
 			},
 		},
 		WarehouseTiers: []Tier{

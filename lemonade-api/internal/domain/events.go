@@ -18,14 +18,14 @@ func tickEvents(g *Game, rng *rand.Rand, cfg Config) (expired, spawned []ActiveE
 	g.Events = remaining
 
 	if rng.Float64() < cfg.EventChance {
-		candidates := eligibleEvents(cfg.Events, g.Events)
+		candidates := eventsInEra(eligibleEvents(cfg.Events, g.Events), Era(*g, cfg))
 		if len(candidates) > 0 {
 			def := candidates[rng.Intn(len(candidates))]
 			active := ActiveEvent{
 				Key:         def.Key,
 				Name:        def.Name,
 				Description: def.Description,
-				Multipliers: def.Multipliers,
+				Multipliers: spreadToDrinks(*g, cfg, def),
 				DaysLeft:    def.Duration,
 			}
 			g.Events = append(g.Events, active)
@@ -88,4 +88,35 @@ func conflictsWithActive(d EventDef, all []EventDef, activeKeys map[string]bool)
 		}
 	}
 	return false
+}
+
+// eventsInEra keeps the events that may start in the given era.
+func eventsInEra(defs []EventDef, era int) []EventDef {
+	out := make([]EventDef, 0, len(defs))
+	for _, d := range defs {
+		if d.Era <= era {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// spreadToDrinks is an event's multipliers, with the lemonade multiplier also applied to
+// every other cold drink (a product made with ice) the player has unlocked, when the event
+// is a Drinks one. The event keeps its own map: the definition is never changed.
+func spreadToDrinks(g Game, cfg Config, def EventDef) map[Resource]float64 {
+	m, ok := def.Multipliers[Lemonade]
+	if !def.Drinks || !ok {
+		return def.Multipliers
+	}
+	out := make(map[Resource]float64, len(def.Multipliers)+4)
+	for r, v := range def.Multipliers {
+		out[r] = v
+	}
+	for _, rec := range KnownRecipes(g, cfg) {
+		if rec.Output != Lemonade && recipeUses(rec, Ice) > 0 {
+			out[rec.Output] = m
+		}
+	}
+	return out
 }

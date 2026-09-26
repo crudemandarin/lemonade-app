@@ -287,3 +287,43 @@ func TestAZesterSavesPeelAndCandiedPeelUsesIt(t *testing.T) {
 		t.Fatalf("with peel and sugar in stock the candied peel row makes some: %+v", res)
 	}
 }
+
+func TestLaunchEventsWaitForTheirEra(t *testing.T) {
+	cfg := DefaultConfig()
+	g := NewGame(cfg, 1)
+	for _, d := range eventsInEra(cfg.Events, Era(g, cfg)) {
+		if d.Era > 1 {
+			t.Errorf("%s (era %d) can start in era 1", d.Key, d.Era)
+		}
+	}
+	if got := len(eventsInEra(cfg.Events, 2)); got != len(cfg.Events) {
+		t.Errorf("in era 2 every event is in the draw, got %d of %d", got, len(cfg.Events))
+	}
+}
+
+func TestDrinkEventsSpreadToUnlockedColdDrinksOnly(t *testing.T) {
+	g, cfg := stocked(t)
+	learnAll(&g, cfg)
+	var heat EventDef
+	for _, d := range cfg.Events {
+		if d.Key == "heat_wave" {
+			heat = d
+		}
+	}
+	m := spreadToDrinks(g, cfg, heat)
+	for _, drink := range []Resource{"limeade", "mint_lemonade", "strawberry_lemonade", Lemonade} {
+		if m[drink] != 1.4 {
+			t.Errorf("%s should get the heat wave: %v", drink, m[drink])
+		}
+	}
+	if _, ok := m["lemon_bars"]; ok {
+		t.Error("lemon bars are not a cold drink")
+	}
+	if len(heat.Multipliers) != 2 {
+		t.Errorf("the definition must not change: %v", heat.Multipliers)
+	}
+	fresh := NewGame(cfg, 1)
+	if got := spreadToDrinks(fresh, cfg, heat); len(got) != 2 {
+		t.Errorf("a new game only has lemonade and ice: %v", got)
+	}
+}

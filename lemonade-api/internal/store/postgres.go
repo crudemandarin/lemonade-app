@@ -69,6 +69,12 @@ type eventRow struct {
 	DaysLeft    int                `json:"daysLeft"`
 }
 
+// planRowRow is one line of the production plan.
+type planRowRow struct {
+	Recipe string
+	Target int
+}
+
 type territoryRow struct {
 	Entered          bool    `json:"entered"`
 	Share            float64 `json:"share"`
@@ -126,6 +132,11 @@ type gameRow struct {
 	UpgradeSpend int
 	IceOld       int
 	Carry        map[string]float64 `gorm:"type:jsonb;serializer:json"`
+	// Recipes, ProductionPlan and Aged are NULL on rows saved before recipes existed: only
+	// lemonade known, the default plan, no aged stock.
+	Recipes        map[string]bool  `gorm:"type:jsonb;serializer:json"`
+	ProductionPlan []planRowRow     `gorm:"type:jsonb;serializer:json"`
+	Aged           map[string][]int `gorm:"type:jsonb;serializer:json"`
 	// Territories and Rivals are NULL on rows saved before territories existed; fromRow
 	// gives those the Neighborhood at its start share with its catalog rivals.
 	Territories map[string]territoryRow `gorm:"type:jsonb;serializer:json"`
@@ -404,10 +415,22 @@ func toRow(g domain.Game) gameRow {
 		UpgradeSpend:    g.UpgradeSpend,
 		IceOld:          g.IceOld,
 		Carry:           make(map[string]float64, len(g.Carry)),
+		Recipes:         make(map[string]bool, len(g.Recipes)),
+		ProductionPlan:  make([]planRowRow, 0, len(g.ProductionPlan)),
+		Aged:            make(map[string][]int, len(g.Aged)),
 		Territories:     make(map[string]territoryRow, len(g.Territories)),
 		Rivals:          make(map[string]rivalRow, len(g.Rivals)),
 		Goals:           g.Goals,
 		NetWorthDay100:  g.NetWorthDay100,
+	}
+	for k, v := range g.Recipes {
+		row.Recipes[k] = v
+	}
+	for _, p := range g.ProductionPlan {
+		row.ProductionPlan = append(row.ProductionPlan, planRowRow(p))
+	}
+	for r, ages := range g.Aged {
+		row.Aged[string(r)] = append([]int(nil), ages...)
 	}
 	for k, v := range g.Upgrades {
 		row.Upgrades[k] = v
@@ -486,8 +509,19 @@ func fromRow(row gameRow) domain.Game {
 		UpgradeSpend:    row.UpgradeSpend,
 		IceOld:          row.IceOld,
 		Carry:           make(map[string]float64, len(row.Carry)),
+		Recipes:         make(map[string]bool, len(row.Recipes)),
+		Aged:            make(map[domain.Resource][]int, len(row.Aged)),
 		Goals:           row.Goals,
 		NetWorthDay100:  row.NetWorthDay100,
+	}
+	for k, v := range row.Recipes {
+		g.Recipes[k] = v
+	}
+	for _, p := range row.ProductionPlan {
+		g.ProductionPlan = append(g.ProductionPlan, domain.PlanRow(p))
+	}
+	for r, ages := range row.Aged {
+		g.Aged[domain.Resource(r)] = append([]int(nil), ages...)
 	}
 	for k, v := range row.Upgrades {
 		g.Upgrades[k] = v
@@ -559,6 +593,7 @@ func fromRow(row gameRow) domain.Game {
 	// Games saved before territories existed enter the Neighborhood at its start share.
 	domain.SeedEmpire(&g, domain.DefaultConfig())
 	// Games saved before cost basis existed get an approximate one.
+	domain.SeedMarkets(&g, domain.DefaultConfig())
 	domain.SeedCostBasis(&g)
 	domain.SeedPriceLog(&g)
 	return g
