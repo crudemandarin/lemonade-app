@@ -225,7 +225,7 @@ func (m *Memory) board(kind Board) []ScoreRow {
 		row := ScoreRow{
 			UserID: uid, Username: m.usernameOf(uid), RunID: r.RunID, Score: v,
 			Days: r.Days, NetWorth: r.NetWorth, CreatedAt: m.runMeta[r.RunID].createdAt,
-			Achievements: len(m.achievements[uid]),
+			Achievements: len(m.achievements[uid]), WonOnDay: r.WonOnDay,
 		}
 		if kind == BoardDay100 {
 			row.Days, row.NetWorth = domain.BoardDay, v

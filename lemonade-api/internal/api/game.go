@@ -259,6 +259,7 @@ func (h *Game) mutateAchieving(c *gin.Context, mayFinish bool, action func(g *do
 		if err != nil {
 			return e, err
 		}
+		domain.RecordVictory(g, h.cfg)
 		e.Unlocked = domain.Evaluate(content.Achievements, before, *g, h.cfg, history.achievementContext(user.ID, e.Finished, time.Now()))
 		return e, nil
 	})

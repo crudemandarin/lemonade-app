@@ -363,6 +363,7 @@ func TestRecipeAchievementsFollowTheRecipeBook(t *testing.T) {
 // matches End day, and the same seed replays to the same result.
 func diversifiedRun(t *testing.T, seed int64) Game {
 	cfg := DefaultConfig()
+	cfg.CycleChance = 0
 	g := NewGame(cfg, seed)
 	g.Capital = 2_000_000
 	g.Territories["city"] = TerritoryState{Entered: true, Share: 10}

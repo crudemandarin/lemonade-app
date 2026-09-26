@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core';
 
-import { ForecastEntry, GameEvent, Resource } from '../../../../core/api.models';
+import { EconomicCycle, ForecastEntry, GameEvent, Resource } from '../../../../core/api.models';
 import { resourceLabel } from '../../../../core/resources';
 import { HelpLinkComponent } from '../../../../shared/help/help-link.component';
 import { IconComponent } from '../../../../shared/icon/icon.component';
@@ -17,6 +17,14 @@ export class EventsBannerComponent {
   readonly events = input.required<GameEvent[]>();
   /** Events the player's upgrades let them see coming. */
   readonly forecast = input<ForecastEntry[]>([]);
+  /** The running economic cycle, a slow regime shown as its own line. */
+  readonly cycle = input<EconomicCycle | null>(null);
+
+  protected cycleLine(c: EconomicCycle): string {
+    const left =
+      c.daysLeft === null ? '' : ` (${c.daysLeft} ${c.daysLeft === 1 ? 'day' : 'days'} left)`;
+    return `${c.name}${left}: ${c.text}`;
+  }
 
   protected when(entry: ForecastEntry): string {
     return entry.daysAhead === 1 ? 'Tomorrow' : `In ${entry.daysAhead} days`;

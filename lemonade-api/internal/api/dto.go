@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"math"
+	"slices"
 
 	"lemonade-api/internal/domain"
 	"lemonade-api/internal/domain/content"
@@ -288,6 +289,13 @@ type gameViewDTO struct {
 	// Recipes are every recipe with its state; Plan is the production plan production follows.
 	Recipes []recipeDTO  `json:"recipes"`
 	Plan    []planRowDTO `json:"plan"`
+	// Cycle is the running economic cycle (null when stable). DaysLeft is only sent with
+	// the chief economist.
+	Cycle *cycleDTO `json:"cycle"`
+	// WonOnDay is the day the run met the victory condition (0: not yet), WonNetWorth the
+	// net worth then; the run keeps playing.
+	WonOnDay    int `json:"wonOnDay"`
+	WonNetWorth int `json:"wonNetWorth"`
 	// Unlocked are the achievements this response's mutation just earned ([] otherwise).
 	Unlocked []unlockedDTO `json:"unlocked"`
 }
@@ -339,6 +347,9 @@ type dayReportDTO struct {
 	// recipe of the plan produced.
 	Spoiled map[string]int `json:"spoiled"`
 	Made    []madeDTO      `json:"made"`
+	// CycleStarted and CycleEnded name an economic cycle that began or ended overnight.
+	CycleStarted string `json:"cycleStarted"`
+	CycleEnded   string `json:"cycleEnded"`
 }
 
 type madeDTO struct {
@@ -538,6 +549,9 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 		NextGoal:     toGoal(g, cfg),
 		Recipes:      toRecipeDTOs(g, cfg),
 		Plan:         toPlanRows(g, cfg),
+		Cycle:        toCycle(g, cfg),
+		WonOnDay:     g.WonOnDay,
+		WonNetWorth:  g.WonNetWorth,
 		Unlocked:     []unlockedDTO{},
 	}
 }
@@ -746,6 +760,8 @@ func toDayReport(r domain.DayReport) dayReportDTO {
 		Bankrupt:           r.Bankrupt,
 		Spoiled:            spoiledMap(r.Spoiled),
 		Made:               madeDTOs(r.Made),
+		CycleStarted:       cycleName(r.CycleStarted),
+		CycleEnded:         cycleName(r.CycleEnded),
 	}
 }
 
@@ -771,4 +787,34 @@ func toPnl(p *domain.PnlLine) *pnlDTO {
 	}
 	d := pnlDTO(*p)
 	return &d
+}
+
+type cycleDTO struct {
+	Key      string `json:"key"`
+	Name     string `json:"name"`
+	Text     string `json:"text"`
+	DaysLeft *int   `json:"daysLeft"`
+}
+
+func toCycle(g domain.Game, cfg domain.Config) *cycleDTO {
+	d, ok := domain.ActiveCycle(g)
+	if !ok {
+		return nil
+	}
+	out := &cycleDTO{Key: d.Key, Name: d.Name, Text: d.Text}
+	if slices.Contains(domain.Features(g, cfg), "cycle_days") {
+		days := g.Cycle.DaysLeft
+		out.DaysLeft = &days
+	}
+	return out
+}
+
+// cycleName is the display name of a cycle key, "" for none.
+func cycleName(key string) string {
+	for _, d := range content.Cycles {
+		if d.Key == key {
+			return d.Name
+		}
+	}
+	return ""
 }

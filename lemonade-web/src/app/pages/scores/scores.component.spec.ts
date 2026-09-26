@@ -170,7 +170,10 @@ describe('ScoresComponent day 100 board', () => {
     fixture.detectChanges();
     http.expectOne('/api/scores').flush({
       board: 'all_time',
-      rows: [scoreRow({ username: 'amy34', achievements: 7 })],
+      rows: [
+        scoreRow({ username: 'amy34', achievements: 7 }),
+        scoreRow({ rank: 2, username: 'winner1', wonOnDay: 151 }),
+      ],
       me: null,
     });
     await settle();
@@ -183,6 +186,14 @@ describe('ScoresComponent day 100 board', () => {
     fixture.detectChanges();
   };
   const text = () => el.textContent!.replace(/\s+/g, ' ');
+
+  it('marks a run that won the game, with the day in a tooltip', () => {
+    const rows = el.querySelectorAll('tbody tr');
+    expect(rows[0].querySelector('.won')).toBeNull();
+    const badge = rows[1].querySelector('.won')!;
+    expect(badge.textContent!.trim()).toBe('Won');
+    expect(badge.getAttribute('title')).toContain('day 151');
+  });
 
   it('shows each row with its achievement count as a number', () => {
     const row = el.querySelector('tbody tr')!;

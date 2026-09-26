@@ -44,6 +44,15 @@
       </dd>
     }
 
+    @if (r.cycleStarted) {
+      <dt>Economy</dt>
+      <dd>{{ r.cycleStarted }} begins</dd>
+    }
+    @if (r.cycleEnded) {
+      <dt>Economy</dt>
+      <dd>{{ r.cycleEnded }} ends</dd>
+    }
+
     @for (e of r.newEvents; track e.key) {
       <dt>New event</dt>
       <dd>{{ e.name }}</dd>

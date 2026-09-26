@@ -81,6 +81,14 @@ type Game struct {
 	ProductionPlan []PlanRow
 	Aged           map[Resource][]int
 
+	// Cycle is the running economic regime (see cycles.go).
+	Cycle CycleState
+
+	// WonOnDay is the day the run first met the victory condition (0: not yet), and
+	// WonNetWorth the net worth then. The run keeps playing; see victory.go.
+	WonOnDay    int
+	WonNetWorth int
+
 	// Goals are run-scoped facts only achievements read; see goals.go.
 	Goals GoalStats
 
@@ -134,8 +142,10 @@ type DayReport struct {
 	CapitalAfter       int
 	PriceChanges       []PriceChange
 	NewEvents          []ActiveEvent
-	ExpiredEvents      []ActiveEvent
-	Bankrupt           bool
+	// CycleStarted and CycleEnded name an economic regime that began or ended overnight.
+	CycleStarted, CycleEnded string
+	ExpiredEvents            []ActiveEvent
+	Bankrupt                 bool
 }
 
 // Clone returns a deep copy, so stores and tests never alias a live game's maps.

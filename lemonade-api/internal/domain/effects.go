@@ -102,6 +102,7 @@ func effectivePriceFor(g Game, cfg Config, walked float64, r Resource) int {
 			price *= m
 		}
 	}
+	price *= priceDrift(g)
 	rounded := int(math.Round(price))
 	if rounded < 1 {
 		rounded = 1

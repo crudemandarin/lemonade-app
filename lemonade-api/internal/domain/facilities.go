@@ -126,7 +126,8 @@ func ProductionUpkeep(g Game, cfg Config) int {
 
 // TotalUpkeep is the daily upkeep across both facility types, the hubs and upgrades.
 func TotalUpkeep(g Game, cfg Config) int {
-	return WarehouseUpkeep(g, cfg) + ProductionUpkeep(g, cfg) + HubUpkeep(g, cfg) + UpgradeUpkeep(g, cfg)
+	base := WarehouseUpkeep(g, cfg) + ProductionUpkeep(g, cfg) + HubUpkeep(g, cfg) + UpgradeUpkeep(g, cfg)
+	return base + cycleUpkeep(g, base)
 }
 
 // ResaleValue is what one building of the given tier sells for.

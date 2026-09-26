@@ -64,4 +64,28 @@ describe('EventsBannerComponent', () => {
     ).map((l) => l.textContent!.replace(/\s+/g, ' ').trim());
     expect(lines).toEqual(['Tomorrow: Heat Wave, for 2 days', 'In 3 days: Holiday, for 1 day']);
   });
+
+  it('shows the economic cycle as its own line, with days left only when known', () => {
+    fixture = TestBed.createComponent(EventsBannerComponent);
+    fixture.componentRef.setInput('events', []);
+    fixture.componentRef.setInput('cycle', {
+      key: 'boom',
+      name: 'Boom',
+      text: 'Customers are spending.',
+      daysLeft: null,
+    });
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.cycle')?.textContent).toContain('Boom: Customers are spending.');
+    expect(el.querySelector('.cycle')?.textContent).not.toContain('left');
+
+    fixture.componentRef.setInput('cycle', {
+      key: 'boom',
+      name: 'Boom',
+      text: 'Customers are spending.',
+      daysLeft: 1,
+    });
+    fixture.detectChanges();
+    expect(el.querySelector('.cycle')?.textContent).toContain('Boom (1 day left)');
+  });
 });

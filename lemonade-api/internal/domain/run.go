@@ -21,6 +21,10 @@ type RunRecord struct {
 	PriceLog []PricePoint
 	// NetWorthDay100 is the run's net worth on arriving at BoardDay, nil if it ended earlier.
 	NetWorthDay100 *int
+	// WonOnDay is the day the run met the victory condition (0: never) and WonNetWorth the
+	// net worth then. The run is still scored by its final net worth.
+	WonOnDay    int
+	WonNetWorth int
 }
 
 // Effects are what a mutation produced beyond changing the game. The store saves
@@ -53,5 +57,7 @@ func FinishRun(g Game, cfg Config, endedBy string) RunRecord {
 		PriceLog: c.PriceLog,
 
 		NetWorthDay100: c.NetWorthDay100,
+		WonOnDay:       g.WonOnDay,
+		WonNetWorth:    g.WonNetWorth,
 	}
 }

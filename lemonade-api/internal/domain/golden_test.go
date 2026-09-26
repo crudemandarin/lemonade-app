@@ -70,6 +70,8 @@ func goldenLine(g Game, cfg Config, r DayReport) string {
 
 func TestGoldenBotRuns(t *testing.T) {
 	cfg := DefaultConfig()
+	// Cycles came after the recording; without them play must stay byte-identical.
+	cfg.CycleChance = 0
 	bots := []struct {
 		name string
 		run  func(Config, int64, int) simResult

@@ -75,6 +75,13 @@ type planRowRow struct {
 	Target int
 }
 
+// cycleRow is the running economic regime.
+type cycleRow struct {
+	Key      string
+	DaysLeft int
+	Drift    float64
+}
+
 type territoryRow struct {
 	Entered          bool    `json:"entered"`
 	Share            float64 `json:"share"`
@@ -145,6 +152,11 @@ type gameRow struct {
 	Goals domain.GoalStats `gorm:"type:jsonb;serializer:json"`
 	// NetWorthDay100 is NULL until the run reaches day 100 (and on older rows).
 	NetWorthDay100 *int `gorm:"column:net_worth_day100"`
+	// Cycle is NULL on rows saved before economic cycles; WonOnDay and WonNetWorth are the
+	// victory record (0: not won).
+	Cycle       cycleRow `gorm:"type:jsonb;serializer:json"`
+	WonOnDay    int
+	WonNetWorth int
 
 	UpdatedAt time.Time
 }
@@ -177,8 +189,11 @@ type runRow struct {
 	PriceLog   []priceRow `gorm:"type:jsonb;serializer:json"`
 	// NetWorthDay100 is the net worth on arriving at day 100; NULL when the run ended
 	// earlier and for runs stored before the day-100 board existed.
-	NetWorthDay100 *int      `gorm:"column:net_worth_day100"`
-	CreatedAt      time.Time `gorm:"index:idx_runs_user_created,priority:2,sort:desc"`
+	NetWorthDay100 *int `gorm:"column:net_worth_day100"`
+	// WonOnDay and WonNetWorth are the victory record of the run (0: never won).
+	WonOnDay    int
+	WonNetWorth int
+	CreatedAt   time.Time `gorm:"index:idx_runs_user_created,priority:2,sort:desc"`
 }
 
 func (runRow) TableName() string { return "runs" }
@@ -364,6 +379,7 @@ func saveEffects(tx *gorm.DB, userID uint, g domain.Game, e domain.Effects) erro
 			NetWorth: r.NetWorth, Capital: r.Capital, EndedBy: r.EndedBy,
 			Timeline: make([]pointRow, 0, len(r.Timeline)), Stats: statsRow(r.Stats),
 			PriceLog: make([]priceRow, 0, len(r.PriceLog)), NetWorthDay100: r.NetWorthDay100,
+			WonOnDay: r.WonOnDay, WonNetWorth: r.WonNetWorth,
 		}
 		for _, p := range r.Timeline {
 			row.Timeline = append(row.Timeline, pointRow{
@@ -422,6 +438,9 @@ func toRow(g domain.Game) gameRow {
 		Rivals:          make(map[string]rivalRow, len(g.Rivals)),
 		Goals:           g.Goals,
 		NetWorthDay100:  g.NetWorthDay100,
+		Cycle:           cycleRow(g.Cycle),
+		WonOnDay:        g.WonOnDay,
+		WonNetWorth:     g.WonNetWorth,
 	}
 	for k, v := range g.Recipes {
 		row.Recipes[k] = v
@@ -513,6 +532,9 @@ func fromRow(row gameRow) domain.Game {
 		Aged:            make(map[domain.Resource][]int, len(row.Aged)),
 		Goals:           row.Goals,
 		NetWorthDay100:  row.NetWorthDay100,
+		Cycle:           domain.CycleState(row.Cycle),
+		WonOnDay:        row.WonOnDay,
+		WonNetWorth:     row.WonNetWorth,
 	}
 	for k, v := range row.Recipes {
 		g.Recipes[k] = v
@@ -624,10 +646,11 @@ WITH best AS (
 ), ranked AS (
   SELECT ROW_NUMBER() OVER (ORDER BY b.score DESC, b.created_at ASC, b.id ASC) AS rank,
          b.user_id, u.username, b.run_id, b.score, b.days, b.net_worth, b.created_at,
-         (SELECT COUNT(*) FROM achievements a WHERE a.user_id = b.user_id) AS achievements
+         (SELECT COUNT(*) FROM achievements a WHERE a.user_id = b.user_id) AS achievements,
+         COALESCE((SELECT w.won_on_day FROM runs w WHERE w.run_id = b.run_id), 0) AS won_on_day
   FROM best b JOIN users u ON u.id = b.user_id
 )
-SELECT rank, user_id, username, run_id, score, days, net_worth, created_at, achievements FROM ranked`
+SELECT rank, user_id, username, run_id, score, days, net_worth, created_at, achievements, won_on_day FROM ranked`
 }
 
 type scoreScan struct {
@@ -641,6 +664,8 @@ type scoreScan struct {
 	CreatedAt time.Time
 	// Achievements is how many achievements the player has unlocked.
 	Achievements int
+	// WonOnDay is the day the row's run won the game (0: it did not).
+	WonOnDay int
 }
 
 func (p *Postgres) TopScores(ctx context.Context, limit int) ([]ScoreRow, error) {

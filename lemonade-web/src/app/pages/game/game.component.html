@@ -57,8 +57,14 @@
         </button>
       </div>
 
-      @if (game.events.length || game.forecast.length) {
-        <app-events-banner [events]="game.events" [forecast]="game.forecast" />
+      <app-victory-banner
+        [runId]="game.runId"
+        [wonOnDay]="game.wonOnDay"
+        [wonNetWorth]="game.wonNetWorth"
+      />
+
+      @if (game.events.length || game.forecast.length || game.cycle) {
+        <app-events-banner [events]="game.events" [forecast]="game.forecast" [cycle]="game.cycle" />
       }
 
       @if (spoilWarning().length) {

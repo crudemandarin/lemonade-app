@@ -145,6 +145,7 @@ func stepEvents(g *Game, cfg Config, rng *rand.Rand, report *DayReport) {
 	report.ExpiredEvents, report.NewEvents = tickEvents(g, rng, cfg)
 	// Rival moves announced a day ago happen now; they draw no random numbers.
 	fireRivalEvents(g, cfg)
+	stepCycles(g, cfg, report)
 }
 
 // effectivePrices is every commodity's effective price right now.
