@@ -1,5 +1,7 @@
 package domain
 
+import "lemonade-api/internal/domain/content"
+
 // NewGame starts a fresh game at Day 1: starting capital, empty inventory, every
 // facility at level 1 quantity 1, and initial market prices (SPEC rules 1-3).
 func NewGame(cfg Config, seed int64) Game {
@@ -9,15 +11,18 @@ func NewGame(cfg Config, seed int64) Game {
 
 	for _, r := range cfg.Resources() {
 		inventory[r] = 0
-		// One building per commodity to start, pooled by class, so a class holding two
-		// commodities (dry: sugar and cups) starts with two.
-		warehouseQty[ClassOf(cfg, r)]++
 		base := cfg.BasePrice[r]
 		market[r] = &ResourceMarket{
 			Price:             float64(base),
 			PreviousEffective: nil,
 			History:           []int{base},
 		}
+	}
+
+	// One building for each of the original five commodities, pooled by class, so a class
+	// holding two of them (dry: sugar and cups) starts with two. Launch goods share these.
+	for _, k := range content.LegacyOrder {
+		warehouseQty[ClassOf(cfg, Resource(k))]++
 	}
 
 	g := Game{
@@ -35,6 +40,8 @@ func NewGame(cfg Config, seed int64) Game {
 		ProductionQty:   1,
 		Market:          market,
 		Upgrades:        make(map[string]int),
+		Recipes:         map[string]bool{},
+		Aged:            map[Resource][]int{},
 		Carry:           make(map[string]float64),
 		Events:          nil,
 	}

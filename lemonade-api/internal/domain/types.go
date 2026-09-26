@@ -73,6 +73,14 @@ type Game struct {
 	// so output stays whole cases; see effects.go.
 	Carry map[string]float64
 
+	// Recipes are the recipes the player has learned (lemonade is always known). The
+	// ProductionPlan is the ordered list production works through each night (nil means
+	// lemonade, as much as possible). Aged holds perishable stock by age in days, index 0
+	// being bought or made today; see recipes.go, plan.go and spoilage.go.
+	Recipes        map[string]bool
+	ProductionPlan []PlanRow
+	Aged           map[Resource][]int
+
 	// Goals are run-scoped facts only achievements read; see goals.go.
 	Goals GoalStats
 
@@ -106,6 +114,10 @@ type DayReport struct {
 	Day       int
 	Produced  int
 	IceMelted int
+	// Spoiled is the cases of each perishable that went off overnight; Made is what each
+	// recipe of the production plan made.
+	Spoiled map[Resource]int
+	Made    []MadeLine
 	// IceKept is ice a freezer moved to tomorrow instead of letting it melt.
 	IceKept    int
 	UpkeepPaid int
@@ -157,6 +169,15 @@ func (g Game) Clone() Game {
 	c.Upgrades = make(map[string]int, len(g.Upgrades))
 	for k, v := range g.Upgrades {
 		c.Upgrades[k] = v
+	}
+	c.Recipes = make(map[string]bool, len(g.Recipes))
+	for k, v := range g.Recipes {
+		c.Recipes[k] = v
+	}
+	c.ProductionPlan = append([]PlanRow(nil), g.ProductionPlan...)
+	c.Aged = make(map[Resource][]int, len(g.Aged))
+	for k, v := range g.Aged {
+		c.Aged[k] = append([]int(nil), v...)
 	}
 	c.Carry = make(map[string]float64, len(g.Carry))
 	for k, v := range g.Carry {

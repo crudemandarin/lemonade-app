@@ -9,6 +9,9 @@ func Buy(g *Game, cfg Config, r Resource, qty int) error {
 	if qty <= 0 {
 		return ErrInvalidQuantity
 	}
+	if err := checkTradable(*g, cfg, r, true); err != nil {
+		return err
+	}
 
 	cost := buyCost(*g, cfg, r, qty, g.Capital)
 	if cost > g.Capital {
@@ -21,6 +24,7 @@ func Buy(g *Game, cfg Config, r Resource, qty int) error {
 	plain := Quotes(*g, cfg)[r].Ask * qty
 	g.Capital -= cost
 	g.Inventory[r] += qty
+	g.addAged(cfg, r, qty)
 	g.addBasis(r, cost)
 	g.addPressure(true, r, qty)
 	g.Stats.CasesBought += qty
@@ -139,6 +143,9 @@ func BuyClamped(g *Game, cfg Config, r Resource, qty int) error {
 	}
 	if qty <= 0 {
 		return ErrInvalidQuantity
+	}
+	if err := checkTradable(*g, cfg, r, true); err != nil {
+		return err
 	}
 	n := QuoteBuy(*g, cfg, r, qty, true).Qty
 	if n == 0 {

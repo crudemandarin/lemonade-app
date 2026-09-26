@@ -27,7 +27,12 @@ func TestNewGame(t *testing.T) {
 			t.Errorf("inventory[%s] = %d, want 0", r, g.Inventory[r])
 		}
 		// One building per commodity, pooled by storage class: dry holds sugar and cups.
-		want := len(ClassMembers(cfg, ClassOf(cfg, r)))
+		want := 0
+		for _, o := range Resources {
+			if ClassOf(cfg, o) == ClassOf(cfg, r) {
+				want++
+			}
+		}
 		if g.WarehouseQty[ClassOf(cfg, r)] != want {
 			t.Errorf("warehouseQty[%s] = %d, want %d", r, g.WarehouseQty[ClassOf(cfg, r)], want)
 		}

@@ -35,7 +35,7 @@ func TestProductionConservesCost(t *testing.T) {
 		inputsBefore += g.CostBasis[r]
 	}
 
-	if n := produce(&g, cfg); n != 7 {
+	if n := producedTotal(produce(&g, cfg)); n != 7 {
 		t.Fatalf("produced %d", n)
 	}
 	inputsAfter := 0

@@ -62,7 +62,13 @@ func stepManagers(g *Game, cfg Config, report *DayReport) {}
 // Step 2: production converts inputs to products. An ice machine tops up the ice first.
 func stepProduce(g *Game, cfg Config, report *DayReport) {
 	report.IceMade, report.IceMadeCost = makeInputs(g, cfg)
-	report.Produced = produce(g, cfg)
+	results := produce(g, cfg)
+	report.Produced = producedTotal(results)
+	for _, r := range results {
+		if r.Output > 0 {
+			report.Made = append(report.Made, MadeLine{Recipe: r.Recipe.Key, Output: r.Recipe.Output, Cases: r.Output})
+		}
+	}
 	g.Stats.Produced += report.Produced
 }
 
@@ -77,8 +83,9 @@ func stepFreezerRotation(g *Game, cfg Config, report *DayReport) {
 	report.IceKept = kept
 }
 
-// Step 4: goods that melt nightly are gone; perishables spoil (Products B).
+// Step 4: goods that melt nightly are gone; perishables spoil (see spoilage.go).
 func stepMeltAndSpoil(g *Game, cfg Config, report *DayReport) {
+	spoilPerishables(g, cfg, report)
 	for _, c := range cfg.Commodities {
 		if c.ShelfLifeDays != content.MeltsNightly {
 			continue
@@ -156,12 +163,15 @@ func stepMarketTick(g *Game, cfg Config, rng *rand.Rand, before map[Resource]int
 		m.Price = walk(rng, m.Price, cfg.BasePrice[r], cfg)
 		after := effectivePriceFor(*g, cfg, m.Price, r)
 
-		// Every resource is reported, changed or not, so the report can always show it.
-		report.PriceChanges = append(report.PriceChanges, PriceChange{
-			Resource: r,
-			Before:   before[r],
-			After:    after,
-		})
+		// Every unlocked resource is reported, changed or not, so the report can always
+		// show it. Goods the player has no use for yet still walk, but stay out of it.
+		if CommodityUnlocked(*g, cfg, r) {
+			report.PriceChanges = append(report.PriceChanges, PriceChange{
+				Resource: r,
+				Before:   before[r],
+				After:    after,
+			})
+		}
 
 		prev := before[r]
 		m.PreviousEffective = &prev
@@ -180,59 +190,23 @@ func stepPriceLog(g *Game, cfg Config) {
 	g.logPrices(cfg)
 }
 
-// Limiting factors reported by produceQty.
+// Limiting factors a plan row reports besides an input's key.
 const (
 	LimitProduction = "production"
 	LimitSpace      = "space"
 )
 
-// produceQty is how many batches of the main recipe a day's production makes, and
-// what limited it: daily capacity, stock of each input (named by resource), or free
-// space for the output. On a tie the more actionable factor wins, so production is
-// named only when nothing else binds. LimitedBy is empty when the game has no
-// production capacity at all. Shared by produce and PreviewEndDay so the preview
-// cannot drift from what EndDay does.
-func produceQty(g Game, cfg Config) (qty int, limitedBy string) {
-	return produceQtyIgnoring(g, cfg, "")
-}
-
-// produceQtyIgnoring is produceQty as if the stock of one input (skip) were unlimited;
-// the ice machine uses it to see how much ice a night's production could use.
-func produceQtyIgnoring(g Game, cfg Config, skip Resource) (qty int, limitedBy string) {
-	rec := cfg.MainRecipe()
-	capacity := ProductionCapacity(g, cfg) / rec.OutputQty
-	if capacity <= 0 {
-		return 0, ""
-	}
-	first := true
-	for _, in := range rec.Inputs {
-		if in.Resource == skip {
-			continue
-		}
-		if n := g.Inventory[in.Resource] / in.Qty; first || n < qty {
-			qty, limitedBy, first = n, string(in.Resource), false
-		}
-	}
-	if free := FreeSpace(g, cfg, rec.Output) / rec.OutputQty; first || free < qty {
-		qty, limitedBy, first = free, LimitSpace, false
-	}
-	if capacity < qty {
-		qty, limitedBy = capacity, LimitProduction
-	}
-	if qty < 0 {
-		qty = 0
-	}
-	return qty, limitedBy
-}
-
 // makeInputs runs the "make" upgrades (the ice machine): each tops up a commodity to what
-// tonight's production could use, up to its nightly limit, paying its unit cost from
+// tonight's production plan could use, up to its nightly limit, paying its unit cost from
 // cash. It returns the cases made and what they cost.
 func makeInputs(g *Game, cfg Config) (made, cost int) {
 	for _, e := range effectsOf(*g, cfg, content.EffMake) {
 		r := Resource(e.Target)
-		batches, _ := produceQtyIgnoring(*g, cfg, r)
-		n := batches*recipeUses(cfg.MainRecipe(), r) - g.Inventory[r]
+		need := 0
+		for _, row := range planBatches(*g, cfg, r) {
+			need += row.Batches * recipeUses(row.Recipe, r)
+		}
+		n := need - g.Inventory[r]
 		n = min(n, int(e.Value), FreeSpace(*g, cfg, r))
 		if unit := int(e.Aux); unit > 0 {
 			n = min(n, g.Capital/unit)
@@ -250,22 +224,54 @@ func makeInputs(g *Game, cfg Config) (made, cost int) {
 	return made, cost
 }
 
-// produce runs the main recipe (lemonade: 1 lemon + 1 sugar + 1 ice + 1 cup) and
-// returns the cases made. The output costs what its inputs cost. Use discounts save whole
-// cases of an input, and yield bonuses add whole cases of output; both carry fractions.
-func produce(g *Game, cfg Config) int {
-	n, _ := produceQty(*g, cfg)
-	rec := cfg.MainRecipe()
-	cost := 0
-	for _, in := range rec.Inputs {
-		use := n * in.Qty
-		cost += g.removeStock(in.Resource, use-g.takeSavings(cfg, in.Resource, use))
+// produce runs the production plan (see plan.go) and returns what each row made. A row's
+// output costs what its inputs cost. Use discounts save whole cases of an input, and yield
+// bonuses add whole cases of output; both carry fractions. A zester saves the peel of every
+// lemon used.
+func produce(g *Game, cfg Config) []PlanResult {
+	results := planBatches(*g, cfg, "")
+	for i := range results {
+		res := &results[i]
+		if res.Batches <= 0 {
+			continue
+		}
+		rec := res.Recipe
+		cost := 0
+		for _, in := range rec.Inputs {
+			use := res.Batches * in.Qty
+			cost += g.removeStock(in.Resource, use-g.takeSavings(cfg, in.Resource, use))
+		}
+		out := res.Batches * rec.OutputQty
+		out += g.yieldExtra(cfg, rec.Key, out, FreeSpace(*g, cfg, rec.Output)-out)
+		g.Inventory[rec.Output] += out
+		g.addBasis(rec.Output, cost)
+		res.Output = out
+		g.saveByproducts(cfg, rec, res.Batches)
 	}
-	out := n * rec.OutputQty
-	out += g.yieldExtra(cfg, rec.Key, out, FreeSpace(*g, cfg, rec.Output)-out)
-	g.Inventory[rec.Output] += out
-	g.addBasis(rec.Output, cost)
-	return out
+	return results
+}
+
+// producedTotal is the cases of output across a night's plan results.
+func producedTotal(results []PlanResult) int {
+	n := 0
+	for _, r := range results {
+		n += r.Output
+	}
+	return n
+}
+
+// saveByproducts gives a zester its lemon peel: one per lemon a batch used, as far as the
+// dry store has room.
+func (g *Game) saveByproducts(cfg Config, rec Recipe, batches int) {
+	if !HasUnlock(*g, cfg, "byproduct_lemon_peel") {
+		return
+	}
+	lemons := recipeUses(rec, Lemon) * batches
+	n := min(lemons, FreeSpace(*g, cfg, LemonPeel))
+	if n <= 0 {
+		return
+	}
+	g.Inventory[LemonPeel] += n
 }
 
 // recipeUses is how many cases of r one batch of rec consumes.
@@ -281,6 +287,10 @@ func recipeUses(rec Recipe, r Resource) int {
 // Projection is what End day would do to the current state, without doing it.
 type Projection struct {
 	LemonadeToProduce int
+	// Plan is one line per row of the production plan: what it would make and what limits it.
+	Plan []PlanProjection
+	// WillSpoil is the cases of each perishable that go off tonight.
+	WillSpoil map[Resource]int
 	// IceToMelt is the ice left over after production has used its share and the
 	// freezer has kept what it can; IceKept is that kept ice.
 	IceToMelt int
@@ -305,14 +315,39 @@ func PreviewEndDay(g Game, cfg Config) Projection {
 	for k, v := range g.Carry {
 		c.Carry[k] = v
 	}
+	c.Aged = make(map[Resource][]int, len(g.Aged))
+	for k, v := range g.Aged {
+		c.Aged[k] = append([]int(nil), v...)
+	}
 	var report DayReport
 	makeInputs(&c, cfg)
-	_, limitedBy := produceQty(c, cfg)
-	report.Produced = produce(&c, cfg)
+	var plan []PlanProjection
+	limitedBy := ""
+	for i, row := range planBatches(c, cfg, "") {
+		if i == 0 {
+			limitedBy = row.LimitedBy
+		}
+		plan = append(plan, PlanProjection{Recipe: row.Recipe.Key, Name: row.Recipe.Name, Output: row.Recipe.Output, Cases: row.Output, LimitedBy: row.LimitedBy})
+	}
+	results := produce(&c, cfg)
+	report.Produced = producedTotal(results)
+	for i := range results {
+		if i < len(plan) {
+			plan[i].Cases = results[i].Output
+		}
+	}
+	lemonade := 0
+	for _, r := range results {
+		if r.Recipe.Output == cfg.MainRecipe().Output {
+			lemonade += r.Output
+		}
+	}
 	stepFreezerRotation(&c, cfg, &report)
 	stepMeltAndSpoil(&c, cfg, &report)
 	return Projection{
-		LemonadeToProduce: report.Produced,
+		LemonadeToProduce: lemonade,
+		Plan:              plan,
+		WillSpoil:         report.Spoiled,
 		IceToMelt:         report.IceMelted,
 		IceKept:           report.IceKept,
 		LimitedBy:         limitedBy,

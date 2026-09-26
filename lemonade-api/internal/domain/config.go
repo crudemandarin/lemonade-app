@@ -165,18 +165,16 @@ func DefaultConfig() Config {
 		Sigma:           0.12,
 		ClampMin:        0.25,
 		ClampMax:        4.0,
-		FreeDepth: map[Resource]int{
-			Lemon: 80, Sugar: 80, Ice: 80, Cup: 80, Lemonade: 80,
-		},
-		DepthByLevel: []float64{1, 3.5, 6, 12, 12, 12, 12},
-		ImpactShape:  0.24, // 0.3% per case at the level-1 depth of 80
-		Recovery:     0.5,
-		ImpactCap:    0.6,
-		ResaleRate:   0.5,
-		MaxLevel:     4,
-		MaxQuantity:  10,
-		Territories:  append([]content.TerritoryDef{}, content.Territories...),
-		Rivals:       append([]content.RivalDef{}, content.Rivals...),
+		FreeDepth:       freeDepths(),
+		DepthByLevel:    []float64{1, 3.5, 6, 12, 12, 12, 12},
+		ImpactShape:     0.24, // 0.3% per case at the level-1 depth of 80
+		Recovery:        0.5,
+		ImpactCap:       0.6,
+		ResaleRate:      0.5,
+		MaxLevel:        4,
+		MaxQuantity:     10,
+		Territories:     append([]content.TerritoryDef{}, content.Territories...),
+		Rivals:          append([]content.RivalDef{}, content.Rivals...),
 
 		NeighborhoodStartShare: 40,
 		MaxShareShiftPerDay:    1,

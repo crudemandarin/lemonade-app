@@ -17,6 +17,8 @@ type Commodity struct {
 	Input         bool
 	Product       bool
 	Order         int
+	// NotBought marks a byproduct the market does not sell.
+	NotBought bool
 }
 
 // Ingredient is Qty cases of a commodity used by one batch of a recipe.
@@ -32,6 +34,13 @@ type Recipe struct {
 	Output    Resource
 	OutputQty int
 	Inputs    []Ingredient
+	// Era, LearnCost, Unlock and MinProductionLevel say when the recipe can be learned (see
+	// content.RecipeDef); Text describes it. Era 0 means known from the start.
+	Era                int
+	LearnCost          int
+	Unlock             string
+	MinProductionLevel int
+	Text               string
 }
 
 // catalog converts the content tables into domain types, sorted by display order.
@@ -44,7 +53,7 @@ func catalog() ([]Commodity, []Recipe, map[Resource]int) {
 	for _, d := range defs {
 		commodities = append(commodities, Commodity{
 			Key: Resource(d.Key), Name: d.Name, Category: d.Category, StorageClass: d.StorageClass,
-			ShelfLifeDays: d.ShelfLifeDays, Input: d.Input, Product: d.Product, Order: d.Order,
+			ShelfLifeDays: d.ShelfLifeDays, Input: d.Input, Product: d.Product, Order: d.Order, NotBought: d.NotBought,
 		})
 		base[Resource(d.Key)] = d.BasePrice
 	}
@@ -54,7 +63,8 @@ func catalog() ([]Commodity, []Recipe, map[Resource]int) {
 		for _, in := range r.Inputs {
 			inputs = append(inputs, Ingredient{Resource: Resource(in.Key), Qty: in.Qty})
 		}
-		recipes = append(recipes, Recipe{Key: r.Key, Name: r.Name, Output: Resource(r.Output), OutputQty: r.OutputQty, Inputs: inputs})
+		recipes = append(recipes, Recipe{Key: r.Key, Name: r.Name, Output: Resource(r.Output), OutputQty: r.OutputQty, Inputs: inputs,
+			Era: r.Era, LearnCost: r.LearnCost, Unlock: r.Unlock, MinProductionLevel: r.MinProductionLevel, Text: r.Text})
 	}
 	return commodities, recipes, base
 }
@@ -97,6 +107,22 @@ func (c Config) Inputs() []Resource {
 	out := make([]Resource, 0, len(r.Inputs))
 	for _, in := range r.Inputs {
 		out = append(out, in.Resource)
+	}
+	return out
+}
+
+// baseFreeDepth is lemonade's free depth at warehouse level 1, in cases; every other
+// commodity's is that times its DepthPct (the original five are all 80).
+const baseFreeDepth = 80
+
+func freeDepths() map[Resource]int {
+	out := make(map[Resource]int, len(content.Commodities))
+	for _, d := range content.Commodities {
+		pct := d.DepthPct
+		if pct == 0 {
+			pct = 100
+		}
+		out[Resource(d.Key)] = max(1, baseFreeDepth*pct/100)
 	}
 	return out
 }
