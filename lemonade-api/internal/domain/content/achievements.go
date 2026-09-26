@@ -24,39 +24,45 @@ var AchievementCategories = []AchievementCategory{
 	{Key: "production", Name: "Production and capacity"},
 	{Key: "facilities", Name: "Facilities and upgrades"},
 	{Key: "trading", Name: "Trading and market"},
+	{Key: "empire", Name: "Rivals and territories"},
 	{Key: "oddities", Name: "Oddities"},
 }
 
 // Predicate kinds: the closed set of checks. Params live in the Predicate fields
 // named in each comment.
 const (
-	KindNetWorthAtLeast      = "net_worth_at_least"      // N
-	KindDayAtLeast           = "day_at_least"            // N
-	KindDayAtMost            = "day_at_most"             // N (only useful inside AllOf)
-	KindStatAtLeast          = "stat_at_least"           // Stat, N
-	KindCashWithNoStock      = "cash_with_no_stock"      // N
-	KindStockTotalAtLeast    = "stock_total_at_least"    // N
-	KindStockAtLeast         = "stock_at_least"          // Commodity, N
-	KindAllWarehousesFull    = "all_warehouses_full"     //
-	KindFacilityMaxed        = "facility_maxed"          // Facility
-	KindAllOf                = "all_of"                  // All
-	KindRunsFinishedAtLeast  = "runs_finished_at_least"  // N
-	KindNewPersonalBest      = "new_personal_best"       //
-	KindBoardRankAtMost      = "board_rank_at_most"      // N
-	KindBoughtInputAtPercent = "bought_input_at_percent" // N: paid at most N% of base
-	KindSoldAtPercentOfBase  = "sold_at_percent_of_base" // Commodity, N: got at least N% of base
-	KindSoldAtPercentOfCost  = "sold_at_percent_of_cost" // Commodity, N: got at least N% of average cost
-	KindSoldDuringEvent      = "sold_during_event"       // Event, Commodity, N
-	KindProfitDuringEvent    = "profit_during_event"     // Event
-	KindEveryEventSeen       = "every_event_seen"        //
-	KindSoldWithoutImpact    = "sold_without_impact"     // Commodity, N
-	KindClosingCashBetween   = "closing_cash_between"    // N (min), M (max)
-	KindComeback             = "comeback"                // N (low), M (high)
-	KindBankruptHoldingOnly  = "bankrupt_holding_only"   // Commodity
-	KindBankruptByDay        = "bankrupt_by_day"         // N
-	KindGaveUpWithNetWorth   = "gave_up_with_net_worth"  // N
-	KindUpgradesOwned        = "upgrades_owned"          // N: at least N catalog upgrades (territory ones excluded)
-	KindUpgradeSetOwned      = "upgrade_set_owned"       // Category, or "" for every non-territory upgrade
+	KindNetWorthAtLeast      = "net_worth_at_least"       // N
+	KindDayAtLeast           = "day_at_least"             // N
+	KindDayAtMost            = "day_at_most"              // N (only useful inside AllOf)
+	KindStatAtLeast          = "stat_at_least"            // Stat, N
+	KindCashWithNoStock      = "cash_with_no_stock"       // N
+	KindStockTotalAtLeast    = "stock_total_at_least"     // N
+	KindStockAtLeast         = "stock_at_least"           // Commodity, N
+	KindAllWarehousesFull    = "all_warehouses_full"      //
+	KindFacilityMaxed        = "facility_maxed"           // Facility
+	KindAllOf                = "all_of"                   // All
+	KindRunsFinishedAtLeast  = "runs_finished_at_least"   // N
+	KindNewPersonalBest      = "new_personal_best"        //
+	KindBoardRankAtMost      = "board_rank_at_most"       // N
+	KindBoughtInputAtPercent = "bought_input_at_percent"  // N: paid at most N% of base
+	KindSoldAtPercentOfBase  = "sold_at_percent_of_base"  // Commodity, N: got at least N% of base
+	KindSoldAtPercentOfCost  = "sold_at_percent_of_cost"  // Commodity, N: got at least N% of average cost
+	KindSoldDuringEvent      = "sold_during_event"        // Event, Commodity, N
+	KindProfitDuringEvent    = "profit_during_event"      // Event
+	KindEveryEventSeen       = "every_event_seen"         //
+	KindSoldWithoutImpact    = "sold_without_impact"      // Commodity, N
+	KindClosingCashBetween   = "closing_cash_between"     // N (min), M (max)
+	KindComeback             = "comeback"                 // N (low), M (high)
+	KindBankruptHoldingOnly  = "bankrupt_holding_only"    // Commodity
+	KindBankruptByDay        = "bankrupt_by_day"          // N
+	KindGaveUpWithNetWorth   = "gave_up_with_net_worth"   // N
+	KindUpgradesOwned        = "upgrades_owned"           // N: at least N catalog upgrades (territory ones excluded)
+	KindRivalsBoughtAtLeast  = "rivals_bought_at_least"   // N
+	KindRivalBought          = "rival_bought"             // Key
+	KindHostileBuyout        = "hostile_buyout"           //
+	KindTerritoryEntered     = "territory_entered"        // Key
+	KindTerritoryShare       = "territory_share_at_least" // Key, N (percent)
+	KindUpgradeSetOwned      = "upgrade_set_owned"        // Key (a category), or "" for every non-territory upgrade
 )
 
 // Stats a StatAtLeast check can read.
@@ -70,6 +76,7 @@ const (
 	StatLongestIdle           = "longest_idle"
 	StatTradesWithImpact      = "trades_with_impact"
 	StatBestDayProfit         = "best_day_profit"
+	StatPriceWarsWon          = "price_wars_won"
 )
 
 // Predicate is one typed check. Build it with the constructors below; the domain
@@ -81,7 +88,9 @@ type Predicate struct {
 	Commodity string
 	Event     string
 	Facility  string
-	All       []Predicate
+	// Key names a territory, rival or upgrade category, whichever the kind checks.
+	Key string
+	All []Predicate
 }
 
 func NetWorthAtLeast(n int) Predicate   { return Predicate{Kind: KindNetWorthAtLeast, N: n} }
@@ -102,11 +111,20 @@ func StatAtLeast(stat string, n int) Predicate {
 func StockAtLeast(commodity string, n int) Predicate {
 	return Predicate{Kind: KindStockAtLeast, Commodity: commodity, N: n}
 }
+func RivalsBoughtAtLeast(n int) Predicate { return Predicate{Kind: KindRivalsBoughtAtLeast, N: n} }
+func RivalBought(key string) Predicate    { return Predicate{Kind: KindRivalBought, Key: key} }
+func HostileBuyout() Predicate            { return Predicate{Kind: KindHostileBuyout} }
+func TerritoryEntered(key string) Predicate {
+	return Predicate{Kind: KindTerritoryEntered, Key: key}
+}
+func TerritoryShareAtLeast(key string, percent int) Predicate {
+	return Predicate{Kind: KindTerritoryShare, Key: key, N: percent}
+}
 func UpgradesOwned(n int) Predicate { return Predicate{Kind: KindUpgradesOwned, N: n} }
 
 // UpgradeSetOwned is every upgrade of a category, or every non-territory upgrade for "".
 func UpgradeSetOwned(category string) Predicate {
-	return Predicate{Kind: KindUpgradeSetOwned, Commodity: category}
+	return Predicate{Kind: KindUpgradeSetOwned, Key: category}
 }
 func FacilityMaxed(facility string) Predicate {
 	return Predicate{Kind: KindFacilityMaxed, Facility: facility}
@@ -196,6 +214,18 @@ var Achievements = []AchievementDef{
 	{Key: "max_warehouse", Name: "Room to spare", Description: "Every warehouse at the top level with the most buildings allowed.", Category: "facilities", Tier: TierSilver, Check: FacilityMaxed("warehouse")},
 	{Key: "all_maxed", Name: "Everything maxed", Description: "Max out production and every warehouse at once.", Category: "facilities", Tier: TierGold, Check: AllOf(FacilityMaxed("production"), FacilityMaxed("warehouse"))},
 	{Key: "sold_building", Name: "Downsizing", Description: "Sell a building.", Category: "facilities", Tier: TierBronze, Check: StatAtLeast(StatFacilitiesSold, 1)},
+
+	// Rivals and territories
+	{Key: "first_buyout", Name: "Acquisition", Description: "Buy out a rival.", Category: "empire", Tier: TierBronze, Check: RivalsBoughtAtLeast(1)},
+	{Key: "lucy_bought", Name: "Lemonade from a kid", Description: "Buy Lil' Lucy's stand.", Category: "empire", Tier: TierBronze, Check: RivalBought("lil_lucy")},
+	{Key: "own_neighborhood", Name: "Block boss", Description: "Hold 100% of the Neighborhood.", Category: "empire", Tier: TierSilver, Check: TerritoryShareAtLeast("neighborhood", 100)},
+	{Key: "enter_city", Name: "Big city", Description: "Enter Citrus City.", Category: "empire", Tier: TierBronze, Check: TerritoryEntered("city")},
+	{Key: "own_city", Name: "Mayor of lemonade", Description: "Hold 50% of Citrus City.", Category: "empire", Tier: TierSilver, Check: TerritoryShareAtLeast("city", 50)},
+	{Key: "enter_region", Name: "Regional", Description: "Enter the Sunbelt Region.", Category: "empire", Tier: TierSilver, Check: TerritoryEntered("region")},
+	{Key: "enter_nation", Name: "National brand", Description: "Enter the Nation.", Category: "empire", Tier: TierSilver, Check: TerritoryEntered("nation")},
+	{Key: "enter_world", Name: "Going global", Description: "Enter the World.", Category: "empire", Tier: TierGold, Check: TerritoryEntered("world")},
+	{Key: "hostile", Name: "Hostile takeover", Description: "Complete a hostile buyout.", Category: "empire", Tier: TierSilver, Check: HostileBuyout()},
+	{Key: "price_war_won", Name: "Price warrior", Description: "Come out of a price war with at least the share you had going in.", Category: "empire", Tier: TierSilver, Check: StatAtLeast(StatPriceWarsWon, 1)},
 
 	// Trading and market
 	{Key: "buy_low", Name: "Bargain hunter", Description: "Buy an ingredient at 70% of its base price or less.", Category: "trading", Tier: TierBronze, Check: BoughtInputAtPercent(70)},

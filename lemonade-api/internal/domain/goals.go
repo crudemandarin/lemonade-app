@@ -49,6 +49,11 @@ type GoalStats struct {
 	// BestCostPercent as a percent of what the cases sold had cost; both rounded down.
 	BestSellPercent map[string]int
 	BestCostPercent map[string]int
+	// PriceWarsWon counts price wars that ended with the player holding at least the total
+	// territory share they had when it began; WarStartShare is that share while one runs.
+	PriceWarsWon  int
+	WarTracking   bool
+	WarStartShare float64
 }
 
 func (s GoalStats) clone() GoalStats {
@@ -166,6 +171,7 @@ func RecordDayFacts(before Game, g *Game, cfg Config, report DayReport) {
 
 	s.noteEvents(before.Events)
 	s.noteEvents(g.Events)
+	s.notePriceWar(*g)
 }
 
 func (s *GoalStats) noteEvents(events []ActiveEvent) {
@@ -175,4 +181,25 @@ func (s *GoalStats) noteEvents(events []ActiveEvent) {
 		}
 	}
 	sort.Strings(s.EventsSeen)
+}
+
+// notePriceWar records how a price war ends. It is judged at closing: the war is over on
+// the first day it is no longer active, and won if the total share held is not lower than
+// at the closing where it was first seen.
+func (s *GoalStats) notePriceWar(g Game) {
+	share := 0.0
+	for _, t := range g.Territories {
+		if t.Entered {
+			share += t.Share
+		}
+	}
+	switch {
+	case priceWarActive(g) && !s.WarTracking:
+		s.WarTracking, s.WarStartShare = true, share
+	case !priceWarActive(g) && s.WarTracking:
+		s.WarTracking = false
+		if share >= s.WarStartShare {
+			s.PriceWarsWon++
+		}
+	}
 }

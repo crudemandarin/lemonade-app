@@ -470,3 +470,74 @@ func TestUpgradeAchievementPredicates(t *testing.T) {
 		t.Error("an unknown category should be rejected")
 	}
 }
+
+func TestEmpireAchievementPredicates(t *testing.T) {
+	cfg := DefaultConfig()
+	fresh := NewGame(cfg, 42)
+	edit := func(f func(g *Game)) Game {
+		g := fresh.Clone()
+		f(&g)
+		return g
+	}
+	acquire := func(key string, hostile bool) func(g *Game) {
+		return func(g *Game) {
+			r := g.Rivals[key]
+			r.Status, r.Hostile = RivalAcquired, hostile
+			g.Rivals[key] = r
+		}
+	}
+	cases := []struct {
+		name string
+		p    content.Predicate
+		g    Game
+		want bool
+	}{
+		{"no buyout yet", content.RivalsBoughtAtLeast(1), fresh, false},
+		{"one buyout", content.RivalsBoughtAtLeast(1), edit(acquire("lil_lucy", false)), true},
+		{"lucy bought", content.RivalBought("lil_lucy"), edit(acquire("lil_lucy", false)), true},
+		{"another rival is not lucy", content.RivalBought("lil_lucy"), edit(acquire("sour_sam", false)), false},
+		{"friendly is not hostile", content.HostileBuyout(), edit(acquire("sour_sam", false)), false},
+		{"hostile", content.HostileBuyout(), edit(acquire("sour_sam", true)), true},
+		{"the city is not entered", content.TerritoryEntered("city"), fresh, false},
+		{"the city entered", content.TerritoryEntered("city"), edit(func(g *Game) {
+			g.Territories["city"] = TerritoryState{Entered: true, Share: 10}
+		}), true},
+		{"49.9% of the city", content.TerritoryShareAtLeast("city", 50), edit(func(g *Game) {
+			g.Territories["city"] = TerritoryState{Entered: true, Share: 49.9}
+		}), false},
+		{"50% of the city", content.TerritoryShareAtLeast("city", 50), edit(func(g *Game) {
+			g.Territories["city"] = TerritoryState{Entered: true, Share: 50}
+		}), true},
+	}
+	for _, c := range cases {
+		if got := holdsFor(c.p, fresh, c.g, AchievementContext{}); got != c.want {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+		}
+	}
+	for _, bad := range []content.Predicate{content.RivalBought("nobody"), content.TerritoryEntered("moon"), content.TerritoryShareAtLeast("moon", 5)} {
+		if err := ValidatePredicate(bad, cfg); err == nil {
+			t.Errorf("%s with key %q should be rejected", bad.Kind, bad.Key)
+		}
+	}
+}
+
+func TestPriceWarWonNeedsTheShareKept(t *testing.T) {
+	cfg := DefaultConfig()
+	war := ActiveEvent{Key: EventPriceWar, DaysLeft: 3}
+	run := func(endShare float64) int {
+		g := NewGame(cfg, 42)
+		g.Territories["neighborhood"] = TerritoryState{Entered: true, Share: 40}
+		g.Events = []ActiveEvent{war}
+		g.Goals.notePriceWar(g) // the war is seen at closing
+		g.Events = nil
+		g.Territories["neighborhood"] = TerritoryState{Entered: true, Share: endShare}
+		g.Goals.notePriceWar(g) // and over at the next
+		return g.Goals.PriceWarsWon
+	}
+	if got := run(40); got != 1 {
+		t.Errorf("share kept: won %d wars, want 1", got)
+	}
+	if got := run(39.9); got != 0 {
+		t.Errorf("share lost: won %d wars, want 0", got)
+	}
+}

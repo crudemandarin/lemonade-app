@@ -92,8 +92,24 @@ func (f *facts) holds(p content.Predicate) bool {
 		return facilityMaxed(g, f.cfg, FacilityType(p.Facility))
 	case content.KindUpgradesOwned:
 		return len(ownedCatalogUpgrades(g)) >= p.N
+	case content.KindRivalsBoughtAtLeast:
+		return acquiredRivals(g) >= p.N
+	case content.KindRivalBought:
+		return g.Rivals[p.Key].Status == RivalAcquired
+	case content.KindHostileBuyout:
+		for _, r := range g.Rivals {
+			if r.Status == RivalAcquired && r.Hostile {
+				return true
+			}
+		}
+		return false
+	case content.KindTerritoryEntered:
+		return g.Territories[p.Key].Entered
+	case content.KindTerritoryShare:
+		t := g.Territories[p.Key]
+		return t.Entered && t.Share >= float64(p.N)
 	case content.KindUpgradeSetOwned:
-		return upgradeSetOwned(g, p.Commodity)
+		return upgradeSetOwned(g, p.Key)
 	case content.KindAllOf:
 		for _, q := range p.All {
 			if !f.holds(q) {
@@ -156,6 +172,8 @@ func statValue(g Game, stat string) (int, bool) {
 		return g.Goals.TradesWithImpact, true
 	case content.StatBestDayProfit:
 		return g.Goals.BestDayProfit, true
+	case content.StatPriceWarsWon:
+		return g.Goals.PriceWarsWon, true
 	}
 	return 0, false
 }
@@ -195,6 +213,16 @@ func upgradeSetOwned(g Game, category string) bool {
 		}
 	}
 	return found
+}
+
+func acquiredRivals(g Game) int {
+	n := 0
+	for _, r := range g.Rivals {
+		if r.Status == RivalAcquired {
+			n++
+		}
+	}
+	return n
 }
 
 func totalStock(g Game) int {
@@ -347,9 +375,30 @@ func ValidatePredicate(p content.Predicate, cfg Config) error {
 		return nil
 	case content.KindUpgradesOwned:
 		return positive()
+	case content.KindRivalsBoughtAtLeast:
+		return positive()
+	case content.KindHostileBuyout:
+		return nil
+	case content.KindRivalBought:
+		for _, d := range cfg.Rivals {
+			if d.Key == p.Key {
+				return nil
+			}
+		}
+		return fmt.Errorf("%s: unknown rival %q", p.Kind, p.Key)
+	case content.KindTerritoryEntered, content.KindTerritoryShare:
+		for _, d := range cfg.Territories {
+			if d.Key == p.Key {
+				if p.Kind == content.KindTerritoryShare {
+					return percent()
+				}
+				return nil
+			}
+		}
+		return fmt.Errorf("%s: unknown territory %q", p.Kind, p.Key)
 	case content.KindUpgradeSetOwned:
-		if p.Commodity != "" && !inUpgradeCategories(p.Commodity) {
-			return fmt.Errorf("%s: unknown category %q", p.Kind, p.Commodity)
+		if p.Key != "" && !inUpgradeCategories(p.Key) {
+			return fmt.Errorf("%s: unknown category %q", p.Kind, p.Key)
 		}
 		return nil
 	case content.KindFacilityMaxed:
