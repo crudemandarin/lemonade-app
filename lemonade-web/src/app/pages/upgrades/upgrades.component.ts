@@ -3,6 +3,8 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { UpgradeItem, UpgradesResponse } from '../../core/api.models';
 import { GameStore } from '../../core/game.store';
 import { OnlineService } from '../../core/online.service';
+import { IconComponent } from '../../shared/icon/icon.component';
+import { upgradeIcon } from '../../core/icons';
 import { RunNavComponent } from '../../shared/run-nav/run-nav.component';
 import { CardComponent } from '../../shared/card/card.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
@@ -19,12 +21,20 @@ type Load = 'loading' | 'ready' | 'error';
 @Component({
   selector: 'app-upgrades',
   standalone: true,
-  imports: [RunNavComponent, CardComponent, ConfirmDialogComponent, HelpLinkComponent, MoneyPipe],
+  imports: [
+    IconComponent,
+    RunNavComponent,
+    CardComponent,
+    ConfirmDialogComponent,
+    HelpLinkComponent,
+    MoneyPipe,
+  ],
   templateUrl: './upgrades.component.html',
   styleUrl: './upgrades.component.scss',
 })
 export class UpgradesComponent implements OnInit {
   protected readonly store = inject(GameStore);
+  protected readonly icon = upgradeIcon;
   protected readonly online = inject(OnlineService).online;
 
   protected readonly state = signal<Load>('loading');
@@ -37,8 +47,10 @@ export class UpgradesComponent implements OnInit {
   protected readonly groups = computed(() => {
     const data = this.data();
     if (!data) return [];
+    // An upgrade for an era you have not reached stays hidden until you get there.
+    const shown = data.upgrades.filter((u) => u.era <= data.era);
     return data.categories
-      .map((c) => ({ ...c, items: data.upgrades.filter((u) => u.category === c.key) }))
+      .map((c) => ({ ...c, items: shown.filter((u) => u.category === c.key) }))
       .filter((g) => g.items.length > 0);
   });
 

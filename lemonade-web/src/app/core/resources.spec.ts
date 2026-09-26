@@ -8,9 +8,11 @@ describe('resource lookups', () => {
   });
 
   it('gives unknown commodities a neutral colour and a generic icon', () => {
-    expect(seriesColor('lime')).toBe('var(--series-lime, var(--series-other))');
+    expect(seriesColor('black_tea')).toBe('var(--series-black_tea, var(--series-other))');
     expect(resourceIcon('lemon')).toBe('assets/resources/lemon.svg');
-    expect(resourceIcon('lime')).toBe('assets/resources/generic.svg');
+    expect(resourceIcon('lime')).toBe('assets/resources/lime.svg');
+    expect(resourceLabel('honey_lemonade')).toBe('Honey lemonade');
+    expect(resourceIcon('black_tea')).toBe('assets/resources/generic.svg');
   });
 
   it('orders by the catalog, or the original five before one is known', () => {

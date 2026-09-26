@@ -43,11 +43,10 @@ describe('UpgradesComponent', () => {
     expect(text(item('order_book'))).toContain('No upkeep');
   });
 
-  it('says in words why an upgrade is locked, and offers no button', async () => {
+  it('hides upgrades for an era you have not reached', async () => {
     await render(50_000);
-    expect(text(item('freezer_2'))).toContain('Locked');
-    expect(text(item('freezer_2'))).toContain('Reach era 2 first.');
-    expect(item('freezer_2').querySelector('button')).toBeNull();
+    expect(el.querySelector('[data-upgrade=freezer_2]')).toBeNull();
+    expect(text(el)).not.toContain('Walk-in freezer');
   });
 
   it('disables Buy and says how much more is needed when cash is short', async () => {

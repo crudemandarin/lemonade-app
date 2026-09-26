@@ -44,14 +44,15 @@
         </p>
       }
 
-      @for (t of d.territories; track t.key) {
+      @for (t of visibleTerritories(); track t.key) {
         <app-card [title]="t.name">
+          <app-icon [name]="territory(t.key)" [size]="24" />
           <section [attr.data-territory]="t.key">
             <p class="meta">
               <span>Era {{ t.era }}</span>
-              <span>Depth {{ t.depth }}</span>
-              <span>Building cap {{ t.buildingCap }}</span>
               @if (t.entered) {
+                <span>Depth {{ t.depth }}</span>
+                <span>Building cap {{ t.buildingCap }}</span>
                 <span
                   >Your share <strong>{{ t.share }}%</strong></span
                 >
@@ -105,12 +106,12 @@
               }
             }
 
-            @if (activeRivals(t).length > 0) {
+            @if (t.entered && activeRivals(t).length > 0) {
               <ul class="list">
                 @for (r of activeRivals(t); track r.key) {
                   <li [attr.data-rival]="r.key">
                     <div class="what">
-                      <h3>{{ r.name }}</h3>
+                      <h3><app-icon [name]="rival(r, t)" [size]="24" /> {{ r.name }}</h3>
                       <p class="text">{{ r.flavor }}</p>
                       <p class="meta">
                         <span>Share {{ r.share }}%</span>
@@ -160,7 +161,7 @@
                 }
               </ul>
             }
-            @for (r of doneRivals(t); track r.key) {
+            @for (r of t.entered ? doneRivals(t) : []; track r.key) {
               <p class="note done" [attr.data-rival]="r.key">
                 {{ r.name }}:
                 {{ r.status === 'acquired' ? 'yours, bought for ' + exact(r.pricePaid) : 'folded' }}

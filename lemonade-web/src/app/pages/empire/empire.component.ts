@@ -3,6 +3,8 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CampaignOption, EmpireResponse, Rival, Territory } from '../../core/api.models';
 import { GameStore } from '../../core/game.store';
 import { OnlineService } from '../../core/online.service';
+import { IconComponent } from '../../shared/icon/icon.component';
+import { rivalIcon, territoryIcon } from '../../core/icons';
 import { RunNavComponent } from '../../shared/run-nav/run-nav.component';
 import { CardComponent } from '../../shared/card/card.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
@@ -26,7 +28,14 @@ interface Pending {
 @Component({
   selector: 'app-empire',
   standalone: true,
-  imports: [RunNavComponent, CardComponent, ConfirmDialogComponent, HelpLinkComponent, MoneyPipe],
+  imports: [
+    IconComponent,
+    RunNavComponent,
+    CardComponent,
+    ConfirmDialogComponent,
+    HelpLinkComponent,
+    MoneyPipe,
+  ],
   templateUrl: './empire.component.html',
   styleUrl: './empire.component.scss',
 })
@@ -38,6 +47,17 @@ export class EmpireComponent implements OnInit {
   protected readonly data = signal<EmpireResponse | null>(null);
   protected readonly pending = signal<Pending | null>(null);
 
+  /**
+   * The territories you hold, plus the next one as a hint of what comes after. Everything
+   * beyond it stays hidden so it is found by playing.
+   */
+  protected readonly visibleTerritories = computed(() => {
+    const all = this.data()?.territories ?? [];
+    const next = all.findIndex((t) => !t.entered);
+    return next === -1 ? all : all.slice(0, next + 1);
+  });
+
+  protected readonly territory = territoryIcon;
   protected readonly capital = computed(() => this.store.game()?.capital ?? 0);
   protected readonly active = computed(() => (this.store.game()?.status ?? 'active') === 'active');
   protected readonly canAct = computed(
@@ -63,6 +83,10 @@ export class EmpireComponent implements OnInit {
 
   protected exact(value: number): string {
     return formatMoney(value);
+  }
+
+  protected rival(r: Rival, t: Territory): string {
+    return rivalIcon(r.key, t.key);
   }
 
   protected activeRivals(t: Territory): Rival[] {

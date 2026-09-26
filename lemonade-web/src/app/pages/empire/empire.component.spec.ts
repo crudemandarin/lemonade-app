@@ -95,4 +95,20 @@ describe('EmpireComponent', () => {
     await fixture.whenStable();
     expect(api.enterTerritory).toHaveBeenCalledWith('city');
   });
+
+  it('previews only the next territory and hides the ones beyond it', async () => {
+    const { fixture, el } = setup([
+      territory(),
+      territory({ key: 'city', name: 'City', entered: false, entryCost: 5000, rivals: [] }),
+      territory({ key: 'region', name: 'Sunbelt Region', entered: false, entryCost: 90000 }),
+    ]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-territory="city"]')).not.toBeNull();
+    expect(el.querySelector('[data-territory="region"]')).toBeNull();
+    expect(el.textContent).not.toContain('Sunbelt Region');
+    const teaser = el.querySelector('[data-territory="city"]')!.textContent!;
+    expect(teaser).not.toContain('Depth');
+    expect(teaser).not.toContain('Building cap');
+  });
 });

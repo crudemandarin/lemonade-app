@@ -115,3 +115,9 @@ h1 {
 li.owned .what h3 {
   color: var(--accent-strong);
 }
+
+h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
