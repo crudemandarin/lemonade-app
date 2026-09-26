@@ -263,6 +263,14 @@ export const HELP_TERMS: HelpTerm[] = [
       'Territories are new markets. Entering one costs money and adds a daily hub upkeep, and the highest territory you hold sets your era, which unlocks bigger buildings and upgrades. Each has rival businesses: buy them out, or run a campaign to win share. Open it from the Empire link.',
   },
   {
+    id: 'cycles',
+    icon: 'event',
+    section: 'events',
+    term: 'Economic cycles',
+    definition:
+      'A slow regime that sits above the market events, one at a time. A boom widens every market and makes rivals dearer; a recession narrows them and makes rivals cheaper; inflation lifts every price a little each day (and upkeep), then eases back. The chief economist shows how long one has left.',
+  },
+  {
     id: 'freezer',
     icon: 'warehouse',
     section: 'upgrades',

@@ -3,8 +3,10 @@ package api
 import (
 	"errors"
 	"math"
+	"slices"
 
 	"lemonade-api/internal/domain"
+	"lemonade-api/internal/domain/content"
 )
 
 // These types mirror lemonade-web/src/app/core/api.models.ts exactly.
@@ -271,6 +273,13 @@ type gameViewDTO struct {
 	Era      int      `json:"era"`
 	EraName  string   `json:"eraName"`
 	NextGoal *goalDTO `json:"nextGoal"`
+	// Cycle is the running economic cycle (null when stable). DaysLeft is only sent with
+	// the chief economist.
+	Cycle *cycleDTO `json:"cycle"`
+	// WonOnDay is the day the run met the victory condition (0: not yet), WonNetWorth the
+	// net worth then; the run keeps playing.
+	WonOnDay    int `json:"wonOnDay"`
+	WonNetWorth int `json:"wonNetWorth"`
 	// Unlocked are the achievements this response's mutation just earned ([] otherwise).
 	Unlocked []unlockedDTO `json:"unlocked"`
 }
@@ -318,6 +327,9 @@ type dayReportDTO struct {
 	NewEvents          []gameEventDTO   `json:"newEvents"`
 	ExpiredEvents      []gameEventDTO   `json:"expiredEvents"`
 	Bankrupt           bool             `json:"bankrupt"`
+	// CycleStarted and CycleEnded name an economic cycle that began or ended overnight.
+	CycleStarted string `json:"cycleStarted"`
+	CycleEnded   string `json:"cycleEnded"`
 }
 
 // reportSummaryDTO is one row of the past-days list: enough to scan, without
@@ -419,6 +431,9 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 		Era:          domain.Era(g, cfg),
 		EraName:      domain.EraName(g, cfg),
 		NextGoal:     toGoal(g, cfg),
+		Cycle:        toCycle(g, cfg),
+		WonOnDay:     g.WonOnDay,
+		WonNetWorth:  g.WonNetWorth,
 		Unlocked:     []unlockedDTO{},
 	}
 }
@@ -621,6 +636,8 @@ func toDayReport(r domain.DayReport) dayReportDTO {
 		NewEvents:          toEventDTOs(r.NewEvents),
 		ExpiredEvents:      toEventDTOs(r.ExpiredEvents),
 		Bankrupt:           r.Bankrupt,
+		CycleStarted:       cycleName(r.CycleStarted),
+		CycleEnded:         cycleName(r.CycleEnded),
 	}
 }
 
@@ -630,4 +647,34 @@ func toPnl(p *domain.PnlLine) *pnlDTO {
 	}
 	d := pnlDTO(*p)
 	return &d
+}
+
+type cycleDTO struct {
+	Key      string `json:"key"`
+	Name     string `json:"name"`
+	Text     string `json:"text"`
+	DaysLeft *int   `json:"daysLeft"`
+}
+
+func toCycle(g domain.Game, cfg domain.Config) *cycleDTO {
+	d, ok := domain.ActiveCycle(g)
+	if !ok {
+		return nil
+	}
+	out := &cycleDTO{Key: d.Key, Name: d.Name, Text: d.Text}
+	if slices.Contains(domain.Features(g, cfg), "cycle_days") {
+		days := g.Cycle.DaysLeft
+		out.DaysLeft = &days
+	}
+	return out
+}
+
+// cycleName is the display name of a cycle key, "" for none.
+func cycleName(key string) string {
+	for _, d := range content.Cycles {
+		if d.Key == key {
+			return d.Name
+		}
+	}
+	return ""
 }

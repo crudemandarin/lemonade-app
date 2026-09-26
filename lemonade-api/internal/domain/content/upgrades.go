@@ -177,6 +177,8 @@ var Upgrades = []UpgradeDef{
 		Effects: []EffectDef{{Kind: EffInputDepthPct, Value: 30}, {Kind: EffInputDiscountPct, Value: 3}}, Text: "Inputs trade 30% deeper and cost 3% less again."},
 
 	// Finance
+	{Key: "economist", Name: "Chief economist", Category: UpIntel, Cost: 500000, Upkeep: 300, Requires: Requires{Era: 4},
+		Effects: []EffectDef{{Kind: EffQoL, Target: "cycle_days"}}, Text: "See how many days the current economic cycle has left."},
 	{Key: "bookkeeper", Name: "Bookkeeper", Category: UpFinance, Cost: 2000, Upkeep: 5, Requires: Requires{Era: 1},
 		Effects: []EffectDef{{Kind: EffQoL, Target: "pnl"}}, Text: "A profit and loss breakdown in the day report."},
 	{Key: "accountant", Name: "Accountant", Category: UpFinance, Cost: 20000, Upkeep: 30, Requires: Requires{Era: 2},

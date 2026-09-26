@@ -40,7 +40,7 @@ func BuyoutPrice(g Game, cfg Config, key string, hostile bool) (price int, offer
 		return 0, false
 	}
 	def, _ := rivalDef(cfg, key)
-	value := math.Max(r.Valuation, MinBuyoutValue(g, cfg, key))
+	value := math.Max(r.Valuation, MinBuyoutValue(g, cfg, key)) * cycleValuationFactor(g)
 	premium := cfg.FriendlyPremium
 	if def.FriendlyPremium > 0 {
 		premium = def.FriendlyPremium

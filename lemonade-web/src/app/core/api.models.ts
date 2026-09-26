@@ -241,6 +241,18 @@ export interface GameView {
   eraName: string;
   /** What to work toward next; null when there is nothing left. */
   nextGoal: Goal | null;
+  /** The running economic cycle, null when stable. `daysLeft` needs the chief economist. */
+  cycle: EconomicCycle | null;
+  /** The day the run met the victory condition (0: not yet) and its net worth then. */
+  wonOnDay: number;
+  wonNetWorth: number;
+}
+
+export interface EconomicCycle {
+  key: string;
+  name: string;
+  text: string;
+  daysLeft: number | null;
 }
 
 export interface Goal {
@@ -309,6 +321,8 @@ export interface ScoreRow {
   isMe: boolean;
   /** How many achievements the player has unlocked. */
   achievements: number;
+  /** The day this run won the game, 0 if it did not. */
+  wonOnDay: number;
 }
 
 /** all_time ranks each player's best finished run; day_100 their net worth on reaching day 100. */
@@ -387,6 +401,9 @@ export interface PriceChange {
 /** Summary of one end-of-day transition. `day` is the day that just ended. */
 export interface DayReport {
   day: number;
+  /** Names of an economic cycle that began or ended overnight, "" for none. */
+  cycleStarted: string;
+  cycleEnded: string;
   produced: number;
   iceMelted: number;
   /** Ice the freezer kept for the next day. */

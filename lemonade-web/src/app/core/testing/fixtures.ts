@@ -151,6 +151,9 @@ export function newGameView(overrides: Partial<GameView> = {}): GameView {
     era: 1,
     eraName: 'Neighborhood',
     nextGoal: null,
+    cycle: null,
+    wonOnDay: 0,
+    wonNetWorth: 0,
     ...overrides,
   };
 }
@@ -158,6 +161,8 @@ export function newGameView(overrides: Partial<GameView> = {}): GameView {
 export function dayReport(overrides: Partial<DayReport> = {}): DayReport {
   return {
     day: 4,
+    cycleStarted: '',
+    cycleEnded: '',
     produced: 10,
     iceMelted: 2,
     iceKept: 0,
@@ -232,6 +237,7 @@ export function scoreRow(overrides: Partial<ScoreRow> = {}): ScoreRow {
     createdAt: '2026-09-20T12:00:00Z',
     isMe: false,
     achievements: 0,
+    wonOnDay: 0,
     ...overrides,
   };
 }

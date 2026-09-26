@@ -15,7 +15,11 @@ func snapDown(x float64) int { return int(math.Floor(snap(x))) }
 // 40% start that is the phase 0 depth, the level-1 FreeDepth times the warehouse level's
 // multiplier, so a game that never enters a territory plays as it always did.
 func freeDepth(g Game, cfg Config, r Resource) int {
-	return depthWithUpgrades(g, cfg, r, reach(g, cfg, r))
+	depth := depthWithUpgrades(g, cfg, r, reach(g, cfg, r))
+	if f := cycleDepthFactor(g); f != 1 {
+		depth = int(math.Round(float64(depth) * f))
+	}
+	return depth
 }
 
 // FreeDepthAtLevel is the free depth of r at a given warehouse level, for previewing what

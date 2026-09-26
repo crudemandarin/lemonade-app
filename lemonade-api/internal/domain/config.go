@@ -91,6 +91,9 @@ type Config struct {
 	// order. Shares are percent. See empire.go.
 	Territories []content.TerritoryDef
 	Rivals      []content.RivalDef
+	// CycleChance is the daily chance an economic cycle starts when none is running. Tests
+	// set it to 0 to prove that play without cycles is unchanged.
+	CycleChance float64
 	// NeighborhoodStartShare is the player's share the phase 0 depth numbers assume.
 	NeighborhoodStartShare float64
 	// MaxShareShiftPerDay caps how far a territory's share moves in a day, in points.
@@ -178,6 +181,7 @@ func DefaultConfig() Config {
 		Territories:  append([]content.TerritoryDef{}, content.Territories...),
 		Rivals:       append([]content.RivalDef{}, content.Rivals...),
 
+		CycleChance:            content.CycleStartChance,
 		NeighborhoodStartShare: 40,
 		MaxShareShiftPerDay:    1,
 		ShiftPerEdge:           10,

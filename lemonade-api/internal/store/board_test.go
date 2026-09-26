@@ -26,12 +26,14 @@ func day100Contract(t *testing.T, repo Repository, prefix string) {
 		}
 		users[name] = u
 	}
+	// wonOn are the runs that won the game, by day.
+	wonOn := map[string]int{"a2": 120}
 	// finish stores a run; day100 < 0 means it ended before day 100.
 	finish := func(name, runID string, score, day100 int) {
 		t.Helper()
 		rec := domain.RunRecord{
 			RunID: prefix + "-" + runID, Days: 150, Score: base + score, NetWorth: base + score,
-			Capital: 100, EndedBy: domain.EndedByGaveUp,
+			Capital: 100, EndedBy: domain.EndedByGaveUp, WonOnDay: wonOn[runID],
 			Timeline: []domain.TimelinePoint{{Day: 1, Kind: domain.PointStart, Capital: 1000}},
 		}
 		if day100 >= 0 {
@@ -91,6 +93,17 @@ func day100Contract(t *testing.T, repo Repository, prefix string) {
 	}
 	if me, _ := repo.BestScore(ctx, users["cat"].ID); me == nil || me.Score != base+950 {
 		t.Fatalf("cat all-time = %+v", me)
+	}
+
+	// The won mark belongs to the row's run: a2 won (her all-time best), a1 (her day-100 run) did not.
+	if me, _ := repo.BestScore(ctx, users["ann"].ID); me == nil || me.WonOnDay != 120 {
+		t.Fatalf("ann's all-time row should carry the win day: %+v", me)
+	}
+	if me, _ := repo.BestOnBoard(ctx, BoardDay100, users["ann"].ID); me == nil || me.WonOnDay != 0 {
+		t.Fatalf("ann's day-100 run did not win: %+v", me)
+	}
+	if me, _ := repo.BestScore(ctx, users["bob"].ID); me == nil || me.WonOnDay != 0 {
+		t.Fatalf("bob never won: %+v", me)
 	}
 }
 

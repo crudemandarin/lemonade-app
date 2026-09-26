@@ -1,3 +1,10 @@
+@if (cycle(); as c) {
+  <p class="event cycle">
+    <app-icon name="calendar" />
+    {{ cycleLine(c) }}
+    <app-help-link term="cycles" label="economic cycles" />
+  </p>
+}
 @for (event of events(); track event.key) {
   <p class="event" [title]="event.description">
     <app-icon name="event" />

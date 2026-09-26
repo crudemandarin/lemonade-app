@@ -94,6 +94,9 @@
                     <td class="rank" data-label="Rank">{{ r.rank }}</td>
                     <th scope="row" class="player">
                       {{ r.username }}
+                      @if (r.wonOnDay > 0) {
+                        <span class="won" title="Won the game on day {{ r.wonOnDay }}">Won</span>
+                      }
                       @if (r.isMe) {
                         <span class="you"> (you)</span>
                       }

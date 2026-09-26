@@ -24,6 +24,8 @@ type ScoreRow struct {
 	CreatedAt time.Time
 	// Achievements is how many achievements the player has unlocked (the board badge).
 	Achievements int
+	// WonOnDay is the day the row's run won the game (0: it did not).
+	WonOnDay int
 }
 
 // Board names a leaderboard: all-time best run, or best net worth on arriving at day 100.

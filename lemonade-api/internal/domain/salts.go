@@ -17,6 +17,8 @@ const (
 	// order, whether or not anything happens, so the streams never shift.
 	SaltRivals      int64 = 0x52495641
 	SaltRivalEvents int64 = 0x52495645
+	// SaltCycles is the economic cycle stream: three draws a day, always.
+	SaltCycles int64 = 0x43594345
 )
 
 // dayRNG returns the random stream for one system on one day.

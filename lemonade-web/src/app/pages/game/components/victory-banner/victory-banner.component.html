@@ -1,0 +1,13 @@
+@if (visible()) {
+  <section class="victory" role="status" aria-label="Victory">
+    <div>
+      <h2>Global leader on day {{ wonOnDay() }}</h2>
+      <p>
+        You won with a net worth of <strong>{{ wonNetWorth() | money }}</strong
+        >. Keep playing: your score is still your net worth at the end, and the win stays on your
+        record.
+      </p>
+    </div>
+    <button type="button" class="btn btn-sm dismiss" (click)="dismiss()">Keep playing</button>
+  </section>
+}

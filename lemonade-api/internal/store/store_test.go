@@ -254,6 +254,8 @@ func TestPostgresRoundTripsTheEmpire(t *testing.T) {
 	game.Territories["city"] = domain.TerritoryState{Entered: true, Share: 12.5, CampaignDaysLeft: 3, CampaignBonus: 0.1}
 	game.Rivals["zest_express"] = domain.RivalState{Share: 20, Valuation: 51234.5, Status: domain.RivalActive, Mood: domain.MoodHostile, TelegraphKey: "price_war", TelegraphDay: 9}
 	game.Rivals["lil_lucy"] = domain.RivalState{Share: 0, Status: domain.RivalAcquired, PricePaid: 2500, Hostile: true}
+	game.Cycle = domain.CycleState{Key: "inflation", DaysLeft: 7, Drift: 1.0721}
+	game.WonOnDay, game.WonNetWorth = 141, 22_000_000
 	user, err := repo.CreateUserWithGame(ctx, "pgemp1", game)
 	if err != nil {
 		t.Fatal(err)
@@ -265,8 +267,11 @@ func TestPostgresRoundTripsTheEmpire(t *testing.T) {
 	if got.Territories["city"] != game.Territories["city"] || got.Rivals["zest_express"] != game.Rivals["zest_express"] || got.Rivals["lil_lucy"] != game.Rivals["lil_lucy"] {
 		t.Fatalf("empire did not round-trip: %+v %+v", got.Territories, got.Rivals)
 	}
+	if got.Cycle != game.Cycle || got.WonOnDay != 141 || got.WonNetWorth != 22_000_000 {
+		t.Fatalf("cycle and victory did not round-trip: %+v won %d/%d", got.Cycle, got.WonOnDay, got.WonNetWorth)
+	}
 
-	if err := db.Exec("UPDATE games SET territories = NULL, rivals = NULL WHERE user_id = ?", user.ID).Error; err != nil {
+	if err := db.Exec("UPDATE games SET territories = NULL, rivals = NULL, cycle = NULL WHERE user_id = ?", user.ID).Error; err != nil {
 		t.Fatal(err)
 	}
 	old, err := repo.GetGame(ctx, user.ID)
@@ -281,6 +286,9 @@ func TestPostgresRoundTripsTheEmpire(t *testing.T) {
 	}
 	if domain.Era(old, cfg) != 1 {
 		t.Fatal("an old save is era 1")
+	}
+	if old.Cycle != (domain.CycleState{}) {
+		t.Fatalf("an old save has no cycle: %+v", old.Cycle)
 	}
 }
 

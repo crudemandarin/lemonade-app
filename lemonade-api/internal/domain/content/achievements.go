@@ -56,6 +56,8 @@ const (
 	KindBankruptHoldingOnly  = "bankrupt_holding_only"    // Commodity
 	KindBankruptByDay        = "bankrupt_by_day"          // N
 	KindGaveUpWithNetWorth   = "gave_up_with_net_worth"   // N
+	KindWon                  = "won"                      //
+	KindWonWithoutBuyout     = "won_without_buyout"       //
 	KindUpgradesOwned        = "upgrades_owned"           // N: at least N catalog upgrades (territory ones excluded)
 	KindRivalsBoughtAtLeast  = "rivals_bought_at_least"   // N
 	KindRivalBought          = "rival_bought"             // Key
@@ -120,6 +122,8 @@ func TerritoryEntered(key string) Predicate {
 func TerritoryShareAtLeast(key string, percent int) Predicate {
 	return Predicate{Kind: KindTerritoryShare, Key: key, N: percent}
 }
+func Won() Predicate                { return Predicate{Kind: KindWon} }
+func WonWithoutBuyout() Predicate   { return Predicate{Kind: KindWonWithoutBuyout} }
 func UpgradesOwned(n int) Predicate { return Predicate{Kind: KindUpgradesOwned, N: n} }
 
 // UpgradeSetOwned is every upgrade of a category, or every non-territory upgrade for "".
@@ -226,6 +230,8 @@ var Achievements = []AchievementDef{
 	{Key: "enter_world", Name: "Going global", Description: "Enter the World.", Category: "empire", Tier: TierGold, Check: TerritoryEntered("world")},
 	{Key: "hostile", Name: "Hostile takeover", Description: "Complete a hostile buyout.", Category: "empire", Tier: TierSilver, Check: HostileBuyout()},
 	{Key: "price_war_won", Name: "Price warrior", Description: "Come out of a price war with at least the share you had going in.", Category: "empire", Tier: TierSilver, Check: StatAtLeast(StatPriceWarsWon, 1)},
+	{Key: "victory", Name: "Global leader", Description: "Win the game: hold half of the World, or buy out Global Citrus Holdings.", Category: "empire", Tier: TierGold, Check: Won()},
+	{Key: "underdog", Name: "Underdog", Description: "Win without buying out Global Citrus Holdings.", Category: "empire", Tier: TierGold, Hidden: true, Check: WonWithoutBuyout()},
 
 	// Trading and market
 	{Key: "buy_low", Name: "Bargain hunter", Description: "Buy an ingredient at 70% of its base price or less.", Category: "trading", Tier: TierBronze, Check: BoughtInputAtPercent(70)},

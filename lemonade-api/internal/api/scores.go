@@ -36,6 +36,8 @@ type scoreRowDTO struct {
 	IsMe bool `json:"isMe"`
 	// Achievements is how many the player has unlocked, shown as a badge.
 	Achievements int `json:"achievements"`
+	// WonOnDay is the day this run won the game, 0 if it did not; the board shows a badge.
+	WonOnDay int `json:"wonOnDay"`
 }
 
 type scoresDTO struct {
@@ -76,7 +78,7 @@ type runDetailDTO struct {
 func toScoreRow(r store.ScoreRow, callerID uint) scoreRowDTO {
 	return scoreRowDTO{
 		Rank: r.Rank, Username: r.Username, Score: r.Score, Days: r.Days,
-		NetWorth: r.NetWorth, CreatedAt: r.CreatedAt, IsMe: r.UserID == callerID, Achievements: r.Achievements,
+		NetWorth: r.NetWorth, CreatedAt: r.CreatedAt, IsMe: r.UserID == callerID, Achievements: r.Achievements, WonOnDay: r.WonOnDay,
 	}
 }
 
