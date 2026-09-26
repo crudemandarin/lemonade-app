@@ -15,8 +15,6 @@ type Memory struct {
 	mu     sync.Mutex
 	nextID uint
 	users  map[string]domain.User
-	byUID  map[string]uint // Firebase UID -> user ID
-	linked map[uint]bool   // user IDs that have a UID (email is not kept: nothing reads it)
 	games  map[uint]domain.Game
 
 	reports  map[string]map[int]domain.DayReport // by run ID, then day
@@ -24,14 +22,15 @@ type Memory struct {
 	runs     []domain.RunRecord                  // finished runs, oldest first
 	runMeta  map[string]runMeta                  // when each finished
 	seq      int
+
+	achievements map[uint]map[string]Achievement // by user, then key
+	backfills    map[string]bool
 }
 
 func NewMemory() *Memory {
 	return &Memory{
 		nextID: 1,
 		users:  map[string]domain.User{},
-		byUID:  map[string]uint{},
-		linked: map[uint]bool{},
 		games:  map[uint]domain.Game{},
 
 		reports:  map[string]map[int]domain.DayReport{},
@@ -60,70 +59,6 @@ func (m *Memory) CreateUserWithGame(_ context.Context, username string, game dom
 	m.nextID++
 	m.users[username] = u
 	m.games[u.ID] = game.Clone()
-	return u, nil
-}
-
-func (m *Memory) FindGuestUser(_ context.Context, username string) (domain.User, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	u, ok := m.users[username]
-	switch {
-	case !ok:
-		return domain.User{}, ErrNotFound
-	case m.linked[u.ID]:
-		return domain.User{}, ErrAlreadyClaimed
-	}
-	return u, nil
-}
-
-func (m *Memory) FindUserByUID(_ context.Context, uid string) (domain.User, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	id, ok := m.byUID[uid]
-	if !ok || uid == "" {
-		return domain.User{}, ErrNotFound
-	}
-	for _, u := range m.users {
-		if u.ID == id {
-			return u, nil
-		}
-	}
-	return domain.User{}, ErrNotFound
-}
-
-func (m *Memory) CreateProfile(_ context.Context, username, uid, _ string, game domain.Game) (domain.User, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if _, ok := m.byUID[uid]; ok {
-		return domain.User{}, ErrAlreadyLinked
-	}
-	if _, ok := m.users[username]; ok {
-		return domain.User{}, ErrUsernameTaken
-	}
-	u := domain.User{ID: m.nextID, Username: username}
-	m.nextID++
-	m.users[username] = u
-	m.byUID[uid] = u.ID
-	m.linked[u.ID] = true
-	m.games[u.ID] = game.Clone()
-	return u, nil
-}
-
-func (m *Memory) ClaimUser(_ context.Context, username, uid, _ string) (domain.User, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if _, ok := m.byUID[uid]; ok {
-		return domain.User{}, ErrAlreadyLinked
-	}
-	u, ok := m.users[username]
-	if !ok {
-		return domain.User{}, ErrNotFound
-	}
-	if m.linked[u.ID] {
-		return domain.User{}, ErrAlreadyClaimed
-	}
-	m.byUID[uid] = u.ID
-	m.linked[u.ID] = true
 	return u, nil
 }
 
@@ -168,6 +103,14 @@ func (m *Memory) Mutate(_ context.Context, userID uint, fn func(g *domain.Game) 
 		m.runOwner[r.RunID] = userID
 		m.seq++
 		m.runMeta[r.RunID] = runMeta{createdAt: time.Now(), seq: m.seq}
+	}
+	if len(effects.Unlocked) > 0 {
+		now := time.Now()
+		grants := make([]Achievement, 0, len(effects.Unlocked))
+		for _, key := range effects.Unlocked {
+			grants = append(grants, Achievement{Key: key, RunID: g.RunID, UnlockedAt: now})
+		}
+		m.grant(userID, grants)
 	}
 	return g, nil
 }
@@ -251,22 +194,43 @@ func (m *Memory) usernameOf(userID uint) string {
 }
 
 // board builds the ranked best-run-per-user list; callers hold the lock.
-func (m *Memory) board() []ScoreRow {
+func (m *Memory) board(kind Board) []ScoreRow {
+	// value is what a run ranks by; ok is false for a run that is off the board.
+	value := func(r domain.RunRecord) (int, bool) {
+		if kind == BoardDay100 {
+			if r.NetWorthDay100 == nil {
+				return 0, false
+			}
+			return *r.NetWorthDay100, true
+		}
+		return r.Score, true
+	}
 	best := map[uint]domain.RunRecord{}
 	for _, r := range m.runs {
+		v, ok := value(r)
+		if !ok {
+			continue
+		}
 		uid := m.runOwner[r.RunID]
-		cur, ok := best[uid]
-		if !ok || r.Score > cur.Score ||
-			(r.Score == cur.Score && m.runMeta[r.RunID].earlier(m.runMeta[cur.RunID])) {
+		cur, has := best[uid]
+		cv, _ := value(cur)
+		if !has || v > cv ||
+			(v == cv && m.runMeta[r.RunID].earlier(m.runMeta[cur.RunID])) {
 			best[uid] = r
 		}
 	}
 	rows := make([]ScoreRow, 0, len(best))
 	for uid, r := range best {
-		rows = append(rows, ScoreRow{
-			UserID: uid, Username: m.usernameOf(uid), RunID: r.RunID, Score: r.Score,
+		v, _ := value(r)
+		row := ScoreRow{
+			UserID: uid, Username: m.usernameOf(uid), RunID: r.RunID, Score: v,
 			Days: r.Days, NetWorth: r.NetWorth, CreatedAt: m.runMeta[r.RunID].createdAt,
-		})
+			Achievements: len(m.achievements[uid]),
+		}
+		if kind == BoardDay100 {
+			row.Days, row.NetWorth = domain.BoardDay, v
+		}
+		rows = append(rows, row)
 	}
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].Score != rows[j].Score {
@@ -280,20 +244,28 @@ func (m *Memory) board() []ScoreRow {
 	return rows
 }
 
-func (m *Memory) TopScores(_ context.Context, limit int) ([]ScoreRow, error) {
+func (m *Memory) TopScores(ctx context.Context, limit int) ([]ScoreRow, error) {
+	return m.TopBoard(ctx, BoardAllTime, limit)
+}
+
+func (m *Memory) TopBoard(_ context.Context, kind Board, limit int) ([]ScoreRow, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	rows := m.board()
+	rows := m.board(kind)
 	if limit < len(rows) {
 		rows = rows[:limit]
 	}
 	return rows, nil
 }
 
-func (m *Memory) BestScore(_ context.Context, userID uint) (*ScoreRow, error) {
+func (m *Memory) BestScore(ctx context.Context, userID uint) (*ScoreRow, error) {
+	return m.BestOnBoard(ctx, BoardAllTime, userID)
+}
+
+func (m *Memory) BestOnBoard(_ context.Context, kind Board, userID uint) (*ScoreRow, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	for _, r := range m.board() {
+	for _, r := range m.board(kind) {
 		if r.UserID == userID {
 			r := r
 			return &r, nil

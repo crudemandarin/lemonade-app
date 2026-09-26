@@ -7,18 +7,12 @@ import { AppComponent } from './app.component';
 import { GameStore } from './core/game.store';
 import { SessionService } from './core/session.service';
 import { newGameView } from './core/testing/fixtures';
-import { FakeAuthPort, provideFakeAuth, signInForTest } from './core/testing/fake-auth';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
-      providers: [
-        provideRouter([]),
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        provideFakeAuth(new FakeAuthPort()),
-      ],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
   });
 
@@ -31,8 +25,8 @@ describe('AppComponent', () => {
   });
 
   it('log out clears the session and routes home', () => {
-    signInForTest('lemonjoe');
     const session = TestBed.inject(SessionService);
+    session.signIn('lemonjoe');
     const navigate = spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
@@ -53,7 +47,7 @@ describe('AppComponent', () => {
     };
 
     async function loadGame(status: 'active' | 'bankrupt') {
-      signInForTest('lemonjoe');
+      TestBed.inject(SessionService).signIn('lemonjoe');
       const fixture = TestBed.createComponent(AppComponent);
       const load = TestBed.inject(GameStore).load();
       TestBed.inject(HttpTestingController)

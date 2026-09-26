@@ -223,6 +223,22 @@ export const HELP_TERMS: HelpTerm[] = [
       'In order: lemonade is made, leftover ice melts, upkeep is paid, then the day advances and prices and events update. A report shows what changed.',
   },
   {
+    id: 'achievements',
+    icon: 'trend-up',
+    section: 'basics',
+    term: 'Achievements',
+    definition:
+      'Goals such as a net worth milestone or a long streak. They are cosmetic: they never change how the game plays or your score. Unlocked ones stay with your account, and the Awards page lists them all, with progress. Hidden ones show as ??? until you unlock them.',
+  },
+  {
+    id: 'day-100-board',
+    icon: 'calendar',
+    section: 'basics',
+    term: 'Best by day 100',
+    definition:
+      'A second scoreboard that ranks your net worth on the day you arrive at day 100, so a short, sharp run and a long one compete on equal terms. A run that ends before day 100 is not on it.',
+  },
+  {
     id: 'projection',
     icon: 'factory',
     section: 'basics',

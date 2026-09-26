@@ -82,10 +82,8 @@ Postgres reads the credentials only when it sets up an empty volume. To change t
 
 ```bash
 curl http://localhost:8080/api/health
-# Play on a username alone (the guest path):
 curl -X POST http://localhost:8080/api/login -H "Content-Type: application/json" -d '{"username":"lemonjoe"}'
 curl http://localhost:8080/api/game -H "X-Username: lemonjoe"
-# A Google-secured account needs Authorization: Bearer <Firebase ID token> instead; locally, mint one from the emulator.
 ```
 
 ## Test
@@ -103,15 +101,12 @@ golangci-lint run    # lint using .golangci.yml; install with: brew install gola
 
 ## API reference
 
-Every `/api/game`, `/api/scores` and `/api/runs` route identifies the player one of two ways. **Guest:** an `X-Username` header, accepted only for accounts that have not been secured (a secured one gets 401 `account_secured`). **Google:** `Authorization: Bearer <Firebase ID token>` (verified: signature, issuer, audience, expiry; provider `google.com`, verified email); a request with an Authorization header is judged by the token alone, never by falling back to the header. Missing or invalid: 401 `unauthorized`. A valid token whose account has no player yet: 403 `profile_required`. Google sign-in is optional and is off when `FIREBASE_PROJECT_ID` is unset. Every mutation returns the updated game view; errors return `{"error": "<code>", "message": "..."}`. The response shapes are defined in [api.models.ts](../lemonade-web/src/app/core/api.models.ts).
+Every `/api/game` route needs an `X-Username` header (username-only auth, intentionally not secure). Every mutation returns the updated game view; errors return `{"error": "<code>", "message": "..."}`. The response shapes are defined in [api.models.ts](../lemonade-web/src/app/core/api.models.ts).
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET    | `/api/health` | Liveness check (no auth) |
-| POST   | `/api/login` `{username}` | Guest login: create or get a user (a new user gets a new game). 409 `account_secured` if the name is secured with Google |
-| GET    | `/api/me` | The caller's profile `{id, username}`, or 403 `profile_required` (token only, no player needed) |
-| POST   | `/api/me/username` `{username}` | Create the player and their first game. 400 `invalid_username`, 409 `username_taken`, 409 `already_linked` |
-| POST   | `/api/me/claim` `{username}` | Secure an existing username by linking the caller's Google account (this is also how a guest secures theirs). 404 `unknown_username`, 409 `already_claimed`, 409 `already_linked`, 429 `rate_limited` |
+| POST   | `/api/login` `{username}` | Create or get a user (a new user gets a new game) |
 | GET    | `/api/game` | Current game view |
 | POST   | `/api/game/new` | Start a fresh game |
 | POST   | `/api/game/buy` `{resource, qty}` | Buy at ask |

@@ -1,7 +1,7 @@
 variable "project_id" {
   description = "Google Cloud project to deploy into."
   type        = string
-  default     = "lemonade-app-dev"
+  default     = "lemonade-app-509618"
 }
 
 variable "region" {
@@ -62,24 +62,6 @@ variable "web_domain" {
 
 variable "api_domain" {
   description = "Custom domain for the api service. Empty to disable."
-  type        = string
-  default     = ""
-}
-
-variable "firebase_api_key" {
-  description = "Web API key of the Firebase web app (Firebase console, Project settings, Your apps). Public, not a secret; see deploy/README.md, Sign in with Google."
-  type        = string
-  default     = ""
-}
-
-variable "firebase_auth_domain" {
-  description = "Optional override of Firebase authDomain. Empty (default) uses the web host, which needs its /__/auth/handler added to the OAuth client (deploy/README.md). Set to <project>.firebaseapp.com to skip that."
-  type        = string
-  default     = ""
-}
-
-variable "firebase_app_id" {
-  description = "App ID of the Firebase web app (looks like 1:123456789:web:abc123)."
   type        = string
   default     = ""
 }

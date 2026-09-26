@@ -154,3 +154,81 @@ describe('ScoresComponent', () => {
     });
   });
 });
+
+describe('ScoresComponent day 100 board', () => {
+  let http: HttpTestingController;
+  let fixture: ComponentFixture<ScoresComponent>;
+  let el: HTMLElement;
+
+  beforeEach(async () => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    });
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(ScoresComponent);
+    el = fixture.nativeElement;
+    fixture.detectChanges();
+    http.expectOne('/api/scores').flush({
+      board: 'all_time',
+      rows: [scoreRow({ username: 'amy34', achievements: 7 })],
+      me: null,
+    });
+    await settle();
+  });
+
+  afterEach(() => http.verify());
+
+  const settle = async () => {
+    await new Promise((resolve) => setTimeout(resolve));
+    fixture.detectChanges();
+  };
+  const text = () => el.textContent!.replace(/\s+/g, ' ');
+
+  it('shows each row with its achievement count as a number', () => {
+    const row = el.querySelector('tbody tr')!;
+    expect(row.querySelector('[data-label=Achievements]')!.textContent!.trim()).toBe('7');
+    expect(text()).toContain('Achievements');
+  });
+
+  it('toggles to the day 100 board, marked by aria-pressed, and asks for it', async () => {
+    const all = el.querySelector<HTMLButtonElement>('.board-all')!;
+    const d100 = el.querySelector<HTMLButtonElement>('.board-100')!;
+    expect(all.getAttribute('aria-pressed')).toBe('true');
+    expect(d100.getAttribute('aria-pressed')).toBe('false');
+
+    d100.click();
+    http.expectOne('/api/scores?board=day_100').flush({
+      board: 'day_100',
+      rows: [scoreRow({ username: 'zed99', score: 48000, days: 100 })],
+      me: null,
+    });
+    await settle();
+
+    expect(d100.getAttribute('aria-pressed')).toBe('true');
+    expect(all.getAttribute('aria-pressed')).toBe('false');
+    expect(text()).toContain('Best net worth by day 100');
+    expect(text()).toContain('zed99');
+    expect(text()).toContain('$48,000');
+    expect(text()).toContain('Net worth');
+  });
+
+  it('explains an empty day 100 board and why old runs are missing', async () => {
+    el.querySelector<HTMLButtonElement>('.board-100')!.click();
+    http.expectOne('/api/scores?board=day_100').flush({ board: 'day_100', rows: [], me: null });
+    await settle();
+
+    expect(el.querySelector('.empty')!.textContent).toContain('No run has reached day 100 yet');
+    expect(el.querySelector('.empty')!.textContent).toContain('did not record it');
+    expect(el.querySelector('table')).toBeNull();
+  });
+
+  it('goes back to all time without a board parameter', async () => {
+    el.querySelector<HTMLButtonElement>('.board-100')!.click();
+    http.expectOne('/api/scores?board=day_100').flush({ board: 'day_100', rows: [], me: null });
+    await settle();
+    el.querySelector<HTMLButtonElement>('.board-all')!.click();
+    http.expectOne('/api/scores').flush({ board: 'all_time', rows: [], me: null });
+    await settle();
+    expect(text()).toContain('Global high scores');
+  });
+});

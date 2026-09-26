@@ -13,10 +13,6 @@ type Secrets struct {
 	DBPassword string
 	DBName     string
 	DBPort     string
-
-	// Optional Google sign-in (securing an account). Empty turns it off: players can
-	// still play by username alone.
-	FirebaseProjectID string // FIREBASE_PROJECT_ID
 }
 
 // Init loads .env (if present) and populates s from the environment.
@@ -30,8 +26,6 @@ func (s *Secrets) Init() error {
 	s.DBPassword = os.Getenv("DB_PASSWORD")
 	s.DBName = os.Getenv("DB_NAME")
 	s.DBPort = os.Getenv("DB_PORT")
-
-	s.FirebaseProjectID = os.Getenv("FIREBASE_PROJECT_ID")
 
 	return nil
 }
