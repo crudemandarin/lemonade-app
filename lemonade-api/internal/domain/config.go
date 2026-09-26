@@ -277,7 +277,7 @@ func DefaultConfig() Config {
 			},
 			// Launch set events (late game Products B). They wait for era 2, when their goods exist.
 			{
-				Key: "strawberry_season", Kind: EventSupply, Name: "Strawberry Season", Era: 2, Duration: 5,
+				Key: "strawberry_season", Kind: EventSupply, Name: "Strawberry Season", Era: 3, Duration: 5,
 				Description: "Ripe berries flood the market.",
 				Multipliers: map[Resource]float64{"strawberry": 0.6},
 			},
@@ -295,11 +295,6 @@ func DefaultConfig() Config {
 				Key: "bumper_crop", Kind: EventSupply, Name: "Bumper Crop", Era: 2, Duration: 4,
 				Description: "A big harvest of citrus.",
 				Multipliers: map[Resource]float64{Lemon: 0.7, "lime": 0.8},
-			},
-			{
-				Key: "food_blog", Kind: EventMarket, Name: "Food Blog Feature", Era: 2, Duration: 3,
-				Description: "A blogger raves about your bakery.",
-				Multipliers: map[Resource]float64{"lemon_bars": 1.5, "candied_peel": 1.5},
 			},
 		},
 		WarehouseTiers: []Tier{

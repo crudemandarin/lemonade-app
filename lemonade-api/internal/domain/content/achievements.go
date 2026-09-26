@@ -223,8 +223,8 @@ var Achievements = []AchievementDef{
 
 	// Recipes
 	{Key: "first_recipe", Name: "Second product", Description: "Learn a recipe besides lemonade.", Category: "production", Tier: TierBronze, Check: RecipesKnownAtLeast(2)},
-	{Key: "recipe_book", Name: "Recipe book", Description: "Know five recipes.", Category: "production", Tier: TierSilver, Check: RecipesKnownAtLeast(5)},
-	{Key: "full_menu", Name: "Full menu", Description: "Learn every recipe.", Category: "production", Tier: TierGold, Check: RecipesKnownAtLeast(8)},
+	{Key: "recipe_book", Name: "Recipe book", Description: "Know three recipes.", Category: "production", Tier: TierSilver, Check: RecipesKnownAtLeast(3)},
+	{Key: "full_menu", Name: "Full menu", Description: "Learn every recipe.", Category: "production", Tier: TierGold, Check: RecipesKnownAtLeast(5)},
 
 	// Rivals and territories
 	{Key: "first_buyout", Name: "Acquisition", Description: "Buy out a rival.", Category: "empire", Tier: TierBronze, Check: RivalsBoughtAtLeast(1)},

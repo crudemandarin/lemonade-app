@@ -114,12 +114,8 @@ var Upgrades = []UpgradeDef{
 		Effects: []EffectDef{{Kind: EffUseDiscount, Target: "sugar", Value: 10}}, Text: "Recipes use 10% less sugar."},
 	{Key: "automation_line", Name: "Automation line", Category: UpProduction, Cost: 120000, Requires: Requires{Era: 3},
 		Effects: []EffectDef{{Kind: EffUpkeepDiscountPct, Target: "production", Value: 15}}, Text: "Production upkeep 15% lower."},
-	{Key: "oven", Name: "Commercial oven", Category: UpProduction, Cost: 12000, Upkeep: 15, Requires: Requires{Era: 2},
-		Effects: []EffectDef{{Kind: EffUnlock, Target: "bakery"}}, Text: "Unlocks the bakery recipes."},
 	{Key: "carbonator", Name: "Carbonation rig", Category: UpProduction, Cost: 50000, Upkeep: 30, Requires: Requires{Era: 3, ProductionLevel: 3},
 		Effects: []EffectDef{{Kind: EffUnlock, Target: "sparkling"}}, Text: "Unlocks the sparkling recipes (needs a Bottling Plant or better)."},
-	{Key: "zester", Name: "Zester", Category: UpProduction, Cost: 9000, Requires: Requires{Era: 2},
-		Effects: []EffectDef{{Kind: EffUnlock, Target: "byproduct_lemon_peel"}}, Text: "Every lemon used also yields a lemon peel."},
 
 	// Brand
 	{Key: "painted_stand", Name: "Painted stand", Category: UpBrand, Cost: 1500, Requires: Requires{Era: 1},

@@ -9,7 +9,7 @@ func Buy(g *Game, cfg Config, r Resource, qty int) error {
 	if qty <= 0 {
 		return ErrInvalidQuantity
 	}
-	if err := checkTradable(*g, cfg, r, true); err != nil {
+	if err := checkTradable(*g, cfg, r); err != nil {
 		return err
 	}
 
@@ -144,7 +144,7 @@ func BuyClamped(g *Game, cfg Config, r Resource, qty int) error {
 	if qty <= 0 {
 		return ErrInvalidQuantity
 	}
-	if err := checkTradable(*g, cfg, r, true); err != nil {
+	if err := checkTradable(*g, cfg, r); err != nil {
 		return err
 	}
 	n := QuoteBuy(*g, cfg, r, qty, true).Qty

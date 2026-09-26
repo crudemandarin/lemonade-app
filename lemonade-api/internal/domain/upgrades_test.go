@@ -445,11 +445,11 @@ func TestIceMachineTopsUpIceAtItsPrice(t *testing.T) {
 
 func TestUnlocksFeaturesAndShelfLife(t *testing.T) {
 	g, cfg := newTestGame()
-	if HasUnlock(g, cfg, "bakery") || HasFeature(g, cfg, "pnl") || ExtraShelfLife(g, cfg, content.StorageCold) != 0 {
+	if HasUnlock(g, cfg, "sparkling") || HasFeature(g, cfg, "pnl") || ExtraShelfLife(g, cfg, content.StorageCold) != 0 {
 		t.Fatal("nothing without upgrades")
 	}
-	own(&g, "oven", "bookkeeper", "cold_room", "order_book")
-	if !HasUnlock(g, cfg, "bakery") || !HasFeature(g, cfg, "pnl") || ExtraShelfLife(g, cfg, content.StorageCold) != 2 {
+	own(&g, "carbonator", "bookkeeper", "cold_room", "order_book")
+	if !HasUnlock(g, cfg, "sparkling") || !HasFeature(g, cfg, "pnl") || ExtraShelfLife(g, cfg, content.StorageCold) != 2 {
 		t.Fatal("upgrades should unlock their targets")
 	}
 	if got := Features(g, cfg); !reflect.DeepEqual(got, []string{"pnl", "repeat_trades"}) {

@@ -4,6 +4,7 @@ import { PlanRow, Recipe } from '../../core/api.models';
 import { GameStore } from '../../core/game.store';
 import { OnlineService } from '../../core/online.service';
 import { resourceLabel } from '../../core/resources';
+import { RunNavComponent } from '../../shared/run-nav/run-nav.component';
 import { CardComponent } from '../../shared/card/card.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { HelpLinkComponent } from '../../shared/help/help-link.component';
@@ -18,7 +19,7 @@ import { formatMoney, MoneyPipe } from '../../shared/money.pipe';
 @Component({
   selector: 'app-production',
   standalone: true,
-  imports: [CardComponent, ConfirmDialogComponent, HelpLinkComponent, MoneyPipe],
+  imports: [RunNavComponent, CardComponent, ConfirmDialogComponent, HelpLinkComponent, MoneyPipe],
   templateUrl: './production.component.html',
   styleUrl: './production.component.scss',
 })
@@ -35,7 +36,11 @@ export class ProductionComponent implements OnInit {
   protected readonly active = computed(() => (this.store.game()?.status ?? 'active') === 'active');
   protected readonly recipes = computed(() => this.store.game()?.recipes ?? []);
   protected readonly known = computed(() => this.recipes().filter((r) => r.state === 'known'));
-  protected readonly learnable = computed(() => this.recipes().filter((r) => r.state !== 'known'));
+  /** Only recipes that can be bought now: a locked one stays hidden until its era. */
+  protected readonly learnable = computed(() =>
+    this.recipes().filter((r) => r.state === 'available'),
+  );
+  protected readonly moreToCome = computed(() => this.recipes().some((r) => r.state === 'locked'));
   protected readonly rows = computed(() => this.draft() ?? this.store.game()?.plan ?? []);
   protected readonly dirty = computed(() => this.draft() !== null);
   protected readonly unused = computed(() =>

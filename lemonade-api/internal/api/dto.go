@@ -43,10 +43,8 @@ type resourceViewDTO struct {
 	// MovingAverage is the 7-day average price, whole dollars; null without a market analyst.
 	MovingAverage *int `json:"movingAverage"`
 	// Unlocked is false until the player has a use for the commodity (a learned recipe);
-	// locked ones stay out of the market panel. Buyable is false for a byproduct that can
-	// only be sold. ShelfDays is how many days stock keeps (0: it does not spoil).
+	// locked ones stay out of the market panel. ShelfDays is how many days stock keeps (0: it does not spoil).
 	Unlocked  bool `json:"unlocked"`
-	Buyable   bool `json:"buyable"`
 	ShelfDays int  `json:"shelfDays"`
 }
 
@@ -484,11 +482,6 @@ func toPlanRows(g domain.Game, cfg domain.Config) []planRowDTO {
 	return out
 }
 
-func commodityNotBought(cfg domain.Config, r domain.Resource) bool {
-	c, ok := cfg.Commodity(r)
-	return ok && c.NotBought
-}
-
 func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 	domain.SeedEmpire(&g, cfg)
 	quotes := domain.Quotes(g, cfg)
@@ -516,7 +509,6 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 			UnrealizedGain:    domain.UnrealizedGain(g, cfg, r),
 			MovingAverage:     movingAverage(g, cfg, m.History),
 			Unlocked:          domain.CommodityUnlocked(g, cfg, r),
-			Buyable:           !commodityNotBought(cfg, r),
 			ShelfDays:         domain.ShelfDays(g, cfg, r),
 		})
 	}

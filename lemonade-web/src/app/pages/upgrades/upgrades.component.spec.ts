@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
 import { newGameView, upgradesResponse } from '../../core/testing/fixtures';
 import { UpgradesComponent } from './upgrades.component';
@@ -14,7 +15,7 @@ describe('UpgradesComponent', () => {
 
   async function render(capital = 1000) {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     fixture = TestBed.createComponent(UpgradesComponent);
     http = TestBed.inject(HttpTestingController);

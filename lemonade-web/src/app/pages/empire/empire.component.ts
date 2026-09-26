@@ -3,6 +3,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CampaignOption, EmpireResponse, Rival, Territory } from '../../core/api.models';
 import { GameStore } from '../../core/game.store';
 import { OnlineService } from '../../core/online.service';
+import { RunNavComponent } from '../../shared/run-nav/run-nav.component';
 import { CardComponent } from '../../shared/card/card.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { HelpLinkComponent } from '../../shared/help/help-link.component';
@@ -25,7 +26,7 @@ interface Pending {
 @Component({
   selector: 'app-empire',
   standalone: true,
-  imports: [CardComponent, ConfirmDialogComponent, HelpLinkComponent, MoneyPipe],
+  imports: [RunNavComponent, CardComponent, ConfirmDialogComponent, HelpLinkComponent, MoneyPipe],
   templateUrl: './empire.component.html',
   styleUrl: './empire.component.scss',
 })

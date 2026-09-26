@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
 import { Recipe } from '../../core/api.models';
 import { newGameView } from '../../core/testing/fixtures';
@@ -33,7 +34,7 @@ describe('ProductionComponent', () => {
 
   async function render(capital = 5000) {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     fixture = TestBed.createComponent(ProductionComponent);
     http = TestBed.inject(HttpTestingController);
@@ -65,13 +66,14 @@ describe('ProductionComponent', () => {
   const text = (e: Element) => e.textContent!.replace(/\s+/g, ' ').trim();
   const item = (key: string) => el.querySelector<HTMLElement>(`[data-recipe=${key}]`)!;
 
-  it('lists known, learnable and locked recipes, with the reason for a lock', async () => {
+  it('lists known and learnable recipes, and hides locked ones entirely', async () => {
     await render();
     expect(text(item('lemonade'))).toContain('Known');
     expect(text(item('limeade'))).toContain('Learn for $800');
     expect(item('limeade').querySelector<HTMLButtonElement>('.learn')!.disabled).toBeFalse();
-    expect(text(item('mint_lemonade'))).toContain('Reach era 2 first');
-    expect(item('mint_lemonade').querySelector('.learn')).toBeNull();
+    expect(el.querySelector('[data-recipe=mint_lemonade]')).toBeNull();
+    expect(text(el)).not.toContain('Mint lemonade');
+    expect(text(el)).toContain('More recipes unlock as your business grows.');
   });
 
   it('cannot learn a recipe it cannot afford, and says how much is missing', async () => {

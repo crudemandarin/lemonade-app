@@ -49,8 +49,6 @@ type CommodityDef struct {
 	// DepthPct is how deep this good's market is compared with lemonade's, in percent, and
 	// is what sets its free depth (0 means the same as lemonade, for the original goods).
 	DepthPct int
-	// NotBought marks a good the market does not sell (a byproduct); it can only be sold.
-	NotBought bool
 }
 
 // Commodities is the catalog. The order of this slice is the display order, and
@@ -63,25 +61,18 @@ var Commodities = []CommodityDef{
 	{Key: "cup", Name: "Cups", Category: CategoryIngredient, StorageClass: StorageDry, BasePrice: 10, ShelfLifeDays: Keeps, Input: true, Order: 40},
 	{Key: "lemonade", Name: "Lemonade", Category: CategoryProduct, StorageClass: StorageFinished, BasePrice: 90, ShelfLifeDays: Keeps, Product: true, Order: 50},
 
-	// Launch set (late game Products B). Fresh fruit and herbs spoil after a few days;
-	// lemons stay as they were. Depth is a percentage of lemonade's.
+	// Launch set (late game Products B): four ingredients, each unlocked by learning a recipe.
+	// Fresh fruit and herbs spoil after a few days; lemons stay as they were. Depth is a
+	// percentage of lemonade's.
 	{Key: "lime", Name: "Limes", Category: CategoryIngredient, StorageClass: StorageCold, BasePrice: 18, ShelfLifeDays: 3, Input: true, Order: 60, DepthPct: 100},
 	{Key: "mint", Name: "Mint", Category: CategoryIngredient, StorageClass: StorageCold, BasePrice: 12, ShelfLifeDays: 3, Input: true, Order: 70, DepthPct: 100},
 	{Key: "honey", Name: "Honey", Category: CategoryIngredient, StorageClass: StorageDry, BasePrice: 24, ShelfLifeDays: Keeps, Input: true, Order: 80, DepthPct: 100},
-	{Key: "black_tea", Name: "Black tea", Category: CategoryIngredient, StorageClass: StorageDry, BasePrice: 8, ShelfLifeDays: Keeps, Input: true, Order: 90, DepthPct: 100},
-	{Key: "strawberry", Name: "Strawberries", Category: CategoryIngredient, StorageClass: StorageCold, BasePrice: 30, ShelfLifeDays: 3, Input: true, Order: 100, DepthPct: 100},
-	{Key: "flour", Name: "Flour", Category: CategoryIngredient, StorageClass: StorageDry, BasePrice: 6, ShelfLifeDays: Keeps, Input: true, Order: 110, DepthPct: 100},
-	{Key: "butter", Name: "Butter", Category: CategoryIngredient, StorageClass: StorageCold, BasePrice: 14, ShelfLifeDays: 5, Input: true, Order: 120, DepthPct: 100},
-	{Key: "egg", Name: "Eggs", Category: CategoryIngredient, StorageClass: StorageCold, BasePrice: 10, ShelfLifeDays: 5, Input: true, Order: 130, DepthPct: 100},
-	{Key: "lemon_peel", Name: "Lemon peel", Category: CategoryIngredient, StorageClass: StorageDry, BasePrice: 5, ShelfLifeDays: Keeps, Input: true, Order: 140, DepthPct: 100, NotBought: true},
+	{Key: "strawberry", Name: "Strawberries", Category: CategoryIngredient, StorageClass: StorageCold, BasePrice: 30, ShelfLifeDays: 3, Input: true, Order: 90, DepthPct: 100},
 
-	{Key: "limeade", Name: "Limeade", Category: CategoryProduct, StorageClass: StorageFinished, BasePrice: 88, ShelfLifeDays: Keeps, Product: true, Order: 150, DepthPct: 35},
-	{Key: "mint_lemonade", Name: "Mint lemonade", Category: CategoryProduct, StorageClass: StorageFinished, BasePrice: 110, ShelfLifeDays: Keeps, Product: true, Order: 160, DepthPct: 30},
-	{Key: "honey_lemonade", Name: "Honey lemonade", Category: CategoryProduct, StorageClass: StorageFinished, BasePrice: 115, ShelfLifeDays: Keeps, Product: true, Order: 170, DepthPct: 30},
-	{Key: "arnold_palmer", Name: "Arnold Palmer", Category: CategoryProduct, StorageClass: StorageFinished, BasePrice: 100, ShelfLifeDays: Keeps, Product: true, Order: 180, DepthPct: 40},
-	{Key: "strawberry_lemonade", Name: "Strawberry lemonade", Category: CategoryProduct, StorageClass: StorageFinished, BasePrice: 135, ShelfLifeDays: Keeps, Product: true, Order: 190, DepthPct: 45},
-	{Key: "lemon_bars", Name: "Lemon bars", Category: CategoryProduct, StorageClass: StorageFinished, BasePrice: 105, ShelfLifeDays: Keeps, Product: true, Order: 200, DepthPct: 40},
-	{Key: "candied_peel", Name: "Candied peel", Category: CategoryProduct, StorageClass: StorageFinished, BasePrice: 35, ShelfLifeDays: Keeps, Product: true, Order: 210, DepthPct: 10},
+	{Key: "limeade", Name: "Limeade", Category: CategoryProduct, StorageClass: StorageFinished, BasePrice: 88, ShelfLifeDays: Keeps, Product: true, Order: 100, DepthPct: 35},
+	{Key: "mint_lemonade", Name: "Mint lemonade", Category: CategoryProduct, StorageClass: StorageFinished, BasePrice: 110, ShelfLifeDays: Keeps, Product: true, Order: 110, DepthPct: 30},
+	{Key: "honey_lemonade", Name: "Honey lemonade", Category: CategoryProduct, StorageClass: StorageFinished, BasePrice: 115, ShelfLifeDays: Keeps, Product: true, Order: 120, DepthPct: 30},
+	{Key: "strawberry_lemonade", Name: "Strawberry lemonade", Category: CategoryProduct, StorageClass: StorageFinished, BasePrice: 135, ShelfLifeDays: Keeps, Product: true, Order: 130, DepthPct: 45},
 }
 
 // LegacyOrder is the order of the original five commodities, used to read records

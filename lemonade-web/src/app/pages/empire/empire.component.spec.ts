@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
 import { ApiService } from '../../core/api.service';
@@ -50,7 +51,7 @@ describe('EmpireComponent', () => {
     api.enterTerritory.and.returnValue(of(newGameView()));
     TestBed.configureTestingModule({
       imports: [EmpireComponent],
-      providers: [{ provide: ApiService, useValue: api }],
+      providers: [{ provide: ApiService, useValue: api }, provideRouter([])],
     });
     const fixture = TestBed.createComponent(EmpireComponent);
     fixture.detectChanges();

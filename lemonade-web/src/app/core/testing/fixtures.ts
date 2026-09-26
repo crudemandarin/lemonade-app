@@ -72,7 +72,6 @@ function row(resource: Resource, price: number, stock = 0): ResourceView {
     unrealizedGain: 0,
     movingAverage: null,
     unlocked: true,
-    buyable: true,
     shelfDays: 0,
   };
 }

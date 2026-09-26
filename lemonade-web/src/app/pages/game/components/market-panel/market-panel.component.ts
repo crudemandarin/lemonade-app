@@ -147,7 +147,7 @@ export class MarketPanelComponent {
   }
 
   protected canBuy(row: ResourceView): boolean {
-    return !this.disabled() && row.buyable && row.stock < row.capacity && this.capital() >= row.ask;
+    return !this.disabled() && row.stock < row.capacity && this.capital() >= row.ask;
   }
 
   protected canSell(row: ResourceView): boolean {

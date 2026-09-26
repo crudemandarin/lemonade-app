@@ -227,8 +227,7 @@ func makeInputs(g *Game, cfg Config) (made, cost int) {
 
 // produce runs the production plan (see plan.go) and returns what each row made. A row's
 // output costs what its inputs cost. Use discounts save whole cases of an input, and yield
-// bonuses add whole cases of output; both carry fractions. A zester saves the peel of every
-// lemon used.
+// bonuses add whole cases of output; both carry fractions.
 func produce(g *Game, cfg Config) []PlanResult {
 	results := planBatches(*g, cfg, "")
 	for i := range results {
@@ -247,7 +246,6 @@ func produce(g *Game, cfg Config) []PlanResult {
 		g.Inventory[rec.Output] += out
 		g.addBasis(rec.Output, cost)
 		res.Output = out
-		g.saveByproducts(cfg, rec, res.Batches)
 	}
 	return results
 }
@@ -259,20 +257,6 @@ func producedTotal(results []PlanResult) int {
 		n += r.Output
 	}
 	return n
-}
-
-// saveByproducts gives a zester its lemon peel: one per lemon a batch used, as far as the
-// dry store has room.
-func (g *Game) saveByproducts(cfg Config, rec Recipe, batches int) {
-	if !HasUnlock(*g, cfg, "byproduct_lemon_peel") {
-		return
-	}
-	lemons := recipeUses(rec, Lemon) * batches
-	n := min(lemons, FreeSpace(*g, cfg, LemonPeel))
-	if n <= 0 {
-		return
-	}
-	g.Inventory[LemonPeel] += n
 }
 
 // recipeUses is how many cases of r one batch of rec consumes.

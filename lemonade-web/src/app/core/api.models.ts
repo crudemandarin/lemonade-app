@@ -54,8 +54,6 @@ export interface ResourceView {
   movingAverage: number | null;
   /** False until a learned recipe uses the commodity; locked ones stay out of the market. */
   unlocked: boolean;
-  /** False for a byproduct (lemon peel) that can only be sold. */
-  buyable: boolean;
   /** Days stock keeps before it spoils; 0 means it does not spoil. */
   shelfDays: number;
 }

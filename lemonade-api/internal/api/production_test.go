@@ -22,8 +22,8 @@ func TestRecipesAreListedAndLocksExplained(t *testing.T) {
 	if mint.State != "locked" || mint.LockCode != "era" || mint.LockedReason != "Reach era 2 first" {
 		t.Fatalf("mint lemonade in era 1: %+v", mint)
 	}
-	if bars := byKey["lemon_bars"]; bars.State != "locked" {
-		t.Fatalf("lemon bars: %+v", bars)
+	if sb := byKey["strawberry_lemonade"]; sb.State != "locked" || sb.LockedReason != "Reach era 3 first" {
+		t.Fatalf("strawberry lemonade: %+v", sb)
 	}
 	if len(v.Plan) != 1 || v.Plan[0].Recipe != "lemonade" || v.Plan[0].Target != 0 {
 		t.Fatalf("default plan: %+v", v.Plan)
@@ -91,7 +91,7 @@ func TestPerishablesShowInTheProjectionAndTheReport(t *testing.T) {
 			lime = r
 		}
 	}
-	if lime.ShelfDays != 3 || !lime.Buyable {
+	if lime.ShelfDays != 3 {
 		t.Fatalf("limes keep 3 days: %+v", lime)
 	}
 	// Two nights pass with nothing using them; on the third the limes go off.

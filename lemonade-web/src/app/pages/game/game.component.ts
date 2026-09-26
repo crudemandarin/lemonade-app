@@ -1,3 +1,4 @@
+import { RunNavComponent } from '../../shared/run-nav/run-nav.component';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 
 import { resourceLabel } from '../../core/resources';
@@ -45,6 +46,7 @@ function loadAlerts(): Record<Resource, number> {
   selector: 'app-game',
   standalone: true,
   imports: [
+    RunNavComponent,
     CardComponent,
     ConfirmDialogComponent,
     IconComponent,

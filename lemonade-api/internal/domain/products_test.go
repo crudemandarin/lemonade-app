@@ -52,20 +52,25 @@ func TestRecipeLocks(t *testing.T) {
 	if err := LearnRecipe(&g, cfg, "mint_lemonade"); !errors.As(err, &locked) || locked.Code != LockEra {
 		t.Fatalf("an era 2 recipe in era 1: %v", err)
 	}
-	// Lemon bars need the oven as well as the era.
+	// A recipe can also need an upgrade (here the mint lemonade is made to need the carbonator).
 	g.Territories["city"] = TerritoryState{Entered: true, Share: 10}
-	if err := LearnRecipe(&g, cfg, "lemon_bars"); !errors.As(err, &locked) || locked.Code != LockUnlock {
-		t.Fatalf("lemon bars without an oven: %v", err)
+	for i := range cfg.Recipes {
+		if cfg.Recipes[i].Key == "mint_lemonade" {
+			cfg.Recipes[i].Unlock = "sparkling"
+		}
 	}
-	g.Upgrades["oven"] = 1
-	if err := LearnRecipe(&g, cfg, "lemon_bars"); err != nil {
-		t.Fatalf("lemon bars with an oven: %v", err)
+	if err := LearnRecipe(&g, cfg, "mint_lemonade"); !errors.As(err, &locked) || locked.Code != LockUnlock {
+		t.Fatalf("mint lemonade without the carbonator: %v", err)
+	}
+	g.Upgrades["carbonator"] = 1
+	if err := LearnRecipe(&g, cfg, "mint_lemonade"); err != nil {
+		t.Fatalf("mint lemonade with the carbonator: %v", err)
 	}
 	if err := LearnRecipe(&g, cfg, "nonsense"); !errors.Is(err, ErrUnknownRecipe) {
 		t.Fatalf("unknown recipe: %v", err)
 	}
 	g.Capital = 10
-	if err := LearnRecipe(&g, cfg, "mint_lemonade"); !errors.Is(err, ErrInsufficientFunds) {
+	if err := LearnRecipe(&g, cfg, "honey_lemonade"); !errors.Is(err, ErrInsufficientFunds) {
 		t.Fatalf("too poor: %v", err)
 	}
 }
@@ -73,7 +78,7 @@ func TestRecipeLocks(t *testing.T) {
 // learnAll teaches every recipe that has no lock beyond era, for plan tests.
 func learnAll(g *Game, cfg Config) {
 	g.Territories["city"] = TerritoryState{Entered: true, Share: 10}
-	g.Upgrades["oven"], g.Upgrades["zester"] = 1, 1
+	g.Territories["region"] = TerritoryState{Entered: true, Share: 10}
 	for _, r := range cfg.Recipes {
 		if r.Era > 0 {
 			g.Recipes[r.Key] = true
@@ -243,7 +248,7 @@ func TestAColdRoomExtendsShelfLife(t *testing.T) {
 	if got := shelfDays(g, cfg, "strawberry"); got != base+2 {
 		t.Fatalf("a cold room adds 2 days: %d to %d", base, got)
 	}
-	if shelfDays(g, cfg, Lemon) != 0 || shelfDays(g, cfg, "flour") != 0 {
+	if shelfDays(g, cfg, Lemon) != 0 || shelfDays(g, cfg, "honey") != 0 {
 		t.Fatal("keeping goods have no shelf life to extend")
 	}
 }
@@ -264,31 +269,6 @@ func TestClassesPoolCapacity(t *testing.T) {
 	}
 }
 
-func TestAZesterSavesPeelAndCandiedPeelUsesIt(t *testing.T) {
-	g, cfg := stocked(t)
-	learnAll(&g, cfg)
-	for _, in := range Inputs {
-		g.Inventory[in] = 20
-	}
-	if err := SetProductionPlan(&g, cfg, []PlanRow{{Recipe: "lemonade"}, {Recipe: "candied_peel"}}); err != nil {
-		t.Fatal(err)
-	}
-	g.Inventory[Sugar] = 40
-	res := produce(&g, cfg)
-	if g.Inventory[Lemon] != 0 || g.Inventory[LemonPeel] != 20-res[1].Output {
-		t.Fatalf("20 lemons should leave 20 peel, of which the candied peel used %d: inventory %v", res[1].Output, g.Inventory)
-	}
-	// The peel of tonight's lemons is only there after the row ran, so tonight's candied
-	// peel used none, and it is made from tomorrow.
-	if res[1].Output != 0 {
-		t.Fatalf("no peel existed when the candied peel row ran: %+v", res[1])
-	}
-	res = produce(&g, cfg)
-	if res[1].Output == 0 {
-		t.Fatalf("with peel and sugar in stock the candied peel row makes some: %+v", res)
-	}
-}
-
 func TestLaunchEventsWaitForTheirEra(t *testing.T) {
 	cfg := DefaultConfig()
 	g := NewGame(cfg, 1)
@@ -297,8 +277,8 @@ func TestLaunchEventsWaitForTheirEra(t *testing.T) {
 			t.Errorf("%s (era %d) can start in era 1", d.Key, d.Era)
 		}
 	}
-	if got := len(eventsInEra(cfg.Events, 2)); got != len(cfg.Events) {
-		t.Errorf("in era 2 every event is in the draw, got %d of %d", got, len(cfg.Events))
+	if got := len(eventsInEra(cfg.Events, 3)); got != len(cfg.Events) {
+		t.Errorf("in era 3 every event is in the draw, got %d of %d", got, len(cfg.Events))
 	}
 }
 
@@ -317,8 +297,8 @@ func TestDrinkEventsSpreadToUnlockedColdDrinksOnly(t *testing.T) {
 			t.Errorf("%s should get the heat wave: %v", drink, m[drink])
 		}
 	}
-	if _, ok := m["lemon_bars"]; ok {
-		t.Error("lemon bars are not a cold drink")
+	if _, ok := m["honey"]; ok {
+		t.Error("an ingredient is not a cold drink")
 	}
 	if len(heat.Multipliers) != 2 {
 		t.Errorf("the definition must not change: %v", heat.Multipliers)
@@ -331,8 +311,8 @@ func TestDrinkEventsSpreadToUnlockedColdDrinksOnly(t *testing.T) {
 
 func TestRecipeAchievementsFollowTheRecipeBook(t *testing.T) {
 	g, cfg := stocked(t)
-	if got := len(cfg.Recipes); got != 8 {
-		t.Fatalf("full_menu asks for 8 recipes but the catalog has %d: update the row", got)
+	if got := len(cfg.Recipes); got != 5 {
+		t.Fatalf("full_menu asks for 5 recipes but the catalog has %d: update the row", got)
 	}
 	unlocked := func() map[string]bool {
 		out := map[string]bool{}
@@ -367,7 +347,7 @@ func diversifiedRun(t *testing.T, seed int64) Game {
 	g := NewGame(cfg, seed)
 	g.Capital = 2_000_000
 	g.Territories["city"] = TerritoryState{Entered: true, Share: 10}
-	g.Upgrades["oven"], g.Upgrades["zester"] = 1, 1
+	g.Territories["region"] = TerritoryState{Entered: true, Share: 10}
 	rng := rand.New(rand.NewSource(seed * 7919))
 	for day := 0; day < 60; day++ {
 		for a := 0; a < 8; a++ {

@@ -1,3 +1,4 @@
+<app-run-nav />
 <h1>Production</h1>
 <p class="lede">
   Learn recipes, then set the plan production follows each night. Every recipe shares your daily
@@ -107,27 +108,25 @@
             </p>
           </div>
           <div class="state">
-            @if (r.state === 'locked') {
-              <span class="badge locked-badge">Locked</span>
-              <span class="reason">{{ r.lockedReason }}</span>
-            } @else {
-              <button
-                type="button"
-                class="btn btn-sm learn"
-                [disabled]="!canLearn(r)"
-                [attr.aria-label]="'Learn ' + r.name + ' for ' + exact(r.learnCost)"
-                (click)="confirming.set(r)"
-              >
-                Learn
-              </button>
-              @if (capital() < r.learnCost) {
-                <span class="reason">Need {{ r.learnCost - capital() | money }} more</span>
-              }
+            <button
+              type="button"
+              class="btn btn-sm learn"
+              [disabled]="!canLearn(r)"
+              [attr.aria-label]="'Learn ' + r.name + ' for ' + exact(r.learnCost)"
+              (click)="confirming.set(r)"
+            >
+              Learn
+            </button>
+            @if (capital() < r.learnCost) {
+              <span class="reason">Need {{ r.learnCost - capital() | money }} more</span>
             }
           </div>
         </li>
       }
     </ul>
+    @if (moreToCome()) {
+      <p class="note">More recipes unlock as your business grows.</p>
+    }
   </app-card>
 } @else {
   <p class="note">Loading…</p>

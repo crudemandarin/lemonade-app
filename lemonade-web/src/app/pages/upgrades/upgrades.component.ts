@@ -3,6 +3,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { UpgradeItem, UpgradesResponse } from '../../core/api.models';
 import { GameStore } from '../../core/game.store';
 import { OnlineService } from '../../core/online.service';
+import { RunNavComponent } from '../../shared/run-nav/run-nav.component';
 import { CardComponent } from '../../shared/card/card.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { HelpLinkComponent } from '../../shared/help/help-link.component';
@@ -18,7 +19,7 @@ type Load = 'loading' | 'ready' | 'error';
 @Component({
   selector: 'app-upgrades',
   standalone: true,
-  imports: [CardComponent, ConfirmDialogComponent, HelpLinkComponent, MoneyPipe],
+  imports: [RunNavComponent, CardComponent, ConfirmDialogComponent, HelpLinkComponent, MoneyPipe],
   templateUrl: './upgrades.component.html',
   styleUrl: './upgrades.component.scss',
 })

@@ -17,8 +17,6 @@ type Commodity struct {
 	Input         bool
 	Product       bool
 	Order         int
-	// NotBought marks a byproduct the market does not sell.
-	NotBought bool
 }
 
 // Ingredient is Qty cases of a commodity used by one batch of a recipe.
@@ -53,7 +51,7 @@ func catalog() ([]Commodity, []Recipe, map[Resource]int) {
 	for _, d := range defs {
 		commodities = append(commodities, Commodity{
 			Key: Resource(d.Key), Name: d.Name, Category: d.Category, StorageClass: d.StorageClass,
-			ShelfLifeDays: d.ShelfLifeDays, Input: d.Input, Product: d.Product, Order: d.Order, NotBought: d.NotBought,
+			ShelfLifeDays: d.ShelfLifeDays, Input: d.Input, Product: d.Product, Order: d.Order,
 		})
 		base[Resource(d.Key)] = d.BasePrice
 	}

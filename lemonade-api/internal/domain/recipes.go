@@ -113,8 +113,7 @@ func LearnRecipe(g *Game, cfg Config, key string) error {
 }
 
 // CommodityUnlocked reports whether a commodity is part of the player's game: the main
-// recipe's goods always are, and any other once a recipe they belong to is learned. The
-// lemon peel a zester saves appears with the zester.
+// recipe's goods always are, and any other once a recipe they belong to is learned.
 func CommodityUnlocked(g Game, cfg Config, r Resource) bool {
 	for _, rec := range KnownRecipes(g, cfg) {
 		if rec.Output == r {
@@ -126,20 +125,12 @@ func CommodityUnlocked(g Game, cfg Config, r Resource) bool {
 			}
 		}
 	}
-	return r == LemonPeel && HasUnlock(g, cfg, "byproduct_lemon_peel")
+	return false
 }
 
-// LemonPeel is the byproduct a zester saves from every lemon used.
-const LemonPeel Resource = "lemon_peel"
-
-// checkTradable rejects a trade in a commodity that is not unlocked or, for a buy, one the
-// market does not sell.
-func checkTradable(g Game, cfg Config, r Resource, buying bool) error {
-	c, ok := cfg.Commodity(r)
-	if !ok {
-		return ErrCommodityLocked
-	}
-	if !CommodityUnlocked(g, cfg, r) || (buying && c.NotBought) {
+// checkTradable rejects a trade in a commodity that is not part of the player's game yet.
+func checkTradable(g Game, cfg Config, r Resource) error {
+	if _, ok := cfg.Commodity(r); !ok || !CommodityUnlocked(g, cfg, r) {
 		return ErrCommodityLocked
 	}
 	return nil
