@@ -1,0 +1,150 @@
+<h1>Production</h1>
+<p class="lede">
+  Learn recipes, then set the plan production follows each night. Every recipe shares your daily
+  capacity. <app-help-link term="production-plan" label="the production plan" />
+</p>
+
+@if (store.error(); as message) {
+  <p class="alert" role="alert">{{ message }}</p>
+}
+
+@if (store.game()) {
+  <app-card title="Production plan">
+    <ul class="plan">
+      @for (row of rows(); track row.recipe; let i = $index) {
+        <li [attr.data-plan]="row.recipe">
+          <span class="name">{{ i + 1 }}. {{ name(row.recipe) }}</span>
+          <label>
+            Up to
+            <input
+              type="number"
+              min="0"
+              inputmode="numeric"
+              [value]="row.target || ''"
+              placeholder="all"
+              (change)="setTarget(i, $event)"
+            />
+            cases
+          </label>
+          <button
+            type="button"
+            class="btn btn-sm up"
+            [disabled]="i === 0"
+            [attr.aria-label]="'Move ' + name(row.recipe) + ' up'"
+            (click)="move(i, -1)"
+          >
+            Up
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm down"
+            [disabled]="i === rows().length - 1"
+            [attr.aria-label]="'Move ' + name(row.recipe) + ' down'"
+            (click)="move(i, 1)"
+          >
+            Down
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm remove"
+            [attr.aria-label]="'Remove ' + name(row.recipe)"
+            (click)="remove(i)"
+          >
+            Remove
+          </button>
+          @if (madeTonight(row.recipe); as n) {
+            <p class="made">Would make {{ n }} tonight.</p>
+          }
+        </li>
+      }
+    </ul>
+    <div class="plan-actions">
+      @if (unused().length) {
+        <select
+          class="add"
+          aria-label="Add a recipe to the plan"
+          (change)="add($any($event.target).value); $any($event.target).value = ''"
+        >
+          <option value="">Add a recipe…</option>
+          @for (r of unused(); track r.key) {
+            <option [value]="r.key">{{ r.name }}</option>
+          }
+        </select>
+      }
+      <button
+        type="button"
+        class="btn save"
+        [disabled]="!dirty() || !online() || store.loading()"
+        (click)="save()"
+      >
+        Save plan
+      </button>
+      @if (dirty()) {
+        <button type="button" class="btn btn-ghost reset" (click)="reset()">Discard</button>
+      }
+    </div>
+    <p class="note">An empty plan makes lemonade, as much as possible.</p>
+  </app-card>
+
+  <app-card title="Recipes">
+    <ul class="list">
+      @for (r of known(); track r.key) {
+        <li [attr.data-recipe]="r.key" class="owned">
+          <div class="what">
+            <h3>{{ r.name }}</h3>
+            <p class="text">{{ inputs(r) }}. {{ r.text }}</p>
+          </div>
+          <div class="state"><span class="badge owned-badge">Known</span></div>
+        </li>
+      }
+      @for (r of learnable(); track r.key) {
+        <li [attr.data-recipe]="r.key">
+          <div class="what">
+            <h3>{{ r.name }}</h3>
+            <p class="text">{{ inputs(r) }}. {{ r.text }}</p>
+            <p class="meta">
+              <span [title]="exact(r.learnCost)">Learn for {{ r.learnCost | money }}</span>
+            </p>
+          </div>
+          <div class="state">
+            @if (r.state === 'locked') {
+              <span class="badge locked-badge">Locked</span>
+              <span class="reason">{{ r.lockedReason }}</span>
+            } @else {
+              <button
+                type="button"
+                class="btn btn-sm learn"
+                [disabled]="!canLearn(r)"
+                [attr.aria-label]="'Learn ' + r.name + ' for ' + exact(r.learnCost)"
+                (click)="confirming.set(r)"
+              >
+                Learn
+              </button>
+              @if (capital() < r.learnCost) {
+                <span class="reason">Need {{ r.learnCost - capital() | money }} more</span>
+              }
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  </app-card>
+} @else {
+  <p class="note">Loading…</p>
+}
+
+@if (confirming(); as r) {
+  <app-confirm-dialog
+    [title]="'Learn ' + r.name + '?'"
+    [message]="
+      'Learning ' +
+      r.name +
+      ' costs ' +
+      exact(r.learnCost) +
+      ' once. Its ingredients and product then appear in the market.'
+    "
+    confirmLabel="Learn"
+    (confirmed)="learn(r)"
+    (cancelled)="confirming.set(null)"
+  />
+}

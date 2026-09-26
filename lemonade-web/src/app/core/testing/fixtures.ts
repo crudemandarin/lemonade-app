@@ -71,6 +71,9 @@ function row(resource: Resource, price: number, stock = 0): ResourceView {
     avgCost: 0,
     unrealizedGain: 0,
     movingAverage: null,
+    unlocked: true,
+    buyable: true,
+    shelfDays: 0,
   };
 }
 
@@ -143,7 +146,16 @@ export function newGameView(overrides: Partial<GameView> = {}): GameView {
     events: [],
     timeline: [timelinePoint()],
     stats: gameStats(),
-    projection: { lemonadeToProduce: 0, iceToMelt: 0, iceKept: 0, limitedBy: 'lemon' },
+    recipes: [],
+    plan: [{ recipe: 'lemonade', target: 0 }],
+    projection: {
+      lemonadeToProduce: 0,
+      iceToMelt: 0,
+      iceKept: 0,
+      limitedBy: 'lemon',
+      plan: [],
+      willSpoil: {},
+    },
     priceLog: [{ day: 1, prices: [20, 10, 10, 10, 90], events: [] }],
     basePrices: [20, 10, 10, 10, 90],
     commodities: commodities(),
@@ -167,6 +179,8 @@ export function dayReport(overrides: Partial<DayReport> = {}): DayReport {
     produced: 10,
     iceMelted: 2,
     iceKept: 0,
+    spoiled: {},
+    made: [],
     upkeepPaid: 15,
     upgradeUpkeep: 0,
     iceMade: 0,
@@ -283,6 +297,7 @@ export function commodities(): Commodity[] {
       storageClass: 'cold',
       isProduct: false,
       order: 10,
+      shelfLifeDays: 0,
     },
     {
       key: 'sugar',
@@ -291,6 +306,7 @@ export function commodities(): Commodity[] {
       storageClass: 'dry',
       isProduct: false,
       order: 20,
+      shelfLifeDays: 0,
     },
     {
       key: 'ice',
@@ -299,6 +315,7 @@ export function commodities(): Commodity[] {
       storageClass: 'frozen',
       isProduct: false,
       order: 30,
+      shelfLifeDays: 0,
     },
     {
       key: 'cup',
@@ -307,6 +324,7 @@ export function commodities(): Commodity[] {
       storageClass: 'dry',
       isProduct: false,
       order: 40,
+      shelfLifeDays: 0,
     },
     {
       key: 'lemonade',
@@ -315,6 +333,7 @@ export function commodities(): Commodity[] {
       storageClass: 'finished',
       isProduct: true,
       order: 50,
+      shelfLifeDays: 0,
     },
   ];
 }

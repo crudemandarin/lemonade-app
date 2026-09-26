@@ -5,6 +5,7 @@ import { AchievementsComponent } from './pages/achievements/achievements.compone
 import { EmpireComponent } from './pages/empire/empire.component';
 import { GameComponent } from './pages/game/game.component';
 import { HomeComponent } from './pages/home/home.component';
+import { ProductionComponent } from './pages/production/production.component';
 import { RunComponent } from './pages/run/run.component';
 import { ScoresComponent } from './pages/scores/scores.component';
 import { SigninComponent } from './pages/signin/signin.component';
@@ -25,6 +26,12 @@ export const routes: Routes = [
     component: EmpireComponent,
     canActivate: [authGuard],
     title: 'Empire · Lemonade Tycoon',
+  },
+  {
+    path: 'production',
+    component: ProductionComponent,
+    canActivate: [authGuard],
+    title: 'Production · Lemonade Tycoon',
   },
   {
     path: 'upgrades',

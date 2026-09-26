@@ -18,6 +18,13 @@ export class DayReportComponent {
 
   protected readonly label = resourceLabel;
 
+  /** Perishables that went off overnight, in the server's order. */
+  protected readonly spoiledList = computed(() =>
+    Object.entries(this.report().spoiled ?? {})
+      .filter(([, cases]) => cases > 0)
+      .map(([resource, cases]) => ({ resource, cases })),
+  );
+
   /** Every price, lemonade first, then the rest in the server's order. */
   protected readonly prices = computed(() => {
     const all = this.report().priceChanges;

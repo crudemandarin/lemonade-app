@@ -247,6 +247,14 @@ export const HELP_TERMS: HelpTerm[] = [
       'The header previews the next end of day: how much lemonade will be made, how much ice will melt, and what is limiting production.',
   },
   {
+    id: 'production-plan',
+    icon: 'upgrade',
+    section: 'upgrades',
+    term: 'The production plan',
+    definition:
+      'Each night production works down your plan: every recipe takes what is left of the shared daily capacity, the ingredients you hold and the space for its product. A target of 0 means as much as possible. Learn recipes on the Production page. Fresh goods such as limes and strawberries spoil after a few days, oldest first, so the header warns you before they go off.',
+  },
+  {
     id: 'upgrades',
     icon: 'upgrade',
     section: 'upgrades',

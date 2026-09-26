@@ -1,5 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 
+import { resourceLabel } from '../../core/resources';
 import { DayReport, ReportSummary, Resource } from '../../core/api.models';
 import { GameStore } from '../../core/game.store';
 import { OnlineService } from '../../core/online.service';
@@ -73,6 +74,19 @@ export class GameComponent implements OnInit {
   protected readonly alerts = signal<Record<Resource, number>>(loadAlerts());
 
   /** Yesterday's trades, in order, for the Order book upgrade's "repeat" button. */
+  /** Only commodities the player has a use for, so the market does not open with 21 rows. */
+  protected readonly market = computed(
+    () => this.store.game()?.resources.filter((r) => r.unlocked) ?? [],
+  );
+
+  /** Perishables that will go off tonight, as "5 Limes" phrases; empty when nothing will. */
+  protected readonly spoilWarning = computed(() => {
+    const will = this.store.game()?.projection.willSpoil ?? {};
+    return Object.entries(will)
+      .filter(([, cases]) => cases > 0)
+      .map(([r, cases]) => `${cases} ${resourceLabel(r).toLowerCase()}`);
+  });
+
   protected readonly yesterdaysTrades = computed(() => {
     const game = this.store.game();
     if (!game || !game.features.includes('repeat_trades')) return [];

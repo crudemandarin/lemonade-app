@@ -12,6 +12,8 @@ export interface Commodity {
   storageClass: string;
   isProduct: boolean;
   order: number;
+  /** 0 keeps, -1 melts nightly, otherwise days before it spoils. */
+  shelfLifeDays: number;
 }
 export type FacilityType = 'warehouse' | 'production';
 export type GameStatus = 'active' | 'bankrupt' | 'gave_up';
@@ -50,6 +52,48 @@ export interface ResourceView {
   unrealizedGain: number;
   /** The 7-day average price in whole dollars; null without a market analyst. */
   movingAverage: number | null;
+  /** False until a learned recipe uses the commodity; locked ones stay out of the market. */
+  unlocked: boolean;
+  /** False for a byproduct (lemon peel) that can only be sold. */
+  buyable: boolean;
+  /** Days stock keeps before it spoils; 0 means it does not spoil. */
+  shelfDays: number;
+}
+
+export type RecipeState = 'known' | 'available' | 'locked';
+
+export interface RecipeInput {
+  resource: Resource;
+  qty: number;
+}
+
+/** One recipe on the Production page. `lockedReason` says in words why it cannot be learned yet. */
+export interface Recipe {
+  key: string;
+  name: string;
+  output: Resource;
+  outputQty: number;
+  inputs: RecipeInput[];
+  era: number;
+  learnCost: number;
+  text: string;
+  state: RecipeState;
+  lockCode: '' | 'era' | 'unlock' | 'production_level';
+  lockedReason: string;
+}
+
+/** One line of the production plan; a target of 0 means as much as possible. */
+export interface PlanRow {
+  recipe: string;
+  target: number;
+}
+
+export interface PlanProjection {
+  recipe: string;
+  name: string;
+  output: Resource;
+  cases: number;
+  limitedBy: string;
 }
 
 /** What a trade of some size costs (buy) or raises (sell), as the server prices it. */
@@ -206,6 +250,9 @@ export interface Best {
 }
 
 export interface GameView {
+  /** Every recipe with its state, and the plan production follows. */
+  recipes: Recipe[];
+  plan: PlanRow[];
   day: number;
   capital: number;
   status: GameStatus;
@@ -361,6 +408,10 @@ export interface Projection {
   /** Ice a freezer will keep for tomorrow (part of what would otherwise melt). */
   iceKept: number;
   limitedBy: Resource | 'production' | 'space' | '';
+  /** What each row of the plan would make tonight. */
+  plan: PlanProjection[];
+  /** Cases of each perishable that would go off tonight; only those that would. */
+  willSpoil: Record<Resource, number>;
 }
 
 /** One day of the price chart: effective prices as the player saw them that day. */
@@ -391,7 +442,16 @@ export interface PriceChange {
 }
 
 /** Summary of one end-of-day transition. `day` is the day that just ended. */
+export interface MadeLine {
+  recipe: string;
+  output: Resource;
+  cases: number;
+}
+
 export interface DayReport {
+  /** Cases of each perishable that went off overnight, and what each recipe made. */
+  spoiled: Record<Resource, number>;
+  made: MadeLine[];
   day: number;
   produced: number;
   iceMelted: number;

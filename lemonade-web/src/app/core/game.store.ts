@@ -6,6 +6,7 @@ import {
   DayReport,
   FacilityType,
   GameView,
+  PlanRow,
   ReportSummary,
   Resource,
   UpgradesResponse,
@@ -94,6 +95,14 @@ export class GameStore {
   }
 
   /** Buys an upgrade; the game view (cash, features, upkeep) comes back with it. */
+  learnRecipe(key: string): Promise<void> {
+    return this.update(this.api.learnRecipe(key));
+  }
+
+  setPlan(rows: PlanRow[]): Promise<void> {
+    return this.update(this.api.setPlan(rows));
+  }
+
   buyUpgrade(key: string): Promise<void> {
     return this.update(this.api.buyUpgrade(key));
   }

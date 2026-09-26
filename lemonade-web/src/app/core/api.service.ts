@@ -9,6 +9,7 @@ import {
   EndDayResponse,
   FacilityType,
   GameView,
+  PlanRow,
   ReportSummary,
   Resource,
   RunDetail,
@@ -127,6 +128,15 @@ export class ApiService {
   }
 
   /** Buys one upgrade; answers with the new game view. */
+  learnRecipe(key: string): Observable<GameView> {
+    return this.http.post<GameView>(`${API_URL}/game/recipes/${encodeURIComponent(key)}/learn`, {});
+  }
+
+  /** Replaces the production plan; an empty list restores lemonade alone. */
+  setPlan(rows: PlanRow[]): Observable<GameView> {
+    return this.http.post<GameView>(`${API_URL}/game/production-plan`, { rows });
+  }
+
   buyUpgrade(key: string): Observable<GameView> {
     return this.http.post<GameView>(`${API_URL}/game/upgrades/${encodeURIComponent(key)}/buy`, {});
   }

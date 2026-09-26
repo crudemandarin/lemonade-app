@@ -16,6 +16,17 @@
       <dd>{{ r.iceMade }} cases ({{ -r.iceMadeCost | money }})</dd>
     }
 
+    @for (m of r.made; track m.recipe) {
+      @if (r.made.length > 1) {
+        <dt>{{ label(m.output) }} made</dt>
+        <dd>+{{ m.cases }}</dd>
+      }
+    }
+    @for (s of spoiledList(); track s.resource) {
+      <dt>{{ label(s.resource) }} spoiled</dt>
+      <dd>-{{ s.cases }}</dd>
+    }
+
     <dt>Upkeep paid</dt>
     <dd>{{ -r.upkeepPaid | money }}</dd>
 

@@ -61,8 +61,14 @@
         <app-events-banner [events]="game.events" [forecast]="game.forecast" />
       }
 
+      @if (spoilWarning().length) {
+        <p class="spoil-warning" role="status">
+          Will spoil tonight: {{ spoilWarning().join(', ') }}. Use or sell them today.
+        </p>
+      }
+
       <app-market-panel
-        [resources]="game.resources"
+        [resources]="market()"
         [capital]="game.capital"
         [disabled]="!online()"
         [alertsOn]="game.features.includes('price_alerts')"
