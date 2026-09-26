@@ -109,7 +109,7 @@ func (q TradeQuote) Slippage() float64 {
 // and ignores both. It never changes the game.
 func QuoteBuy(g Game, cfg Config, r Resource, qty int, clamp bool) TradeQuote {
 	plain, depth := Quotes(g, cfg)[r].Ask, freeDepth(g, cfg, r)
-	space := Capacity(g, cfg, r) - g.Inventory[r]
+	space := FreeSpace(g, cfg, r)
 	var q TradeQuote
 	for k := 1; k <= qty; k++ {
 		price := unitAsk(cfg, depth, plain, g.BuyPressure[r], k)

@@ -190,14 +190,18 @@ func TestGameViewMatchesContract(t *testing.T) {
 		if r.Resource != wantOrder[i] || r.Price != wantPrice[i] || r.Bid != wantBid[i] || r.Ask != wantAsk[i] {
 			t.Errorf("resource %d = %+v", i, r)
 		}
-		if r.Stock != 0 || r.Capacity != 10 || r.PreviousPrice != nil || len(r.History) != 1 {
+		wantCap := 10
+		if r.Resource == "sugar" || r.Resource == "cup" {
+			wantCap = 20 // the dry class pools two buildings
+		}
+		if r.Stock != 0 || r.Capacity != wantCap || r.PreviousPrice != nil || len(r.History) != 1 {
 			t.Errorf("resource %d = %+v", i, r)
 		}
 	}
 
 	wh := v.Facilities.Warehouse
 	if wh.TierName != "Pantry" || wh.Level != 1 || wh.MaxLevel != 4 || wh.Buildings != 5 || wh.MaxCount != 10 ||
-		wh.SizePerBuilding != 10 || wh.ExpandCost != 100 || wh.UpkeepPerDay != 10 || len(wh.Resources) != 5 {
+		wh.SizePerBuilding != 10 || wh.ExpandCost != 100 || wh.UpkeepPerDay != 10 || len(wh.Classes) != 4 {
 		t.Errorf("warehouse = %+v", wh)
 	}
 	if up := wh.Upgrade; up == nil || up.TierName != "Garage" || up.CostPerBuilding != 155 || up.TotalCost != 775 || up.UpkeepIncrease != 10 || up.SizePerBuilding != 25 {
@@ -301,7 +305,7 @@ func TestGameViewCarriesTheTimelineAndStats(t *testing.T) {
 	if buy.Kind != "buy" || buy.Resource != "lemon" || buy.Qty != 3 || buy.Amount != 66 || buy.Capital != 934 || buy.Stock[0] != 3 {
 		t.Errorf("buy point = %+v", buy)
 	}
-	if expand.Kind != "expand" || expand.Facility != "warehouse" || expand.Resource != "ice" || expand.Amount != 100 || expand.Capital != 834 {
+	if expand.Kind != "expand" || expand.Facility != "warehouse" || expand.Resource != "frozen" || expand.Amount != 100 || expand.Capital != 834 {
 		t.Errorf("expand point = %+v", expand)
 	}
 	if v.Stats.CasesBought != 3 || v.Stats.Spent != 66 || v.Stats.FacilitiesBought != 1 || v.Stats.FacilitySpend != 100 {
@@ -620,7 +624,7 @@ func TestSellFacility(t *testing.T) {
 	e.do("POST", "/api/game/facilities/warehouse/expand", "joe12", map[string]any{"resource": "lemon"})
 	e.do("POST", "/api/game/buy", "joe12", map[string]any{"resource": "lemon", "qty": 14})
 	v = e.game("joe12")
-	lemon := v.Facilities.Warehouse.Resources[0]
+	lemon := v.Facilities.Warehouse.Classes[0]
 	if lemon.CanSell || lemon.Reason != "stock_exceeds_capacity" || lemon.CasesToSell != 4 {
 		t.Fatalf("lemon sale info: %+v", lemon.saleDTO)
 	}
@@ -634,13 +638,13 @@ func TestSellFacility(t *testing.T) {
 	before := e.game("joe12")
 	rec = e.do("POST", "/api/game/facilities/warehouse/sell", "joe12", map[string]any{"resource": "lemon"})
 	v = decode[gameViewDTO](t, rec)
-	if rec.Code != 200 || v.Capital != before.Capital+50 || v.Facilities.Warehouse.Resources[0].Count != 1 {
+	if rec.Code != 200 || v.Capital != before.Capital+50 || v.Facilities.Warehouse.Classes[0].Count != 1 {
 		t.Fatalf("sell: %d capital %d -> %d", rec.Code, before.Capital, v.Capital)
 	}
 	if v.UpkeepPerDay != before.UpkeepPerDay-2 || v.Stats.FacilitiesSold != 1 || v.Stats.FacilityProceeds != 50 {
 		t.Fatalf("upkeep=%d stats=%+v", v.UpkeepPerDay, v.Stats)
 	}
-	if last := v.Timeline[len(v.Timeline)-1]; last.Kind != "facility_sold" || last.Resource != "lemon" || last.Amount != 50 {
+	if last := v.Timeline[len(v.Timeline)-1]; last.Kind != "facility_sold" || last.Resource != "cold" || last.Amount != 50 {
 		t.Fatalf("timeline: %+v", last)
 	}
 	if !strings.Contains(rec.Body.String(), `"sellBlockedReason":"min_facility"`) {
@@ -1151,7 +1155,7 @@ func TestPriceImpactShowsUpInTheViewAfterHeavyTrading(t *testing.T) {
 	e.login("joe12")
 	e.setGame("joe12", func(g *domain.Game) {
 		g.Capital = 1_000_000
-		g.WarehouseQty[domain.Lemon] = 30 // 300 cases at level 1; the free depth is 80
+		g.WarehouseQty[domain.StorageCold] = 30 // 300 cases at level 1; the free depth is 80
 	})
 	plain := e.game("joe12").Resources[0].Ask
 
@@ -1178,7 +1182,7 @@ func TestQuoteEndpoint(t *testing.T) {
 	e.login("joe12")
 	e.setGame("joe12", func(g *domain.Game) {
 		g.Capital = 1_000_000
-		g.WarehouseQty[domain.Lemon] = 30
+		g.WarehouseQty[domain.StorageCold] = 30
 	})
 
 	rec := e.do("GET", "/api/game/quote?resource=lemon&side=buy&qty=200", "joe12", nil)

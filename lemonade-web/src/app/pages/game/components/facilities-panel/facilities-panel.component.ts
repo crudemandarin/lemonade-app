@@ -4,7 +4,6 @@ import {
   FacilityType,
   FacilityTypeView,
   ProductionView,
-  Resource,
   SaleInfo,
   WarehouseView,
 } from '../../../../core/api.models';
@@ -18,7 +17,7 @@ import { MoneyPipe } from '../../../../shared/money.pipe';
 /** A building sale waiting for the player's confirmation. */
 interface PendingSale {
   type: FacilityType;
-  resource?: Resource;
+  class?: string;
   /** e.g. "Pantry" or "Kitchen". */
   building: string;
   value: number;
@@ -26,12 +25,12 @@ interface PendingSale {
 
 export interface SellFacilityRequest {
   type: FacilityType;
-  resource?: Resource;
+  class?: string;
 }
 
 /**
  * Warehouse and Production cards. Upgrade applies to every building of a type;
- * expand adds one building (per resource for warehouses). Costs come from the server.
+ * expand adds one building (per storage class for warehouses, pooled across its commodities). Costs come from the server.
  */
 @Component({
   selector: 'app-facilities-panel',
@@ -46,7 +45,7 @@ export class FacilitiesPanelComponent {
   /** Disables every action, e.g. while offline. */
   readonly disabled = input(false);
 
-  readonly expandWarehouse = output<Resource>();
+  readonly expandWarehouse = output<string>();
   readonly expandProduction = output<void>();
   readonly upgrade = output<FacilityType>();
   readonly sellFacility = output<SellFacilityRequest>();
@@ -68,7 +67,7 @@ export class FacilitiesPanelComponent {
     const sale = this.pending();
     this.pending.set(null);
     if (sale) {
-      this.sellFacility.emit({ type: sale.type, resource: sale.resource });
+      this.sellFacility.emit({ type: sale.type, class: sale.class });
     }
   }
 

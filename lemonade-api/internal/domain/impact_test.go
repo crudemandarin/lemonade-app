@@ -21,7 +21,7 @@ func TestTradesWithinFreeDepthCostExactlyTheQuote(t *testing.T) {
 	q := Quotes(g, cfg)[Lemon]
 	free := cfg.FreeDepth[Lemon]
 	g.Capital = 1_000_000
-	g.WarehouseQty[Lemon] = 10
+	g.WarehouseQty[StorageCold] = 10
 	g.WarehouseLevel = 4 // room for 800
 
 	if err := Buy(&g, cfg, Lemon, free); err != nil {
@@ -44,7 +44,7 @@ func TestBuyingBeyondTheFreeDepthRaisesTheAsk(t *testing.T) {
 	g := NewGame(cfg, 1)
 	g.Capital = 1_000_000
 	g.WarehouseLevel = 4
-	g.WarehouseQty[Lemon] = 10
+	g.WarehouseQty[StorageCold] = 10
 	ask := Quotes(g, cfg)[Lemon].Ask
 
 	if got := MarginalAsk(g, cfg, Lemon); got != ask {
@@ -71,7 +71,7 @@ func TestBuyingRaisesTheAskButNotTheBid(t *testing.T) {
 	g := NewGame(cfg, 1)
 	g.Capital = 1_000_000
 	g.WarehouseLevel = 4
-	g.WarehouseQty[Sugar] = 10
+	g.WarehouseQty[StorageDry] = 10
 	q := Quotes(g, cfg)[Sugar]
 	Buy(&g, cfg, Sugar, 40)
 	if MarginalBid(g, cfg, Sugar) != q.Bid {
@@ -87,7 +87,7 @@ func TestSellingBeyondTheFreeDepthLowersTheBid(t *testing.T) {
 	cfg := impactCfg(10)
 	g := NewGame(cfg, 1)
 	g.WarehouseLevel = 4
-	g.WarehouseQty[Lemonade] = 10
+	g.WarehouseQty[StorageFinished] = 10
 	g.Inventory[Lemonade] = 50
 	bid := Quotes(g, cfg)[Lemonade].Bid
 	before := g.Capital
@@ -142,7 +142,7 @@ func TestBulkClampsToImpactAwareAffordability(t *testing.T) {
 	cfg := impactCfg(5)
 	g := NewGame(cfg, 1)
 	g.WarehouseLevel = 4
-	g.WarehouseQty[Lemon] = 10
+	g.WarehouseQty[StorageCold] = 10
 	g.Capital = 400
 	plain := Quotes(g, cfg)[Lemon].Ask
 
@@ -166,7 +166,7 @@ func TestQuotesReportAverageAndSlippage(t *testing.T) {
 	g := NewGame(cfg, 1)
 	g.Capital = 1_000_000
 	g.WarehouseLevel = 4
-	g.WarehouseQty[Lemon] = 10
+	g.WarehouseQty[StorageCold] = 10
 
 	within := QuoteBuy(g, cfg, Lemon, 10, false)
 	if within.Total != within.PlainTotal || within.Slippage() != 0 {
@@ -198,7 +198,7 @@ func TestImpactInvariants(t *testing.T) {
 		g.Capital = 10_000_000
 		g.WarehouseLevel = 1 + rng.Intn(4)
 		r := Resources[rng.Intn(len(Resources))]
-		g.WarehouseQty[r] = 10
+		g.WarehouseQty[ClassOf(cfg, r)] = 10
 		g.BuyPressure[r] = float64(rng.Intn(60))
 		g.SellPressure[r] = float64(rng.Intn(60))
 		n := 1 + rng.Intn(Capacity(g, cfg, r))
@@ -236,7 +236,7 @@ func TestImpactIsDeterministic(t *testing.T) {
 		g.Capital = 1_000_000
 		g.WarehouseLevel = 3
 		for _, r := range Resources {
-			g.WarehouseQty[r] = 10
+			g.WarehouseQty[ClassOf(cfg, r)] = 10
 		}
 		for d := 0; d < 20; d++ {
 			for _, in := range Inputs {
@@ -257,7 +257,7 @@ func TestForcedSalesUseImpactAwareBids(t *testing.T) {
 	cfg.ImpactShape = 0.1 // 10% a case at a depth of 1
 	g := NewGame(cfg, 1)
 	g.WarehouseLevel = 4
-	g.WarehouseQty[Lemonade] = 10
+	g.WarehouseQty[StorageFinished] = 10
 	g.ProductionQty = 10 // enough upkeep that the sale runs past the free depth of 1
 	g.Inventory[Lemonade] = 200
 	g.CostBasis[Lemonade] = 200 * 50

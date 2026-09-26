@@ -53,20 +53,22 @@
         </div>
 
         <ul class="resources">
-          @for (r of wh.resources; track r.resource) {
-            <li [attr.data-resource]="r.resource">
+          @for (c of wh.classes; track c.class) {
+            <li [attr.data-class]="c.class">
               <span class="name">
-                <img [src]="icon(r.resource)" alt="" width="22" height="22" />
-                {{ label(r.resource) }}
+                @for (m of c.members; track m) {
+                  <img [src]="icon(m)" [alt]="label(m)" [title]="label(m)" width="22" height="22" />
+                }
+                {{ c.name }}
               </span>
-              <span class="count">x{{ r.count }}</span>
-              <span class="muted">Holds {{ r.capacity }} cases</span>
+              <span class="count">x{{ c.count }}</span>
+              <span class="muted">Holds {{ c.stock }} of {{ c.capacity }} cases</span>
               <span class="row-actions">
                 <button
                   type="button"
                   class="btn btn-sm"
                   [disabled]="disabled()"
-                  (click)="expandWarehouse.emit(r.resource)"
+                  (click)="expandWarehouse.emit(c.class)"
                 >
                   <app-icon name="expand" [size]="14" />
                   Expand {{ wh.expandCost | money }}
@@ -74,26 +76,26 @@
                 <button
                   type="button"
                   class="btn btn-sm sell-building"
-                  [disabled]="disabled() || !r.canSell"
-                  [attr.title]="blockedReason(r) || null"
+                  [disabled]="disabled() || !c.canSell"
+                  [attr.title]="blockedReason(c) || null"
                   [attr.aria-label]="
                     'Sell a ' +
-                    label(r.resource).toLowerCase() +
-                    ' warehouse for ' +
-                    r.sellValue +
+                    c.name.toLowerCase() +
+                    ' building for ' +
+                    c.sellValue +
                     ' dollars' +
-                    (r.canSell ? '' : '. ' + blockedReason(r))
+                    (c.canSell ? '' : '. ' + blockedReason(c))
                   "
                   (click)="
                     askToSell({
                       type: 'warehouse',
-                      resource: r.resource,
+                      class: c.class,
                       building: wh.tierName,
-                      value: r.sellValue,
+                      value: c.sellValue,
                     })
                   "
                 >
-                  Sell {{ r.sellValue | money }}
+                  Sell {{ c.sellValue | money }}
                 </button>
               </span>
             </li>

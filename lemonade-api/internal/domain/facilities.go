@@ -1,5 +1,11 @@
 package domain
 
+import (
+	"slices"
+
+	"lemonade-api/internal/domain/content"
+)
+
 // warehouseTier returns the current warehouse tier (level is 1-based).
 func warehouseTier(cfg Config, level int) Tier {
 	return cfg.WarehouseTiers[level-1]
@@ -10,13 +16,88 @@ func productionTier(cfg Config, level int) Tier {
 	return cfg.ProductionTiers[level-1]
 }
 
-// Capacity returns the case capacity of one resource's warehouse.
-func Capacity(g Game, cfg Config, r Resource) int {
-	base := g.WarehouseQty[r] * warehouseTier(cfg, g.WarehouseLevel).Size
-	if pct := storageBonusPct(g, cfg, r); pct > 0 {
+// The storage classes, as the domain and its callers name them.
+const (
+	StorageDry      = content.StorageDry
+	StorageCold     = content.StorageCold
+	StorageFrozen   = content.StorageFrozen
+	StorageFinished = content.StorageFinished
+)
+
+// ClassOf is the storage class a commodity is kept in ("" for an unknown one).
+func ClassOf(cfg Config, r Resource) string {
+	if c, ok := cfg.Commodity(r); ok {
+		return c.StorageClass
+	}
+	return ""
+}
+
+// StorageClasses lists the storage classes in the order they first appear in the catalog.
+func StorageClasses(cfg Config) []string {
+	var out []string
+	for _, c := range cfg.Commodities {
+		if !slices.Contains(out, c.StorageClass) {
+			out = append(out, c.StorageClass)
+		}
+	}
+	return out
+}
+
+// ClassMembers are the commodities kept in a storage class, in catalog order.
+func ClassMembers(cfg Config, class string) []Resource {
+	var out []Resource
+	for _, r := range cfg.Resources() {
+		if ClassOf(cfg, r) == class {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// ResolveClass is classFor for callers outside the package: the storage class a key names
+// (a class, or a commodity meaning its class).
+func ResolveClass(cfg Config, key string) (string, bool) { return classFor(cfg, key) }
+
+// classFor resolves the key a warehouse action names: a storage class, or any commodity
+// (meaning its class).
+func classFor(cfg Config, key string) (string, bool) {
+	if slices.Contains(StorageClasses(cfg), key) {
+		return key, true
+	}
+	if class := ClassOf(cfg, Resource(key)); class != "" {
+		return class, true
+	}
+	return "", false
+}
+
+// ClassStock is the cases held of every commodity in a storage class.
+func ClassStock(g Game, cfg Config, class string) int {
+	n := 0
+	for _, r := range ClassMembers(cfg, class) {
+		n += g.Inventory[r]
+	}
+	return n
+}
+
+// ClassCapacity is the pooled case capacity of a storage class.
+func ClassCapacity(g Game, cfg Config, class string) int {
+	base := g.WarehouseQty[class] * warehouseTier(cfg, g.WarehouseLevel).Size
+	if pct := sumEffects(g, cfg, content.EffStoragePct, class); len(g.Upgrades) > 0 && pct > 0 {
 		return int(float64(base) * (1 + pct/100))
 	}
 	return base
+}
+
+// Capacity is the case capacity of the pool r is stored in: shared with every other
+// commodity of its storage class.
+func Capacity(g Game, cfg Config, r Resource) int {
+	return ClassCapacity(g, cfg, ClassOf(cfg, r))
+}
+
+// FreeSpace is how many more cases of r fit: the room left in its class's pool.
+func FreeSpace(g Game, cfg Config, r Resource) int {
+	class := ClassOf(cfg, r)
+	return ClassCapacity(g, cfg, class) - ClassStock(g, cfg, class)
 }
 
 // ProductionCapacity returns lemonade produced per day at full throughput.
@@ -24,7 +105,7 @@ func ProductionCapacity(g Game, cfg Config) int {
 	return g.ProductionQty * productionTier(cfg, g.ProductionLevel).Size
 }
 
-// warehouseBuildings is the total building count across all five warehouses.
+// warehouseBuildings is the total building count across every storage class.
 func warehouseBuildings(g Game) int {
 	total := 0
 	for _, n := range g.WarehouseQty {
@@ -61,18 +142,20 @@ func FacilityResaleValue(g Game, cfg Config) int {
 
 // CanSellFacility says whether one building could be sold now, and if not, why:
 // ErrMinFacility, or a *StockExceedsCapacityError. resource selects the
-// warehouse and is ignored for production.
+// warehouse (a commodity means its storage class, or name the class itself) and is
+// ignored for production.
 func CanSellFacility(g Game, cfg Config, kind FacilityType, resource Resource) error {
 	switch kind {
 	case Warehouse:
-		if !cfg.Valid(resource) {
+		class, ok := classFor(cfg, string(resource))
+		if !ok {
 			return ErrInvalidFacility
 		}
-		if g.WarehouseQty[resource] <= 1 {
+		if g.WarehouseQty[class] <= 1 {
 			return ErrMinFacility
 		}
 		size := warehouseTier(cfg, g.WarehouseLevel).Size
-		if excess := g.Inventory[resource] - (g.WarehouseQty[resource]-1)*size; excess > 0 {
+		if excess := ClassStock(g, cfg, class) - (g.WarehouseQty[class]-1)*size; excess > 0 {
 			return &StockExceedsCapacityError{Excess: excess}
 		}
 	case Production:
@@ -99,7 +182,8 @@ func SellFacility(g *Game, cfg Config, kind FacilityType, resource Resource) err
 	switch kind {
 	case Warehouse:
 		proceeds = ResaleValue(cfg, warehouseTier(cfg, g.WarehouseLevel))
-		g.WarehouseQty[resource]--
+		class, _ := classFor(cfg, string(resource))
+		g.WarehouseQty[class]--
 	case Production:
 		proceeds = ResaleValue(cfg, productionTier(cfg, g.ProductionLevel))
 		g.ProductionQty--

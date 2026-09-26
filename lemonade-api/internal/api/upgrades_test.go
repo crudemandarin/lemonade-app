@@ -77,7 +77,7 @@ func TestUpgradeEffectsShowInTheViewAndReport(t *testing.T) {
 		for _, k := range []string{"freezer_1", "bookkeeper", "market_analyst", "weather_radio"} {
 			g.Upgrades[k] = 1
 		}
-		g.Inventory[domain.Ice], g.WarehouseQty[domain.Ice] = 5, 3
+		g.Inventory[domain.Ice], g.WarehouseQty[domain.StorageFrozen] = 5, 3
 		return domain.Effects{}, nil
 	}); err != nil {
 		t.Fatal(err)

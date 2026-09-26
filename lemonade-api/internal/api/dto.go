@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"lemonade-api/internal/domain"
+	"lemonade-api/internal/domain/content"
 )
 
 // These types mirror lemonade-web/src/app/core/api.models.ts exactly.
@@ -108,10 +109,15 @@ type saleDTO struct {
 	CasesToSell int `json:"casesToSell"`
 }
 
-type warehouseResourceDTO struct {
-	Resource domain.Resource `json:"resource"`
-	Count    int             `json:"count"`
-	Capacity int             `json:"capacity"`
+// warehouseClassDTO is one storage class's building pool: a class holds several
+// commodities and its capacity is shared between them.
+type warehouseClassDTO struct {
+	Class    string            `json:"class"`
+	Name     string            `json:"name"`
+	Count    int               `json:"count"`
+	Capacity int               `json:"capacity"`
+	Stock    int               `json:"stock"`
+	Members  []domain.Resource `json:"members"`
 	saleDTO
 }
 
@@ -127,9 +133,9 @@ type warehouseViewDTO struct {
 	Upgrade         *upgradeOptionDTO `json:"upgrade"`
 	// MarketDepth is how many cases the market takes at the plain price at this level;
 	// UpgradeMarketDepth is the same after the upgrade (0 at max level).
-	MarketDepth        int                    `json:"marketDepth"`
-	UpgradeMarketDepth int                    `json:"upgradeMarketDepth"`
-	Resources          []warehouseResourceDTO `json:"resources"`
+	MarketDepth        int                 `json:"marketDepth"`
+	UpgradeMarketDepth int                 `json:"upgradeMarketDepth"`
+	Classes            []warehouseClassDTO `json:"classes"`
 }
 
 type productionViewDTO struct {
@@ -518,14 +524,18 @@ func toWarehouseView(g domain.Game, cfg domain.Config) warehouseViewDTO {
 	tier := cfg.WarehouseTiers[g.WarehouseLevel-1]
 
 	buildings := 0
-	resources := make([]warehouseResourceDTO, 0, len(cfg.Commodities))
-	for _, r := range cfg.Resources() {
-		buildings += g.WarehouseQty[r]
-		resources = append(resources, warehouseResourceDTO{
-			Resource: r,
-			Count:    g.WarehouseQty[r],
-			Capacity: domain.Capacity(g, cfg, r),
-			saleDTO:  toSale(g, cfg, domain.Warehouse, r),
+	classes := make([]warehouseClassDTO, 0, 4)
+	for _, class := range domain.StorageClasses(cfg) {
+		members := domain.ClassMembers(cfg, class)
+		buildings += g.WarehouseQty[class]
+		classes = append(classes, warehouseClassDTO{
+			Class:    class,
+			Name:     content.StorageClassNames[class],
+			Count:    g.WarehouseQty[class],
+			Capacity: domain.ClassCapacity(g, cfg, class),
+			Stock:    domain.ClassStock(g, cfg, class),
+			Members:  members,
+			saleDTO:  toSale(g, cfg, domain.Warehouse, domain.Resource(class)),
 		})
 	}
 
@@ -541,7 +551,7 @@ func toWarehouseView(g domain.Game, cfg domain.Config) warehouseViewDTO {
 		Upgrade:            upgradeOption(cfg.WarehouseTiers, g.WarehouseLevel, domain.LevelCap(g, cfg), buildings),
 		MarketDepth:        domain.Reach(g, cfg, domain.Lemonade),
 		UpgradeMarketDepth: upgradeDepth(g, cfg),
-		Resources:          resources,
+		Classes:            classes,
 	}
 }
 

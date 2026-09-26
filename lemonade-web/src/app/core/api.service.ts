@@ -55,19 +55,22 @@ export class ApiService {
     });
   }
 
-  expandWarehouse(resource: Resource): Observable<GameView> {
-    return this.http.post<GameView>(`${API_URL}/game/facilities/warehouse/expand`, { resource });
+  /** Adds a building to a storage class's pool. */
+  expandWarehouse(storageClass: string): Observable<GameView> {
+    return this.http.post<GameView>(`${API_URL}/game/facilities/warehouse/expand`, {
+      class: storageClass,
+    });
   }
 
   expandProduction(): Observable<GameView> {
     return this.http.post<GameView>(`${API_URL}/game/facilities/production/expand`, {});
   }
 
-  /** Sells one building; `resource` picks the warehouse (ignored for production). */
-  sellFacility(type: FacilityType, resource?: Resource): Observable<GameView> {
+  /** Sells one building; `storageClass` picks the warehouse pool (ignored for production). */
+  sellFacility(type: FacilityType, storageClass?: string): Observable<GameView> {
     return this.http.post<GameView>(
       `${API_URL}/game/facilities/${type}/sell`,
-      type === 'warehouse' ? { resource } : {},
+      type === 'warehouse' ? { class: storageClass } : {},
     );
   }
 

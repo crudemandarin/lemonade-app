@@ -434,7 +434,7 @@ func toRow(g domain.Game) gameRow {
 		row.Inventory[string(r)] = n
 	}
 	for r, n := range g.WarehouseQty {
-		row.WarehouseQty[string(r)] = n
+		row.WarehouseQty[r] = n
 	}
 	for r, n := range g.CostBasis {
 		row.CostBasis[string(r)] = n
@@ -479,7 +479,7 @@ func fromRow(row gameRow) domain.Game {
 		ProductionQty:   row.ProductionQty,
 		RunID:           row.RunID,
 		Inventory:       make(map[domain.Resource]int, len(row.Inventory)),
-		WarehouseQty:    make(map[domain.Resource]int, len(row.WarehouseQty)),
+		WarehouseQty:    make(map[string]int, len(row.WarehouseQty)),
 		Market:          make(map[domain.Resource]*domain.ResourceMarket, len(row.Market)),
 		Stats:           domain.Stats(row.Stats),
 		Upgrades:        make(map[string]int, len(row.Upgrades)),
@@ -508,7 +508,7 @@ func fromRow(row gameRow) domain.Game {
 		g.Inventory[domain.Resource(r)] = n
 	}
 	for r, n := range row.WarehouseQty {
-		g.WarehouseQty[domain.Resource(r)] = n
+		g.WarehouseQty[r] = n
 	}
 	g.BuyPressure = make(map[domain.Resource]float64, len(row.BuyPressure))
 	for r, v := range row.BuyPressure {

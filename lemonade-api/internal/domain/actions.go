@@ -14,7 +14,7 @@ func Buy(g *Game, cfg Config, r Resource, qty int) error {
 	if cost > g.Capital {
 		return ErrInsufficientFunds
 	}
-	if g.Inventory[r]+qty > Capacity(*g, cfg, r) {
+	if qty > FreeSpace(*g, cfg, r) {
 		return ErrCapacityExceeded
 	}
 
@@ -64,7 +64,11 @@ func Expand(g *Game, cfg Config, kind FacilityType, resource Resource) error {
 
 	switch kind {
 	case Warehouse:
-		if g.WarehouseQty[resource] >= buildingCap(*g, cfg) {
+		class, ok := classFor(cfg, string(resource))
+		if !ok {
+			return ErrInvalidFacility
+		}
+		if g.WarehouseQty[class] >= buildingCap(*g, cfg) {
 			return ErrMaxQuantity
 		}
 		cost := warehouseTier(cfg, g.WarehouseLevel).BuildCost
@@ -72,7 +76,7 @@ func Expand(g *Game, cfg Config, kind FacilityType, resource Resource) error {
 			return ErrInsufficientFunds
 		}
 		g.Capital -= cost
-		g.WarehouseQty[resource]++
+		g.WarehouseQty[class]++
 		g.recordFacility(PointExpand, kind, resource, 1, cost)
 	case Production:
 		if g.ProductionQty >= buildingCap(*g, cfg) {

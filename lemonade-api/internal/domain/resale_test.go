@@ -7,15 +7,15 @@ import (
 
 func TestSellWarehouseBuilding(t *testing.T) {
 	g, cfg := newTestGame()
-	g.WarehouseQty[Lemon] = 3
+	g.WarehouseQty[StorageCold] = 3
 	before := TotalUpkeep(g, cfg)
 
 	if err := SellFacility(&g, cfg, Warehouse, Lemon); err != nil {
 		t.Fatal(err)
 	}
 	// Pantry build cost $100, resale rate 0.5.
-	if g.WarehouseQty[Lemon] != 2 || g.Capital != 1000+50 {
-		t.Fatalf("qty=%d capital=%d", g.WarehouseQty[Lemon], g.Capital)
+	if g.WarehouseQty[StorageCold] != 2 || g.Capital != 1000+50 {
+		t.Fatalf("qty=%d capital=%d", g.WarehouseQty[StorageCold], g.Capital)
 	}
 	if got := TotalUpkeep(g, cfg); got != before-cfg.WarehouseTiers[0].Upkeep {
 		t.Fatalf("upkeep %d -> %d, want it to drop by one Pantry", before, got)
@@ -45,7 +45,7 @@ func TestResaleRoundsDown(t *testing.T) {
 	cfg.ResaleRate = 0.5
 	cfg.WarehouseTiers = append([]Tier(nil), cfg.WarehouseTiers...)
 	cfg.WarehouseTiers[0].BuildCost = 101
-	g.WarehouseQty[Ice] = 2
+	g.WarehouseQty[StorageFrozen] = 2
 	if err := SellFacility(&g, cfg, Warehouse, Ice); err != nil || g.Capital != 1050 {
 		t.Fatalf("err=%v capital=%d, want floor(50.5)=50", err, g.Capital)
 	}
@@ -57,18 +57,18 @@ func TestSellFacilityGuards(t *testing.T) {
 	if err := SellFacility(&g, cfg, Production, ""); !errors.Is(err, ErrMinFacility) {
 		t.Errorf("last production building: %v, want ErrMinFacility", err)
 	}
-	if err := SellFacility(&g, cfg, Warehouse, Sugar); !errors.Is(err, ErrMinFacility) {
+	if err := SellFacility(&g, cfg, Warehouse, Ice); !errors.Is(err, ErrMinFacility) {
 		t.Errorf("last warehouse: %v, want ErrMinFacility", err)
 	}
 
-	g.WarehouseQty[Sugar] = 2
+	g.WarehouseQty[StorageDry] = 2
 	g.Inventory[Sugar] = 14 // one Pantry holds 10
 	err := SellFacility(&g, cfg, Warehouse, Sugar)
 	var excess *StockExceedsCapacityError
 	if !errors.Is(err, ErrStockExceedsCapacity) || !errors.As(err, &excess) || excess.Excess != 4 {
 		t.Fatalf("got %v, want stock exceeds capacity by 4", err)
 	}
-	if g.WarehouseQty[Sugar] != 2 || g.Capital != 1000 {
+	if g.WarehouseQty[StorageDry] != 2 || g.Capital != 1000 {
 		t.Fatal("a refused sale changed the game")
 	}
 

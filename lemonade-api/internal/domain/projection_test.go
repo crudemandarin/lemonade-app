@@ -15,7 +15,7 @@ func TestPreviewMatchesEndDay(t *testing.T) {
 		g.ProductionQty = 1 + rng.Intn(cfg.MaxQuantity)
 		g.WarehouseLevel = 1 + rng.Intn(cfg.MaxLevel)
 		for _, r := range Resources {
-			g.WarehouseQty[r] = 1 + rng.Intn(cfg.MaxQuantity)
+			g.WarehouseQty[ClassOf(cfg, r)] = 1 + rng.Intn(cfg.MaxQuantity)
 			g.Inventory[r] = rng.Intn(Capacity(g, cfg, r) + 1)
 		}
 		g.Capital = 1_000_000 // solvent: EndDay's report is unaffected either way
@@ -75,7 +75,7 @@ func TestPreviewLimitedBy(t *testing.T) {
 
 // roomy triples every warehouse so stock can exceed one day's production.
 func roomy(g *Game) {
-	for _, r := range Resources {
-		g.WarehouseQty[r] = 3
+	for _, class := range StorageClasses(DefaultConfig()) {
+		g.WarehouseQty[class] = 3
 	}
 }

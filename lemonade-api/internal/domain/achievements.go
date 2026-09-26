@@ -234,9 +234,9 @@ func totalStock(g Game) int {
 }
 
 func allWarehousesFull(g Game, cfg Config) bool {
-	for _, r := range cfg.Resources() {
-		c := Capacity(g, cfg, r)
-		if c <= 0 || g.Inventory[r] < c {
+	for _, class := range StorageClasses(cfg) {
+		c := ClassCapacity(g, cfg, class)
+		if c <= 0 || ClassStock(g, cfg, class) < c {
 			return false
 		}
 	}
@@ -251,8 +251,8 @@ func facilityMaxed(g Game, cfg Config, kind FacilityType) bool {
 		if g.WarehouseLevel < cfg.MaxLevel {
 			return false
 		}
-		for _, r := range cfg.Resources() {
-			if g.WarehouseQty[r] < cfg.MaxQuantity {
+		for _, class := range StorageClasses(cfg) {
+			if g.WarehouseQty[class] < cfg.MaxQuantity {
 				return false
 			}
 		}

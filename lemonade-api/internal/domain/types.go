@@ -40,8 +40,9 @@ type Game struct {
 	CostBasis map[Resource]int
 
 	WarehouseLevel int
-	// WarehouseQty is the building count per resource's warehouse.
-	WarehouseQty map[Resource]int
+	// WarehouseQty is the building count per storage class (dry, cold, frozen, finished).
+	// A class's capacity is pooled across every commodity stored in it.
+	WarehouseQty map[string]int
 
 	ProductionLevel int
 	ProductionQty   int
@@ -148,7 +149,7 @@ func (g Game) Clone() Game {
 		c.CostBasis[k] = v
 	}
 
-	c.WarehouseQty = make(map[Resource]int, len(g.WarehouseQty))
+	c.WarehouseQty = make(map[string]int, len(g.WarehouseQty))
 	for k, v := range g.WarehouseQty {
 		c.WarehouseQty[k] = v
 	}

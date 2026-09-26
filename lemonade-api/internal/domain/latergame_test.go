@@ -73,7 +73,7 @@ func TestOldSavesFitTheNewCapacity(t *testing.T) {
 		g := NewGame(cfg, 1)
 		g.WarehouseLevel, g.ProductionLevel = level, level
 		for _, r := range Resources {
-			g.WarehouseQty[r] = 3
+			g.WarehouseQty[ClassOf(cfg, r)] = 3
 			g.Inventory[r] = 3 * size // full under the old table
 		}
 		for _, r := range Resources {

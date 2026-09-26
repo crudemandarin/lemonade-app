@@ -26,11 +26,13 @@ func TestNewGame(t *testing.T) {
 		if g.Inventory[r] != 0 {
 			t.Errorf("inventory[%s] = %d, want 0", r, g.Inventory[r])
 		}
-		if g.WarehouseQty[r] != 1 {
-			t.Errorf("warehouseQty[%s] = %d, want 1", r, g.WarehouseQty[r])
+		// One building per commodity, pooled by storage class: dry holds sugar and cups.
+		want := len(ClassMembers(cfg, ClassOf(cfg, r)))
+		if g.WarehouseQty[ClassOf(cfg, r)] != want {
+			t.Errorf("warehouseQty[%s] = %d, want %d", r, g.WarehouseQty[ClassOf(cfg, r)], want)
 		}
-		if got := Capacity(g, cfg, r); got != 10 {
-			t.Errorf("capacity[%s] = %d, want 10", r, got)
+		if got := Capacity(g, cfg, r); got != 10*want {
+			t.Errorf("capacity[%s] = %d, want %d", r, got, 10*want)
 		}
 		if q := Quotes(g, cfg)[r]; q.Price != cfg.BasePrice[r] {
 			t.Errorf("price[%s] = %d, want %d", r, q.Price, cfg.BasePrice[r])
@@ -53,7 +55,7 @@ func TestCapacityAcrossLevelsAndQuantities(t *testing.T) {
 	}
 	for _, tt := range tests {
 		g.WarehouseLevel = tt.level
-		g.WarehouseQty[Lemon] = tt.qty
+		g.WarehouseQty[StorageCold] = tt.qty
 		if got := Capacity(g, cfg, Lemon); got != tt.want {
 			t.Errorf("level %d qty %d: capacity = %d, want %d", tt.level, tt.qty, got, tt.want)
 		}
@@ -182,8 +184,8 @@ func TestExpand(t *testing.T) {
 		if err := Expand(&g, cfg, Warehouse, Sugar); err != nil {
 			t.Fatal(err)
 		}
-		if g.Capital != 900 || g.WarehouseQty[Sugar] != 2 || Capacity(g, cfg, Sugar) != 20 {
-			t.Fatalf("capital=%d qty=%d cap=%d", g.Capital, g.WarehouseQty[Sugar], Capacity(g, cfg, Sugar))
+		if g.Capital != 900 || g.WarehouseQty[StorageDry] != 3 || Capacity(g, cfg, Sugar) != 30 {
+			t.Fatalf("capital=%d qty=%d cap=%d", g.Capital, g.WarehouseQty[StorageDry], Capacity(g, cfg, Sugar))
 		}
 		if Capacity(g, cfg, Lemon) != 10 {
 			t.Fatal("expanding sugar changed lemon capacity")
@@ -207,7 +209,7 @@ func TestExpand(t *testing.T) {
 	})
 	t.Run("max quantity", func(t *testing.T) {
 		g, cfg := newTestGame()
-		g.WarehouseQty[Lemon] = cfg.MaxQuantity
+		g.WarehouseQty[StorageCold] = cfg.MaxQuantity
 		g.ProductionQty = cfg.MaxQuantity
 		if err := Expand(&g, cfg, Warehouse, Lemon); !errors.Is(err, ErrMaxQuantity) {
 			t.Fatalf("warehouse err = %v", err)
@@ -258,14 +260,14 @@ func TestUpgrade(t *testing.T) {
 	t.Run("warehouse cost scales with total buildings", func(t *testing.T) {
 		g, cfg := newTestGame()
 		g.Capital = 5000
-		g.WarehouseQty[Lemon] = 2 // 6 buildings total
+		g.WarehouseQty[StorageCold] = 2 // 6 buildings total
 		if err := Upgrade(&g, cfg, Warehouse); err != nil {
 			t.Fatal(err)
 		}
 		if g.Capital != 5000-6*155 || g.WarehouseLevel != 2 {
 			t.Fatalf("capital=%d level=%d", g.Capital, g.WarehouseLevel)
 		}
-		if Capacity(g, cfg, Lemon) != 50 || Capacity(g, cfg, Sugar) != 25 {
+		if Capacity(g, cfg, Lemon) != 50 || Capacity(g, cfg, Sugar) != 50 {
 			t.Fatal("capacity did not follow the new level")
 		}
 	})
@@ -306,7 +308,7 @@ func TestUpgrade(t *testing.T) {
 func TestUpkeepSum(t *testing.T) {
 	g, cfg := newTestGame()
 	g.WarehouseLevel = 2
-	g.WarehouseQty[Lemon] = 3 // 7 buildings
+	g.WarehouseQty[StorageCold] = 3 // 7 buildings
 	g.ProductionLevel = 3
 	g.ProductionQty = 2
 	want := 7*cfg.WarehouseTiers[1].Upkeep + 2*cfg.ProductionTiers[2].Upkeep

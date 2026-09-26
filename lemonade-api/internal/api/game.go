@@ -324,17 +324,23 @@ func (h *Game) warehouseResource(c *gin.Context, kind domain.FacilityType) (doma
 		return "", true
 	}
 	var req struct {
+		Class    string          `json:"class"`
 		Resource domain.Resource `json:"resource"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		abort(c, http.StatusBadRequest, "invalid_request", "Request body must be JSON with a resource.")
+		abort(c, http.StatusBadRequest, "invalid_request", "Request body must be JSON with a storage class.")
 		return "", false
 	}
-	if !h.cfg.Valid(req.Resource) {
-		abort(c, http.StatusBadRequest, "invalid_resource", "Unknown resource.")
+	key := req.Class
+	if key == "" {
+		key = string(req.Resource)
+	}
+	class, ok := domain.ResolveClass(h.cfg, key)
+	if !ok {
+		abort(c, http.StatusBadRequest, "invalid_resource", "Unknown storage class.")
 		return "", false
 	}
-	return req.Resource, true
+	return domain.Resource(class), true
 }
 
 func (h *Game) sellFacility(c *gin.Context) {

@@ -49,7 +49,7 @@ func goldenLine(g Game, cfg Config, r DayReport) string {
 			p = m.Price
 		}
 		fmt.Fprintf(&b, " %s:inv=%d wq=%d cb=%d bp=%s sp=%s p=%s q=%d/%d/%d",
-			k, g.Inventory[k], g.WarehouseQty[k], g.CostBasis[k],
+			k, g.Inventory[k], g.WarehouseQty[ClassOf(cfg, k)], g.CostBasis[k],
 			strconv.FormatFloat(g.BuyPressure[k], 'g', -1, 64),
 			strconv.FormatFloat(g.SellPressure[k], 'g', -1, 64),
 			strconv.FormatFloat(p, 'g', -1, 64),

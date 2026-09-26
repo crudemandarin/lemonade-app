@@ -107,10 +107,16 @@ export function newGameView(overrides: Partial<GameView> = {}): GameView {
         },
         marketDepth: 80,
         upgradeMarketDepth: 280,
-        resources: (['lemon', 'sugar', 'ice', 'cup', 'lemonade'] as Resource[]).map((resource) => ({
-          resource,
-          count: 1,
-          capacity: 10,
+        classes: [
+          { class: 'cold', name: 'Cold room', count: 1, members: ['lemon'] },
+          { class: 'dry', name: 'Dry store', count: 2, members: ['sugar', 'cup'] },
+          { class: 'frozen', name: 'Freezer', count: 1, members: ['ice'] },
+          { class: 'finished', name: 'Finished goods', count: 1, members: ['lemonade'] },
+        ].map((c) => ({
+          ...c,
+          members: c.members as Resource[],
+          capacity: c.count * 10,
+          stock: 0,
           ...noSale(50),
         })),
       },

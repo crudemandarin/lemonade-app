@@ -118,7 +118,7 @@ func TestFreezerKeepsFreshIceForOneNight(t *testing.T) {
 	g, cfg := newTestGame()
 	rich(&g)
 	own(&g, "freezer_1") // 20 cases
-	g.WarehouseQty[Ice] = 5
+	g.WarehouseQty[StorageFrozen] = 5
 	setInputs(&g, 10, 10, 35, 10) // production uses 10, leaving 25 fresh
 	r, err := EndDay(&g, cfg)
 	if err != nil {
@@ -141,7 +141,7 @@ func TestFreezerKeepsFreshIceForOneNight(t *testing.T) {
 func TestFreezerKeepsOnlyFreshIceAndSellsOldestFirst(t *testing.T) {
 	g, cfg := newTestGame()
 	own(&g, "freezer_1")
-	g.WarehouseQty[Ice] = 5
+	g.WarehouseQty[StorageFrozen] = 5
 	g.Inventory[Ice], g.IceOld = 30, 12
 	g.CostBasis[Ice] = 300
 	if err := Sell(&g, cfg, Ice, 5); err != nil {
@@ -162,7 +162,7 @@ func TestFreezerBasisFollowsTheKeptIce(t *testing.T) {
 	g, cfg := newTestGame()
 	rich(&g)
 	own(&g, "freezer_1")
-	g.WarehouseQty[Ice] = 5
+	g.WarehouseQty[StorageFrozen] = 5
 	g.ProductionQty = 0
 	g.Inventory[Ice], g.CostBasis[Ice] = 30, 300
 	if _, err := EndDay(&g, cfg); err != nil {
@@ -188,7 +188,7 @@ func TestPreviewMatchesEndDayWithUpgrades(t *testing.T) {
 			}
 		}
 		for _, r := range Resources {
-			g.WarehouseQty[r] = 1 + rng.Intn(cfg.MaxQuantity)
+			g.WarehouseQty[ClassOf(cfg, r)] = 1 + rng.Intn(cfg.MaxQuantity)
 			g.Inventory[r] = rng.Intn(Capacity(g, cfg, r) + 1)
 		}
 		g.IceOld = rng.Intn(g.Inventory[Ice] + 1)
@@ -322,7 +322,7 @@ func TestYieldBonusCarriesFractionsAsWholeCases(t *testing.T) {
 	rich(&g)
 	own(&g, "citrus_press") // +10%
 	g.ProductionQty = 10
-	g.WarehouseQty[Lemonade] = 10
+	g.WarehouseQty[StorageFinished] = 10
 	total, batches := 0, 0
 	for d := 0; d < 10; d++ {
 		setInputs(&g, 3, 3, 3, 3) // 3 batches a day: 0.3 extra cases
@@ -427,7 +427,7 @@ func TestIceMachineTopsUpIceAtItsPrice(t *testing.T) {
 	own(&g, "ice_machine")
 	g.ProductionQty = 5
 	for _, r := range Resources {
-		g.WarehouseQty[r] = 10
+		g.WarehouseQty[ClassOf(cfg, r)] = 10
 	}
 	setInputs(&g, 50, 50, 0, 50)
 	r, _ := EndDay(&g, cfg)

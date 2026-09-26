@@ -64,7 +64,7 @@ func TestPredicatesAtTheirBoundaries(t *testing.T) {
 	maxWarehouses := func(g *Game) {
 		g.WarehouseLevel = cfg.MaxLevel
 		for _, r := range cfg.Resources() {
-			g.WarehouseQty[r] = cfg.MaxQuantity
+			g.WarehouseQty[ClassOf(cfg, r)] = cfg.MaxQuantity
 		}
 	}
 	maxProduction := func(g *Game) { g.ProductionLevel, g.ProductionQty = cfg.MaxLevel, cfg.MaxQuantity }
@@ -104,7 +104,7 @@ func TestPredicatesAtTheirBoundaries(t *testing.T) {
 		{"production maxed", content.FacilityMaxed("production"), fresh, edit(maxProduction), AchievementContext{}, true},
 		{"production one short", content.FacilityMaxed("production"), fresh, edit(func(g *Game) { maxProduction(g); g.ProductionQty-- }), AchievementContext{}, false},
 		{"warehouses maxed", content.FacilityMaxed("warehouse"), fresh, edit(maxWarehouses), AchievementContext{}, true},
-		{"one warehouse short", content.FacilityMaxed("warehouse"), fresh, edit(func(g *Game) { maxWarehouses(g); g.WarehouseQty[Cup]-- }), AchievementContext{}, false},
+		{"one warehouse short", content.FacilityMaxed("warehouse"), fresh, edit(func(g *Game) { maxWarehouses(g); g.WarehouseQty[StorageDry]-- }), AchievementContext{}, false},
 		{"all of", content.AllOf(content.FacilityMaxed("production"), content.FacilityMaxed("warehouse")), fresh, edit(func(g *Game) { maxProduction(g); maxWarehouses(g) }), AchievementContext{}, true},
 		{"all of, one part", content.AllOf(content.FacilityMaxed("production"), content.FacilityMaxed("warehouse")), fresh, edit(maxProduction), AchievementContext{}, false},
 		{"runs at", content.RunsFinishedAtLeast(5), fresh, fresh, AchievementContext{RunsFinished: 5}, true},
@@ -219,7 +219,7 @@ func TestProgressIsCappedAndOnlyForMeasurableChecks(t *testing.T) {
 func TestTradesRecordGoalFacts(t *testing.T) {
 	g, cfg := newTestGame()
 	g.Capital = 100000
-	g.WarehouseQty[Sugar] = 10
+	g.WarehouseQty[StorageDry] = 10
 	g.Events = []ActiveEvent{{Key: "heat_wave", Multipliers: map[Resource]float64{Lemonade: 1.4, Ice: 1.3}, DaysLeft: 1}}
 
 	// Sugar asks $11 on a $10 base: 110%, rounded up.
@@ -275,7 +275,7 @@ func TestTradesRecordGoalFacts(t *testing.T) {
 
 func TestBigSalesCountImpact(t *testing.T) {
 	g, cfg := newTestGame()
-	g.WarehouseQty[Lemonade] = 10
+	g.WarehouseQty[StorageFinished] = 10
 	g.Inventory[Lemonade] = 100
 	if err := Sell(&g, cfg, Lemonade, 100); err != nil {
 		t.Fatal(err)

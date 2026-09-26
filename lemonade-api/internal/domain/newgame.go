@@ -4,12 +4,14 @@ package domain
 // facility at level 1 quantity 1, and initial market prices (SPEC rules 1-3).
 func NewGame(cfg Config, seed int64) Game {
 	inventory := make(map[Resource]int, len(cfg.Commodities))
-	warehouseQty := make(map[Resource]int, len(cfg.Commodities))
+	warehouseQty := make(map[string]int, 4)
 	market := make(map[Resource]*ResourceMarket, len(cfg.Commodities))
 
 	for _, r := range cfg.Resources() {
 		inventory[r] = 0
-		warehouseQty[r] = 1
+		// One building per commodity to start, pooled by class, so a class holding two
+		// commodities (dry: sugar and cups) starts with two.
+		warehouseQty[ClassOf(cfg, r)]++
 		base := cfg.BasePrice[r]
 		market[r] = &ResourceMarket{
 			Price:             float64(base),

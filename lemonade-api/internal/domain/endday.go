@@ -213,7 +213,7 @@ func produceQtyIgnoring(g Game, cfg Config, skip Resource) (qty int, limitedBy s
 			qty, limitedBy, first = n, string(in.Resource), false
 		}
 	}
-	if free := (Capacity(g, cfg, rec.Output) - g.Inventory[rec.Output]) / rec.OutputQty; first || free < qty {
+	if free := FreeSpace(g, cfg, rec.Output) / rec.OutputQty; first || free < qty {
 		qty, limitedBy, first = free, LimitSpace, false
 	}
 	if capacity < qty {
@@ -233,7 +233,7 @@ func makeInputs(g *Game, cfg Config) (made, cost int) {
 		r := Resource(e.Target)
 		batches, _ := produceQtyIgnoring(*g, cfg, r)
 		n := batches*recipeUses(cfg.MainRecipe(), r) - g.Inventory[r]
-		n = min(n, int(e.Value), Capacity(*g, cfg, r)-g.Inventory[r])
+		n = min(n, int(e.Value), FreeSpace(*g, cfg, r))
 		if unit := int(e.Aux); unit > 0 {
 			n = min(n, g.Capital/unit)
 		}
@@ -262,7 +262,7 @@ func produce(g *Game, cfg Config) int {
 		cost += g.removeStock(in.Resource, use-g.takeSavings(cfg, in.Resource, use))
 	}
 	out := n * rec.OutputQty
-	out += g.yieldExtra(cfg, rec.Key, out, Capacity(*g, cfg, rec.Output)-g.Inventory[rec.Output]-out)
+	out += g.yieldExtra(cfg, rec.Key, out, FreeSpace(*g, cfg, rec.Output)-out)
 	g.Inventory[rec.Output] += out
 	g.addBasis(rec.Output, cost)
 	return out

@@ -38,14 +38,9 @@ func growDiligent(g *Game, cfg Config, reserve func(Game) int, res *simResult, d
 		pl, wl := g.ProductionLevel, g.WarehouseLevel
 		maxQ, maxL := buildingCap(*g, cfg), levelCap(*g, cfg)
 		canExpand := g.ProductionQty < maxQ
-		for _, r := range Resources {
-			if g.WarehouseQty[r] >= maxQ {
-				canExpand = false
-			}
-		}
 		expandCost, expandGain := 1<<30, 0
 		if canExpand && pl == wl {
-			expandCost = productionTier(cfg, pl).BuildCost + 5*warehouseTier(cfg, wl).BuildCost
+			expandCost = expandStepCost(*g, cfg)
 			expandGain = productionTier(cfg, pl).Size
 		}
 		upCost, upGain := 1<<30, 0
@@ -60,10 +55,7 @@ func growDiligent(g *Game, cfg Config, reserve func(Game) int, res *simResult, d
 			return g.Capital-cost >= reserve(gc)
 		}
 		doExpand := func(x *Game) {
-			_ = Expand(x, cfg, Production, "")
-			for _, r := range Resources {
-				_ = Expand(x, cfg, Warehouse, r)
-			}
+			expandStep(x, cfg)
 		}
 		doUpgrade := func(x *Game) {
 			_ = Upgrade(x, cfg, Production)
@@ -233,11 +225,11 @@ func diligent(cfg Config, seed int64, days int) simResult {
 
 		n := ProductionCapacity(g, cfg)
 		for _, in := range Inputs {
-			if free := Capacity(g, cfg, in) - g.Inventory[in]; free < n {
+			if free := batchRoom(g, cfg, in); free < n {
 				n = free
 			}
 		}
-		if free := Capacity(g, cfg, Lemonade) - g.Inventory[Lemonade]; free < n {
+		if free := batchRoom(g, cfg, Lemonade); free < n {
 			n = free
 		}
 		if uc := unitCost(g, cfg); uc > 0 && g.Capital/uc < n {

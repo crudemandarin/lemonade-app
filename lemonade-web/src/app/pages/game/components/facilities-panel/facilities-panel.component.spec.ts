@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { FacilityType, Resource } from '../../../../core/api.models';
+import { FacilityType } from '../../../../core/api.models';
 import { newGameView, noSale } from '../../../../core/testing/fixtures';
 import { FacilitiesPanelComponent } from './facilities-panel.component';
 
@@ -32,13 +32,13 @@ describe('FacilitiesPanelComponent', () => {
     expect(productionCard().textContent).toContain('Makes 10 lemonade per day');
   });
 
-  it('emits expandWarehouse for the clicked resource', () => {
-    const emitted: Resource[] = [];
+  it('emits expandWarehouse for the clicked storage class', () => {
+    const emitted: string[] = [];
     fixture.componentInstance.expandWarehouse.subscribe((r) => emitted.push(r));
 
-    warehouseCard().querySelector<HTMLButtonElement>('[data-resource=sugar] button')!.click();
+    warehouseCard().querySelector<HTMLButtonElement>('[data-class=dry] button')!.click();
 
-    expect(emitted).toEqual(['sugar']);
+    expect(emitted).toEqual(['dry']);
   });
 
   it('emits expandProduction', () => {
@@ -79,7 +79,7 @@ describe('FacilitiesPanelComponent', () => {
     fixture.detectChanges();
 
     const buttons = Array.from(el.querySelectorAll<HTMLButtonElement>('button:not(.help-link)'));
-    expect(buttons.length).toBe(14);
+    expect(buttons.length).toBe(12);
     expect(buttons.every((b) => b.disabled)).toBeTrue();
   });
 
@@ -93,8 +93,8 @@ describe('FacilitiesPanelComponent', () => {
     expect(src(productionCard())).toBe('assets/facilities/production-3.svg');
   });
 
-  it('shows each resource image in the warehouse rows', () => {
-    const img = warehouseCard().querySelector('[data-resource=cup] img')!;
+  it('shows the image of each commodity a storage class holds', () => {
+    const img = warehouseCard().querySelector('[data-class=dry] img[title=Cups]')!;
     expect(img.getAttribute('src')).toBe('assets/resources/cup.svg');
   });
 
@@ -117,8 +117,8 @@ describe('FacilitiesPanelComponent', () => {
         sellBlockedReason: '' as const,
         casesToSell: 0,
       };
-      game.facilities.warehouse.resources[1] = {
-        ...game.facilities.warehouse.resources[1],
+      game.facilities.warehouse.classes[1] = {
+        ...game.facilities.warehouse.classes[1],
         count: 2,
         ...sellable,
       };
@@ -135,21 +135,21 @@ describe('FacilitiesPanelComponent', () => {
       card.querySelector<HTMLButtonElement>(`${selector} .sell-building`.trim())!;
 
     it('disables Sell for a last building, with the reason', () => {
-      const button = sellButton(warehouseCard(), '[data-resource=lemon]');
+      const button = sellButton(warehouseCard(), '[data-class=cold]');
       expect(button.disabled).toBeTrue();
       expect(button.title).toBe('Keep at least one');
     });
 
     it('explains when stock is in the way', () => {
       const game = newGameView();
-      game.facilities.warehouse.resources[0] = {
-        ...game.facilities.warehouse.resources[0],
+      game.facilities.warehouse.classes[0] = {
+        ...game.facilities.warehouse.classes[0],
         canSell: false,
         sellBlockedReason: 'stock_exceeds_capacity',
         casesToSell: 4,
       };
       render(game);
-      expect(sellButton(warehouseCard(), '[data-resource=lemon]').title).toBe('Sell 4 cases first');
+      expect(sellButton(warehouseCard(), '[data-class=cold]').title).toBe('Sell 4 cases first');
     });
 
     it('asks for confirmation, then emits the sale', () => {
@@ -157,14 +157,14 @@ describe('FacilitiesPanelComponent', () => {
       const emitted: unknown[] = [];
       fixture.componentInstance.sellFacility.subscribe((s) => emitted.push(s));
 
-      sellButton(warehouseCard(), '[data-resource=sugar]').click();
+      sellButton(warehouseCard(), '[data-class=dry]').click();
       fixture.detectChanges();
       expect(emitted).toEqual([]);
       expect(el.querySelector('[role=alertdialog]')!.textContent).toContain('Sell a Pantry?');
 
       el.querySelector<HTMLButtonElement>('[role=alertdialog] .danger')!.click();
       fixture.detectChanges();
-      expect(emitted).toEqual([{ type: 'warehouse', resource: 'sugar' }]);
+      expect(emitted).toEqual([{ type: 'warehouse', class: 'dry' }]);
       expect(el.querySelector('[role=alertdialog]')).toBeNull();
     });
 
@@ -189,7 +189,7 @@ describe('FacilitiesPanelComponent', () => {
       sellButton(productionCard()).click();
       fixture.detectChanges();
       el.querySelector<HTMLButtonElement>('[role=alertdialog] .danger')!.click();
-      expect(emitted).toEqual([{ type: 'production', resource: undefined }]);
+      expect(emitted).toEqual([{ type: 'production', class: undefined }]);
     });
 
     it('a lone production building cannot be sold', () => {

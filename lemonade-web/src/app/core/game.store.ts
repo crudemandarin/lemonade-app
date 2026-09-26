@@ -72,16 +72,16 @@ export class GameStore {
     return this.update(this.api.sell(resource, qty, clamp));
   }
 
-  expandWarehouse(resource: Resource): Promise<void> {
-    return this.update(this.api.expandWarehouse(resource));
+  expandWarehouse(storageClass: string): Promise<void> {
+    return this.update(this.api.expandWarehouse(storageClass));
   }
 
   expandProduction(): Promise<void> {
     return this.update(this.api.expandProduction());
   }
 
-  sellFacility(type: FacilityType, resource?: Resource): Promise<void> {
-    return this.update(this.api.sellFacility(type, resource));
+  sellFacility(type: FacilityType, storageClass?: string): Promise<void> {
+    return this.update(this.api.sellFacility(type, storageClass));
   }
 
   upgrade(type: FacilityType): Promise<void> {

@@ -51,10 +51,10 @@ describe('ApiService', () => {
     ],
     [
       'sell a warehouse',
-      () => api.sellFacility('warehouse', 'ice'),
+      () => api.sellFacility('warehouse', 'frozen'),
       'POST',
       '/api/game/facilities/warehouse/sell',
-      { resource: 'ice' },
+      { class: 'frozen' },
     ],
     [
       'sell a production building',
@@ -65,10 +65,10 @@ describe('ApiService', () => {
     ],
     [
       'expandWarehouse',
-      () => api.expandWarehouse('ice'),
+      () => api.expandWarehouse('frozen'),
       'POST',
       '/api/game/facilities/warehouse/expand',
-      { resource: 'ice' },
+      { class: 'frozen' },
     ],
     [
       'expandProduction',

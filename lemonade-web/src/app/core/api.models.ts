@@ -112,10 +112,16 @@ export interface SaleInfo {
   casesToSell: number;
 }
 
-export interface WarehouseResourceView extends SaleInfo {
-  resource: Resource;
+/** One storage class's building pool: its capacity is shared by every commodity in it. */
+export interface WarehouseClassView extends SaleInfo {
+  /** dry, cold, frozen or finished. */
+  class: string;
+  name: string;
   count: number;
   capacity: number;
+  /** Cases held across every member. */
+  stock: number;
+  members: Resource[];
 }
 
 export interface WarehouseView extends FacilityTypeView {
@@ -123,7 +129,7 @@ export interface WarehouseView extends FacilityTypeView {
   marketDepth: number;
   /** The same after the upgrade; 0 at max level. */
   upgradeMarketDepth: number;
-  resources: WarehouseResourceView[];
+  classes: WarehouseClassView[];
 }
 
 export interface ProductionView extends FacilityTypeView, SaleInfo {

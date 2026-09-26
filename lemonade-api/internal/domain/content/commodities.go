@@ -14,6 +14,11 @@ const (
 	StorageFinished = "finished"
 )
 
+// StorageClassNames are the display names of the storage classes.
+var StorageClassNames = map[string]string{
+	StorageDry: "Dry store", StorageCold: "Cold room", StorageFrozen: "Freezer", StorageFinished: "Finished goods",
+}
+
 // Categories group commodities in the market panel.
 const (
 	CategoryIngredient = "ingredient"
