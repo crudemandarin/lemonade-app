@@ -83,6 +83,8 @@ export class GameComponent implements OnInit {
     () => this.store.game()?.resources.filter((r) => r.unlocked) ?? [],
   );
 
+  protected readonly unlockedKeys = computed(() => this.market().map((r) => r.resource));
+
   /** Perishables that will go off tonight, as "5 Limes" phrases; empty when nothing will. */
   protected readonly spoilWarning = computed(() => {
     const will = this.store.game()?.projection.willSpoil ?? {};

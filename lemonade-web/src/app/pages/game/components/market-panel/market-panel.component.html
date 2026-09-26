@@ -45,8 +45,14 @@
             [attr.aria-label]="label(row.resource) + ' stock'"
           >
             <span class="bar-fill" [style.width.%]="fill(row)"></span>
+            <span class="bar-others" [style.width.%]="othersFill(row)"></span>
           </span>
-          <span class="stock-text">{{ row.stock }} / {{ row.capacity }}</span>
+          <span class="stock-text"
+            >{{ row.stock }} / {{ row.capacity }}
+            @if (othersUsed(row) > 0) {
+              · {{ othersUsed(row) }} taken by other items
+            }
+          </span>
           <span class="cost-text">
             @if (row.stock > 0) {
               {{ row.resource === 'lemonade' ? 'cost to make' : 'avg' }}

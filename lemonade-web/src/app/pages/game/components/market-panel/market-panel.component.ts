@@ -1,6 +1,11 @@
 import { Component, input, output, signal } from '@angular/core';
 
-import { Resource, ResourceView, TradeQuote } from '../../../../core/api.models';
+import {
+  Resource,
+  ResourceView,
+  TradeQuote,
+  WarehouseClassView,
+} from '../../../../core/api.models';
 import { resourceIcon, resourceLabel } from '../../../../core/resources';
 import { CardComponent } from '../../../../shared/card/card.component';
 import { HelpLinkComponent } from '../../../../shared/help/help-link.component';
@@ -42,6 +47,8 @@ function loadAmount(): TradeAmount {
 export class MarketPanelComponent {
   readonly resources = input.required<ResourceView[]>();
   readonly capital = input.required<number>();
+  /** Storage pools, so a row can show the room other commodities in its class take. */
+  readonly classes = input<WarehouseClassView[]>([]);
   /** Disables every action, e.g. while offline. */
   readonly disabled = input(false);
   /** Price alerts (an upgrade): a level per resource, kept by the page. Empty when off. */
@@ -178,6 +185,16 @@ export class MarketPanelComponent {
       return 'breaking even at the current bid';
     }
     return `${gain > 0 ? 'up' : 'down'} ${formatMoney(Math.abs(gain))} at the current bid`;
+  }
+
+  /** Cases of other commodities sharing this row's storage pool. */
+  protected othersUsed(row: ResourceView): number {
+    const pool = this.classes().find((c) => c.members.includes(row.resource));
+    return pool ? Math.max(0, pool.stock - row.stock) : 0;
+  }
+
+  protected othersFill(row: ResourceView): number {
+    return row.capacity > 0 ? Math.min(100, (this.othersUsed(row) / row.capacity) * 100) : 0;
   }
 
   protected fill(row: ResourceView): number {

@@ -76,6 +76,7 @@
 
       <app-market-panel
         [resources]="market()"
+        [classes]="game.facilities.warehouse.classes"
         [capital]="game.capital"
         [disabled]="!online()"
         [alertsOn]="game.features.includes('price_alerts')"
@@ -111,6 +112,7 @@
       <app-facilities-panel
         [warehouse]="game.facilities.warehouse"
         [production]="game.facilities.production"
+        [unlocked]="unlockedKeys()"
         [disabled]="!online()"
         (expandWarehouse)="store.expandWarehouse($event)"
         (expandProduction)="store.expandProduction()"

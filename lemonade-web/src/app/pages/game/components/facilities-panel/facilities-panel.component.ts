@@ -45,6 +45,8 @@ export class FacilitiesPanelComponent {
   readonly production = input.required<ProductionView>();
   /** Disables every action, e.g. while offline. */
   readonly disabled = input(false);
+  /** Commodities the player has unlocked; only these show an icon. Null shows every member. */
+  readonly unlocked = input<readonly string[] | null>(null);
 
   readonly expandWarehouse = output<string>();
   readonly expandProduction = output<void>();
@@ -56,6 +58,11 @@ export class FacilitiesPanelComponent {
   protected readonly label = resourceLabel;
   protected readonly icon = resourceIcon;
   protected readonly storage = storageIcon;
+
+  protected shown(members: readonly string[]): readonly string[] {
+    const u = this.unlocked();
+    return u ? members.filter((m) => u.includes(m)) : members;
+  }
 
   protected buildings(n: number): string {
     return n === 1 ? '1 building' : `${n} buildings`;

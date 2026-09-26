@@ -36,6 +36,7 @@
 }
 
 .bar {
+  position: relative;
   display: block;
   height: 0.375rem;
   border-radius: 999px;
@@ -48,6 +49,15 @@
   height: 100%;
   background: var(--accent);
   transition: width 0.2s;
+}
+
+.bar-others {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  background: var(--text-muted);
+  opacity: 0.45;
 }
 
 .stock-text {
