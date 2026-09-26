@@ -14,7 +14,11 @@
     <ul class="plan">
       @for (row of rows(); track row.recipe; let i = $index) {
         <li [attr.data-plan]="row.recipe">
-          <span class="name">{{ i + 1 }}. {{ name(row.recipe) }}</span>
+          <span class="name"
+            >{{ i + 1 }}.
+            <img [src]="icon(row.recipe)" alt="" width="22" height="22" />
+            {{ name(row.recipe) }}</span
+          >
           <label>
             Up to
             <input
@@ -92,7 +96,7 @@
       @for (r of known(); track r.key) {
         <li [attr.data-recipe]="r.key" class="owned">
           <div class="what">
-            <h3>{{ r.name }}</h3>
+            <h3><img [src]="icon(r.output)" alt="" width="22" height="22" /> {{ r.name }}</h3>
             <p class="text">{{ inputs(r) }}. {{ r.text }}</p>
           </div>
           <div class="state"><span class="badge owned-badge">Known</span></div>
@@ -101,7 +105,7 @@
       @for (r of learnable(); track r.key) {
         <li [attr.data-recipe]="r.key">
           <div class="what">
-            <h3>{{ r.name }}</h3>
+            <h3><img [src]="icon(r.output)" alt="" width="22" height="22" /> {{ r.name }}</h3>
             <p class="text">{{ inputs(r) }}. {{ r.text }}</p>
             <p class="meta">
               <span [title]="exact(r.learnCost)">Learn for {{ r.learnCost | money }}</span>

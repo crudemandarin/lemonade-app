@@ -3,7 +3,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { PlanRow, Recipe } from '../../core/api.models';
 import { GameStore } from '../../core/game.store';
 import { OnlineService } from '../../core/online.service';
-import { resourceLabel } from '../../core/resources';
+import { resourceIcon, resourceLabel } from '../../core/resources';
 import { RunNavComponent } from '../../shared/run-nav/run-nav.component';
 import { CardComponent } from '../../shared/card/card.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
@@ -53,6 +53,8 @@ export class ProductionComponent implements OnInit {
       void this.store.load();
     }
   }
+
+  protected readonly icon = resourceIcon;
 
   protected name(key: string): string {
     return this.recipes().find((r) => r.key === key)?.name ?? key;

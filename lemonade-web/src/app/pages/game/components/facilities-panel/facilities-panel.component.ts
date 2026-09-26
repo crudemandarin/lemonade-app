@@ -11,6 +11,7 @@ import { resourceIcon, resourceLabel } from '../../../../core/resources';
 import { CardComponent } from '../../../../shared/card/card.component';
 import { ConfirmDialogComponent } from '../../../../shared/confirm-dialog/confirm-dialog.component';
 import { HelpLinkComponent } from '../../../../shared/help/help-link.component';
+import { storageIcon } from '../../../../core/icons';
 import { IconComponent } from '../../../../shared/icon/icon.component';
 import { MoneyPipe } from '../../../../shared/money.pipe';
 
@@ -54,6 +55,7 @@ export class FacilitiesPanelComponent {
 
   protected readonly label = resourceLabel;
   protected readonly icon = resourceIcon;
+  protected readonly storage = storageIcon;
 
   protected buildings(n: number): string {
     return n === 1 ? '1 building' : `${n} buildings`;

@@ -23,4 +23,10 @@ describe('IconComponent', () => {
     render('x');
     expect(el.querySelector('svg path')).not.toBeNull();
   });
+
+  it('draws catalog-keyed names that are not in the typed list', () => {
+    render('upgrade-freezer_1');
+    const mask = el.querySelector<HTMLElement>('.mask')!;
+    expect(mask.style.getPropertyValue('--icon')).toContain('assets/ui/upgrade-freezer_1.svg');
+  });
 });

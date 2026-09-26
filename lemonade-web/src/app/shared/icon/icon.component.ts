@@ -30,6 +30,12 @@ const PATH_ICONS = {
 export type IconName = (typeof ASSET_ICONS)[number] | keyof typeof PATH_ICONS;
 
 /**
+ * A known icon, or the name of any other file in assets/ui (upgrade-<key>, territory-<key>, ...):
+ * catalog-keyed icons are looked up by string rather than listed here.
+ */
+export type IconRef = IconName | (string & Record<never, never>);
+
+/**
  * Small line icon that inherits the current text color. Asset icons are applied
  * as a CSS mask over `currentColor`, which an <img> could not do.
  */
@@ -40,7 +46,7 @@ export type IconName = (typeof ASSET_ICONS)[number] | keyof typeof PATH_ICONS;
   styleUrl: './icon.component.scss',
 })
 export class IconComponent {
-  readonly name = input.required<IconName>();
+  readonly name = input.required<IconRef>();
   readonly size = input(16);
 
   protected readonly path = computed(() => {

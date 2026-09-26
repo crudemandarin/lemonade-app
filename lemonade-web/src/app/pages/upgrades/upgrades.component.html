@@ -39,7 +39,7 @@
             @for (u of group.items; track u.key) {
               <li [attr.data-upgrade]="u.key" [class.owned]="u.state === 'owned'">
                 <div class="what">
-                  <h3>{{ u.name }}</h3>
+                  <h3><app-icon [name]="icon(u.key)" [size]="24" /> {{ u.name }}</h3>
                   <p class="text">{{ u.text }}</p>
                   <p class="meta">
                     <span [title]="exact(u.cost)">Cost {{ u.cost | money }}</span>

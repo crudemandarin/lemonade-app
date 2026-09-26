@@ -56,6 +56,7 @@
           @for (c of wh.classes; track c.class) {
             <li [attr.data-class]="c.class">
               <span class="name">
+                <app-icon [name]="storage(c.class)" [size]="20" />
                 @for (m of c.members; track m) {
                   <img [src]="icon(m)" [alt]="label(m)" [title]="label(m)" width="22" height="22" />
                 }

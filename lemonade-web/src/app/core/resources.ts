@@ -9,6 +9,14 @@ export const RESOURCE_LABELS: Record<Resource, string> = {
   ice: 'Ice',
   cup: 'Cups',
   lemonade: 'Lemonade',
+  lime: 'Limes',
+  mint: 'Mint',
+  honey: 'Honey',
+  strawberry: 'Strawberries',
+  limeade: 'Limeade',
+  mint_lemonade: 'Mint lemonade',
+  honey_lemonade: 'Honey lemonade',
+  strawberry_lemonade: 'Strawberry lemonade',
 };
 
 /** A display label for any commodity key; unknown keys read as their key, capitalised. */

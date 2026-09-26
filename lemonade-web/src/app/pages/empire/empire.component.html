@@ -46,6 +46,7 @@
 
       @for (t of visibleTerritories(); track t.key) {
         <app-card [title]="t.name">
+          <app-icon [name]="territory(t.key)" [size]="24" />
           <section [attr.data-territory]="t.key">
             <p class="meta">
               <span>Era {{ t.era }}</span>
@@ -110,7 +111,7 @@
                 @for (r of activeRivals(t); track r.key) {
                   <li [attr.data-rival]="r.key">
                     <div class="what">
-                      <h3>{{ r.name }}</h3>
+                      <h3><app-icon [name]="rival(r, t)" [size]="24" /> {{ r.name }}</h3>
                       <p class="text">{{ r.flavor }}</p>
                       <p class="meta">
                         <span>Share {{ r.share }}%</span>
