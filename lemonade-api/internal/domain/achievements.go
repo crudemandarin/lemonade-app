@@ -92,6 +92,8 @@ func (f *facts) holds(p content.Predicate) bool {
 		return facilityMaxed(g, f.cfg, FacilityType(p.Facility))
 	case content.KindUpgradesOwned:
 		return len(ownedCatalogUpgrades(g)) >= p.N
+	case content.KindRecipesKnown:
+		return len(KnownRecipes(g, f.cfg)) >= p.N
 	case content.KindRivalsBoughtAtLeast:
 		return acquiredRivals(g) >= p.N
 	case content.KindRivalBought:
@@ -374,6 +376,8 @@ func ValidatePredicate(p content.Predicate, cfg Config) error {
 	case content.KindAllWarehousesFull, content.KindEveryEventSeen, content.KindNewPersonalBest:
 		return nil
 	case content.KindUpgradesOwned:
+		return positive()
+	case content.KindRecipesKnown:
 		return positive()
 	case content.KindRivalsBoughtAtLeast:
 		return positive()

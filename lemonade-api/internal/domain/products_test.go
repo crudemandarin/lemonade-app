@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"lemonade-api/internal/domain/content"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -325,5 +326,108 @@ func TestDrinkEventsSpreadToUnlockedColdDrinksOnly(t *testing.T) {
 	fresh := NewGame(cfg, 1)
 	if got := spreadToDrinks(fresh, cfg, heat); len(got) != 2 {
 		t.Errorf("a new game only has lemonade and ice: %v", got)
+	}
+}
+
+func TestRecipeAchievementsFollowTheRecipeBook(t *testing.T) {
+	g, cfg := stocked(t)
+	if got := len(cfg.Recipes); got != 8 {
+		t.Fatalf("full_menu asks for 8 recipes but the catalog has %d: update the row", got)
+	}
+	unlocked := func() map[string]bool {
+		out := map[string]bool{}
+		for _, k := range []string{"first_recipe", "recipe_book", "full_menu"} {
+			for _, def := range content.Achievements {
+				if def.Key == k {
+					out[k] = holdsFor(def.Check, NewGame(cfg, 1), g, AchievementContext{})
+				}
+			}
+		}
+		return out
+	}
+	if u := unlocked(); u["first_recipe"] || u["recipe_book"] || u["full_menu"] {
+		t.Fatalf("a new game knows only lemonade: %v", u)
+	}
+	g.Recipes["limeade"] = true
+	if u := unlocked(); !u["first_recipe"] || u["recipe_book"] {
+		t.Fatalf("after one recipe: %v", u)
+	}
+	learnAll(&g, cfg)
+	if u := unlocked(); !u["recipe_book"] || !u["full_menu"] {
+		t.Fatalf("after every recipe: %v", u)
+	}
+}
+
+// A diversified player: learns recipes, sets random plans and trades every unlocked good.
+// Whatever it does, stock and cost basis stay sane, capacity holds per class, the preview
+// matches End day, and the same seed replays to the same result.
+func diversifiedRun(t *testing.T, seed int64) Game {
+	cfg := DefaultConfig()
+	g := NewGame(cfg, seed)
+	g.Capital = 2_000_000
+	g.Territories["city"] = TerritoryState{Entered: true, Share: 10}
+	g.Upgrades["oven"], g.Upgrades["zester"] = 1, 1
+	rng := rand.New(rand.NewSource(seed * 7919))
+	for day := 0; day < 60; day++ {
+		for a := 0; a < 8; a++ {
+			r := cfg.Resources()[rng.Intn(len(cfg.Resources()))]
+			switch rng.Intn(6) {
+			case 0, 1:
+				_ = Buy(&g, cfg, r, 1+rng.Intn(20))
+			case 2:
+				_ = Sell(&g, cfg, r, 1+rng.Intn(20))
+			case 3:
+				_ = LearnRecipe(&g, cfg, cfg.Recipes[rng.Intn(len(cfg.Recipes))].Key)
+			case 4:
+				var rows []PlanRow
+				for _, rec := range KnownRecipes(g, cfg) {
+					if rng.Intn(2) == 0 {
+						rows = append(rows, PlanRow{Recipe: rec.Key, Target: rng.Intn(3) * 10})
+					}
+				}
+				_ = SetProductionPlan(&g, cfg, rows)
+			case 5:
+				_ = Expand(&g, cfg, Warehouse, r)
+				_ = Expand(&g, cfg, Production, "")
+			}
+		}
+		p := PreviewEndDay(g, cfg)
+		before := g.Clone()
+		report, err := EndDay(&g, cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.LemonadeToProduce != g.Inventory[Lemonade]-before.Inventory[Lemonade]-0 && report.Made != nil {
+			// lemonade can also be sold by forced upkeep sales; only compare when none happened
+			if report.ForcedSaleCases == 0 && p.LemonadeToProduce != g.Inventory[Lemonade]-before.Inventory[Lemonade] {
+				t.Fatalf("seed %d day %d: preview %d lemonade, made %d", seed, day, p.LemonadeToProduce, g.Inventory[Lemonade]-before.Inventory[Lemonade])
+			}
+		}
+		for _, r := range cfg.Resources() {
+			if g.Inventory[r] < 0 || g.CostBasis[r] < 0 {
+				t.Fatalf("seed %d day %d: %s stock %d basis %d", seed, day, r, g.Inventory[r], g.CostBasis[r])
+			}
+			if !CommodityUnlocked(g, cfg, r) && g.Inventory[r] > 0 {
+				t.Fatalf("seed %d day %d: holds locked %s", seed, day, r)
+			}
+		}
+		for _, class := range StorageClasses(cfg) {
+			if ClassStock(g, cfg, class) > ClassCapacity(g, cfg, class) {
+				t.Fatalf("seed %d day %d: %s over capacity %d > %d", seed, day, class, ClassStock(g, cfg, class), ClassCapacity(g, cfg, class))
+			}
+		}
+		if g.Status != StatusActive {
+			break
+		}
+	}
+	return g
+}
+
+func TestDiversifiedPlayersKeepTheBooksStraight(t *testing.T) {
+	for seed := int64(1); seed <= 25; seed++ {
+		a, b := diversifiedRun(t, seed), diversifiedRun(t, seed)
+		if a.Day != b.Day || a.Capital != b.Capital || !reflect.DeepEqual(a.Inventory, b.Inventory) || !reflect.DeepEqual(a.Aged, b.Aged) {
+			t.Fatalf("seed %d does not replay", seed)
+		}
 	}
 }

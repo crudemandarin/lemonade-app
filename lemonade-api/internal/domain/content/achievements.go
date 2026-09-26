@@ -58,6 +58,7 @@ const (
 	KindGaveUpWithNetWorth   = "gave_up_with_net_worth"   // N
 	KindUpgradesOwned        = "upgrades_owned"           // N: at least N catalog upgrades (territory ones excluded)
 	KindRivalsBoughtAtLeast  = "rivals_bought_at_least"   // N
+	KindRecipesKnown         = "recipes_known_at_least"   // N recipes learned (lemonade counts)
 	KindRivalBought          = "rival_bought"             // Key
 	KindHostileBuyout        = "hostile_buyout"           //
 	KindTerritoryEntered     = "territory_entered"        // Key
@@ -112,6 +113,7 @@ func StockAtLeast(commodity string, n int) Predicate {
 	return Predicate{Kind: KindStockAtLeast, Commodity: commodity, N: n}
 }
 func RivalsBoughtAtLeast(n int) Predicate { return Predicate{Kind: KindRivalsBoughtAtLeast, N: n} }
+func RecipesKnownAtLeast(n int) Predicate { return Predicate{Kind: KindRecipesKnown, N: n} }
 func RivalBought(key string) Predicate    { return Predicate{Kind: KindRivalBought, Key: key} }
 func HostileBuyout() Predicate            { return Predicate{Kind: KindHostileBuyout} }
 func TerritoryEntered(key string) Predicate {
@@ -214,6 +216,11 @@ var Achievements = []AchievementDef{
 	{Key: "max_warehouse", Name: "Room to spare", Description: "Every warehouse at the top level with the most buildings allowed.", Category: "facilities", Tier: TierSilver, Check: FacilityMaxed("warehouse")},
 	{Key: "all_maxed", Name: "Everything maxed", Description: "Max out production and every warehouse at once.", Category: "facilities", Tier: TierGold, Check: AllOf(FacilityMaxed("production"), FacilityMaxed("warehouse"))},
 	{Key: "sold_building", Name: "Downsizing", Description: "Sell a building.", Category: "facilities", Tier: TierBronze, Check: StatAtLeast(StatFacilitiesSold, 1)},
+
+	// Recipes
+	{Key: "first_recipe", Name: "Second product", Description: "Learn a recipe besides lemonade.", Category: "production", Tier: TierBronze, Check: RecipesKnownAtLeast(2)},
+	{Key: "recipe_book", Name: "Recipe book", Description: "Know five recipes.", Category: "production", Tier: TierSilver, Check: RecipesKnownAtLeast(5)},
+	{Key: "full_menu", Name: "Full menu", Description: "Learn every recipe.", Category: "production", Tier: TierGold, Check: RecipesKnownAtLeast(8)},
 
 	// Rivals and territories
 	{Key: "first_buyout", Name: "Acquisition", Description: "Buy out a rival.", Category: "empire", Tier: TierBronze, Check: RivalsBoughtAtLeast(1)},
