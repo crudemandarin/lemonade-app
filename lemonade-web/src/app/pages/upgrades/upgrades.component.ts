@@ -37,8 +37,10 @@ export class UpgradesComponent implements OnInit {
   protected readonly groups = computed(() => {
     const data = this.data();
     if (!data) return [];
+    // An upgrade for an era you have not reached stays hidden until you get there.
+    const shown = data.upgrades.filter((u) => u.era <= data.era);
     return data.categories
-      .map((c) => ({ ...c, items: data.upgrades.filter((u) => u.category === c.key) }))
+      .map((c) => ({ ...c, items: shown.filter((u) => u.category === c.key) }))
       .filter((g) => g.items.length > 0);
   });
 

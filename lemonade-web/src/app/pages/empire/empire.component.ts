@@ -38,6 +38,16 @@ export class EmpireComponent implements OnInit {
   protected readonly data = signal<EmpireResponse | null>(null);
   protected readonly pending = signal<Pending | null>(null);
 
+  /**
+   * The territories you hold, plus the next one as a hint of what comes after. Everything
+   * beyond it stays hidden so it is found by playing.
+   */
+  protected readonly visibleTerritories = computed(() => {
+    const all = this.data()?.territories ?? [];
+    const next = all.findIndex((t) => !t.entered);
+    return next === -1 ? all : all.slice(0, next + 1);
+  });
+
   protected readonly capital = computed(() => this.store.game()?.capital ?? 0);
   protected readonly active = computed(() => (this.store.game()?.status ?? 'active') === 'active');
   protected readonly canAct = computed(
