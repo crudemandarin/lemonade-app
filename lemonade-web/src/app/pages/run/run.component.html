@@ -51,6 +51,20 @@
         />
       </app-card>
 
+      <app-card title="Achievements unlocked">
+        @if (r.achievements.length === 0) {
+          <p class="none">This run unlocked no new achievements.</p>
+        } @else {
+          <ul class="unlocked">
+            @for (a of r.achievements; track a.key) {
+              <li>
+                {{ a.name }} <span class="tier">({{ a.tier }})</span>
+              </li>
+            }
+          </ul>
+        }
+      </app-card>
+
       <app-card title="Day by day">
         <app-report-stepper
           [days]="r.reports"

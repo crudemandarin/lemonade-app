@@ -5,3 +5,10 @@
     <app-help-link term="events" label="events" />
   </p>
 }
+@for (entry of forecast(); track entry.key + entry.daysAhead) {
+  <p class="event forecast">
+    <app-icon name="calendar" />
+    {{ when(entry) }}: {{ entry.name }}, for {{ entry.duration }}
+    {{ entry.duration === 1 ? 'day' : 'days' }}
+  </p>
+}

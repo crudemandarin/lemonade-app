@@ -44,6 +44,10 @@ export class MarketPanelComponent {
   readonly capital = input.required<number>();
   /** Disables every action, e.g. while offline. */
   readonly disabled = input(false);
+  /** Price alerts (an upgrade): a level per resource, kept by the page. Empty when off. */
+  readonly alertsOn = input(false);
+  readonly alerts = input<Record<Resource, number>>({});
+  readonly alertChange = output<{ resource: Resource; level: number | null }>();
   readonly buy = output<TradeRequest>();
   readonly sell = output<TradeRequest>();
 
@@ -112,6 +116,34 @@ export class MarketPanelComponent {
     return parts.length
       ? `Your recent trades moved this price: ${parts.join(', ')}. It wears off overnight.`
       : '';
+  }
+
+  /** What an alert watches: an input's ask falling to the level, or lemonade's bid rising to it. */
+  protected alertHit(row: ResourceView): string {
+    const level = this.alerts()[row.resource];
+    if (!this.alertsOn() || !level) {
+      return '';
+    }
+    if (row.resource === 'lemonade') {
+      return row.bid >= level
+        ? `Alert: bid is ${formatMoney(row.bid)}, at or over ${formatMoney(level)}`
+        : '';
+    }
+    return row.ask <= level
+      ? `Alert: ask is ${formatMoney(row.ask)}, at or under ${formatMoney(level)}`
+      : '';
+  }
+
+  protected alertLabel(row: ResourceView): string {
+    return row.resource === 'lemonade' ? 'Alert when bid reaches' : 'Alert when ask falls to';
+  }
+
+  protected setAlert(row: ResourceView, event: Event): void {
+    const value = Number((event.target as HTMLInputElement).value);
+    this.alertChange.emit({
+      resource: row.resource,
+      level: Number.isFinite(value) && value >= 1 ? Math.floor(value) : null,
+    });
   }
 
   protected canBuy(row: ResourceView): boolean {

@@ -108,7 +108,7 @@ var Upgrades = []UpgradeDef{
 		Effects: []EffectDef{{Kind: EffStoragePct, Target: StorageDry, Value: 15}}, Text: "15% more room for dry goods (sugar and cups)."},
 
 	// Production
-	{Key: "citrus_press", Name: "Citrus press", Category: UpProduction, Cost: 2500, Requires: Requires{Era: 1},
+	{Key: "citrus_press", Name: "Citrus press", Category: UpProduction, Cost: 6000, Requires: Requires{Era: 1},
 		Effects: []EffectDef{{Kind: EffYield, Target: "lemonade", Value: 10}}, Text: "Every 10 batches of lemonade make 1 extra case."},
 	{Key: "sugar_dissolver", Name: "Syrup station", Category: UpProduction, Cost: 10000, Requires: Requires{Era: 2},
 		Effects: []EffectDef{{Kind: EffUseDiscount, Target: "sugar", Value: 10}}, Text: "Recipes use 10% less sugar."},

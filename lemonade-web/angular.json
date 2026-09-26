@@ -27,8 +27,7 @@
               "src/favicon.ico",
               "src/favicon.svg",
               "src/assets",
-              "src/manifest.webmanifest",
-              { "glob": "**/*", "input": "src/config", "output": "/config" }
+              "src/manifest.webmanifest"
             ],
             "styles": ["src/styles.scss"],
             "scripts": []
@@ -38,7 +37,7 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "600kb",
+                  "maximumWarning": "500kb",
                   "maximumError": "1mb"
                 },
                 {
@@ -89,8 +88,7 @@
               "src/favicon.ico",
               "src/favicon.svg",
               "src/assets",
-              "src/manifest.webmanifest",
-              { "glob": "**/*", "input": "src/config", "output": "/config" }
+              "src/manifest.webmanifest"
             ],
             "styles": ["src/styles.scss"],
             "scripts": []

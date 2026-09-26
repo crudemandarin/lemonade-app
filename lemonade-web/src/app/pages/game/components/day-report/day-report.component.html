@@ -6,8 +6,23 @@
     <dt>Ice melted</dt>
     <dd>{{ r.iceMelted }} cases</dd>
 
+    @if (r.iceKept > 0) {
+      <dt>Ice kept in freezer</dt>
+      <dd>{{ r.iceKept }} cases</dd>
+    }
+
+    @if (r.iceMade > 0) {
+      <dt>Ice made</dt>
+      <dd>{{ r.iceMade }} cases ({{ -r.iceMadeCost | money }})</dd>
+    }
+
     <dt>Upkeep paid</dt>
     <dd>{{ -r.upkeepPaid | money }}</dd>
+
+    @if (r.upgradeUpkeep > 0) {
+      <dt>Of which upgrades</dt>
+      <dd>{{ -r.upgradeUpkeep | money }}</dd>
+    }
 
     @if (r.forcedSaleCases > 0) {
       <dt>Stock sold to cover upkeep</dt>
@@ -42,6 +57,28 @@
           }
         </dd>
       }
+    </dl>
+  }
+
+  @if (r.pnl; as p) {
+    <h3>Profit and loss</h3>
+    <dl class="prices">
+      <dt>Sales</dt>
+      <dd>{{ p.sales | money }}</dd>
+      <dt>Purchases</dt>
+      <dd>{{ -p.purchases | money }}</dd>
+      @if (p.facilities > 0) {
+        <dt>Buildings</dt>
+        <dd>{{ -p.facilities | money }}</dd>
+      }
+      @if (p.iceMade > 0) {
+        <dt>Ice made</dt>
+        <dd>{{ -p.iceMade | money }}</dd>
+      }
+      <dt>Upkeep</dt>
+      <dd>{{ -p.upkeep | money }}</dd>
+      <dt>Net</dt>
+      <dd>{{ p.net | money }}</dd>
     </dl>
   }
 

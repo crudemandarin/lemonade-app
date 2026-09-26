@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core';
 
-import { GameEvent, Resource } from '../../../../core/api.models';
+import { ForecastEntry, GameEvent, Resource } from '../../../../core/api.models';
 import { resourceLabel } from '../../../../core/resources';
 import { HelpLinkComponent } from '../../../../shared/help/help-link.component';
 import { IconComponent } from '../../../../shared/icon/icon.component';
@@ -15,6 +15,12 @@ import { IconComponent } from '../../../../shared/icon/icon.component';
 })
 export class EventsBannerComponent {
   readonly events = input.required<GameEvent[]>();
+  /** Events the player's upgrades let them see coming. */
+  readonly forecast = input<ForecastEntry[]>([]);
+
+  protected when(entry: ForecastEntry): string {
+    return entry.daysAhead === 1 ? 'Tomorrow' : `In ${entry.daysAhead} days`;
+  }
 
   protected summary(event: GameEvent): string {
     const effects = (Object.entries(event.multipliers) as [Resource, number][])

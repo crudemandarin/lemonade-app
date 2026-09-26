@@ -8,18 +8,16 @@
     <app-help-panel />
     @if (username(); as name) {
       <div class="user">
+        <a class="btn btn-ghost upgrades-link" routerLink="/upgrades">Upgrades</a>
         <a class="btn btn-ghost scores-link" routerLink="/scores">Scores</a>
+        <a
+          class="btn btn-ghost achievements-link"
+          routerLink="/achievements"
+          aria-label="Achievements"
+          >Awards</a
+        >
         <app-icon name="user" />
         <span class="name">{{ name }}</span>
-        @if (secured()) {
-          <span class="secured" title="Only your Google account can play this username"
-            >Secured</span
-          >
-        } @else if (canSecure()) {
-          <a class="btn btn-ghost secure-link" routerLink="/secure" aria-label="Secure account">
-            Secure<span class="wide-only"> account</span>
-          </a>
-        }
         <button type="button" class="btn btn-ghost log-out" (click)="logOut.emit()">
           <app-icon name="log-out" [size]="14" />
           Log out

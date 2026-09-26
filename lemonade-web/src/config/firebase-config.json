@@ -1,8 +1,0 @@
-{
-  "apiKey": "fake-api-key",
-  "authDomain": "localhost",
-  "projectId": "demo-lemonade",
-  "appId": "1:000000000000:web:local",
-  "useEmulator": true,
-  "emulatorUrl": "http://localhost:9099"
-}

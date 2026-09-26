@@ -30,6 +30,9 @@
         <span class="name" role="cell">
           <img class="resource-img" [src]="icon(row.resource)" alt="" width="28" height="28" />
           {{ label(row.resource) }}
+          @if (alertHit(row); as hit) {
+            <span class="alert-hit" role="status">{{ hit }}</span>
+          }
         </span>
 
         <span class="stock" role="cell">
@@ -73,6 +76,23 @@
             @case ('flat') {
               <app-icon class="trend flat" name="trend-flat" [size]="14" />
             }
+          }
+          @if (row.movingAverage !== null) {
+            <span class="avg" title="Average of the last 7 daily prices">
+              7-day avg {{ row.movingAverage | money }}
+            </span>
+          }
+          @if (alertsOn()) {
+            <label class="alert-set">
+              <span class="alert-label">{{ alertLabel(row) }}</span>
+              <input
+                type="number"
+                min="1"
+                inputmode="numeric"
+                [value]="alerts()[row.resource] || ''"
+                (change)="setAlert(row, $event)"
+              />
+            </label>
           }
           @if (impactNote(row); as note) {
             <span class="impact" role="img" [attr.title]="note" [attr.aria-label]="note">

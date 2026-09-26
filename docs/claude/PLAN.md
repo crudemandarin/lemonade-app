@@ -80,21 +80,22 @@ Time estimates are rough and cumulative.
   - [x] Depth by warehouse level, impact relative to depth, economies of scale in the tier table, upgrade cost sweep, bot cushion, `TestEachLevelPaysMoreThanTheLast`
   - Future work: phases 1 to 7 of `LATE-GAME-DESIGN.md` (territories, rivals, upgrades, recipes, managers)
 
-- [ ] **Slice 15: Sign in with Google (see `HANDOFF-AUTH.md`; DECISIONS 34, 35)**
-  - [x] 15a: backend: token verifier, `/api/me` profile and claim endpoints, store methods
-  - [x] 15b: frontend: Firebase auth service, bearer interceptor, guards, sign-in and username pages, runtime config
-  - [x] 15c: infra (APIs, env vars), emulator in Compose, docs
-  - [x] 15d: Google made optional: username-only play stays, linking Google secures an account (DECISIONS 35)
-  - [ ] Real-Google smoke test on the deployed domain and in the installed PWA (needs the Firebase console runbook in `deploy/README.md`)
+- [x] **Slice 15: Sign in with Google: built, then removed (DECISIONS 34 to 36).** The game stays username-only.
 
 - [ ] **Slice 16: Late game (see `HANDOFF-LATE-GAME-ROADMAP.md`)**
   - [x] Products A: commodities and the lemonade recipe are catalog data (`domain/content`), timeline and price log are maps, EndDay runs the roadmap's named steps, salts in `salts.go`; golden bot runs byte-identical
   - [ ] Goals A: achievements; Goals B: day-100 board
-  - [ ] Upgrades A: upgrade framework and first upgrades; Empire A: territories and rivals
+  - [x] Upgrades A: upgrade framework, first 25 upgrades, Upgrades page, upgrader bot (decision 42); its three achievement rows are in
+  - [ ] Empire A: territories and rivals
     - Upgrades A framework commit (safe to merge early for Empire): 5fa8604
   - [ ] Products B: recipes, storage classes, perishables; Empire B: victory and economic cycles
   - [ ] Upgrades B: managers and fast-forward; Products C: contracts
 
+- [x] **Slice 16: Late game Goals track (see `HANDOFF-LATE-GAME-GOALS.md`; DECISIONS TBD)**
+  - [x] 16a: achievement table, typed predicates, run-scoped goal facts, evaluated after every mutation in the same transaction, `unlocked` on mutation responses
+  - [x] 16b: `GET /api/achievements` with hidden masking and progress; board badge; run detail list; retroactive backfill at startup
+  - [x] 16c: frontend: unlock toasts (aria-live), Awards page, run page list, board badge
+  - [x] 16d: day-100 snapshot and `GET /api/scores?board=day_100`, board toggle on the scores page
 ## Hold points
 - **≈2:30 elapsed:** first Reviewer pass (see kickoff prompt 3). Fix only SPEC gaps and bugs.
 - **≈3:30 elapsed:** second Reviewer pass plus fresh-clone check; then walkthrough prep.

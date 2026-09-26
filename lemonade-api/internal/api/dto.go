@@ -271,6 +271,8 @@ type gameViewDTO struct {
 	Era      int      `json:"era"`
 	EraName  string   `json:"eraName"`
 	NextGoal *goalDTO `json:"nextGoal"`
+	// Unlocked are the achievements this response's mutation just earned ([] otherwise).
+	Unlocked []unlockedDTO `json:"unlocked"`
 }
 
 type forecastDTO struct {
@@ -417,6 +419,7 @@ func toGameView(g domain.Game, cfg domain.Config) gameViewDTO {
 		Era:          domain.Era(g, cfg),
 		EraName:      domain.EraName(g, cfg),
 		NextGoal:     toGoal(g, cfg),
+		Unlocked:     []unlockedDTO{},
 	}
 }
 

@@ -55,7 +55,7 @@ Turn-based lemonade business game. One core loop: the passage of a **day**. Scor
 21. Events are visible to the player as soon as they are active (same day prices reflect them). No forecasting. Each active event also shows a looping, low-detail animated background (at most two at once; see EVENT-BACKDROPS.md); it is decorative only.
 
 ### API and access
-22. Every game endpoint requires an identified player, in one of two ways. **Guest:** the `X-Username` header, the brief's "no password" login, intentionally not secure. **Google (optional):** a Firebase ID token in `Authorization: Bearer`. Linking Google to a username secures it: from then on a bare username is refused (`account_secured`) and only the Google account can play it. *(Revised in slice 15; DECISIONS 34, 35.)* The username is the only public identity; the Google name and email are never shown or returned. Usernames are 3 to 40 printable ASCII characters (no spaces) and case-insensitive: they are lowercased on login and on every request, so `Joe` and `joe` are the same player. Anything else is rejected with `invalid_username`. Securing a name is first come, first served.
+22. Every game endpoint requires an identified user (username in the `X-Username` header). This is intentionally not secure, per the brief's "no password" login. Usernames are 3 to 40 printable ASCII characters (no spaces) and case-insensitive: they are lowercased on login and on every request, so `Joe` and `joe` are the same player. Anything else is rejected with `invalid_username`.
 23. Errors return a stable JSON shape `{ "error": "<code>", "message": "..." }` with sensible HTTP status codes. The UI displays the message.
 
 ### UI
@@ -89,7 +89,7 @@ Tunable, all in one config file (see DESIGN §6). Starting capital $1,000; base 
 1. Bankruptcy definition (resolved, DECISIONS 16): the brief's "not enough inventory to make lemonade" can never trigger because ice melts (rule 13) before the check, and an "any inventory is a grace" rule let players sit at $0 with a little stock forever. **Upkeep is always owed; short cash sells stock at bid; if that is still not enough the game ends.**
 2. Are the tier names and numbers in DESIGN §6 acceptable? **Yes; tune only if time remains.**
 3. PWA scope: installable app plus cached app shell, with no offline play. **Yes; the API is never cached and actions are disabled offline.**
-4. Is username in a header acceptable as "auth"? **Yes for guests, documented as a known limitation; Google sign-in is an optional way to secure an account (slice 15, DECISIONS 34, 35).** Usernames are 3 to 40 ASCII characters and case-insensitive (DECISIONS 19).
+4. Is username in a header acceptable as "auth"? **Yes; documented as a known limitation.** Usernames are 3 to 40 ASCII characters and case-insensitive (DECISIONS 19).
 
 Resolved: all buildings of a facility type upgrade together (rule 10); PWA added in PLAN slice 7 (rule 28).
 

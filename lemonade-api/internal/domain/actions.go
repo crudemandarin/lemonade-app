@@ -18,12 +18,14 @@ func Buy(g *Game, cfg Config, r Resource, qty int) error {
 		return ErrCapacityExceeded
 	}
 
+	plain := Quotes(*g, cfg)[r].Ask * qty
 	g.Capital -= cost
 	g.Inventory[r] += qty
 	g.addBasis(r, cost)
 	g.addPressure(true, r, qty)
 	g.Stats.CasesBought += qty
 	g.Stats.Spent += cost
+	g.noteBuy(cfg, r, qty, cost, plain)
 	g.record(TimelinePoint{Day: g.Day, Kind: PointBuy, Resource: r, Qty: qty, Amount: cost})
 	return nil
 }
@@ -41,12 +43,14 @@ func Sell(g *Game, cfg Config, r Resource, qty int) error {
 		return ErrInsufficientStock
 	}
 
-	proceeds := QuoteSell(*g, cfg, r, qty, false).Total
+	q := QuoteSell(*g, cfg, r, qty, false)
+	proceeds := q.Total
 	g.Capital += proceeds
-	g.removeStock(r, qty)
+	basis := g.removeStock(r, qty)
 	g.addPressure(false, r, qty)
 	g.Stats.CasesSold += qty
 	g.Stats.Earned += proceeds
+	g.noteSell(cfg, r, qty, proceeds, q.PlainTotal, basis)
 	g.record(TimelinePoint{Day: g.Day, Kind: PointSell, Resource: r, Qty: qty, Amount: proceeds})
 	return nil
 }

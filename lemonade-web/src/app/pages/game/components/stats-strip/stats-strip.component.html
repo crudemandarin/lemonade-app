@@ -6,7 +6,7 @@
     </div>
     <div>
       <dt><app-icon name="coin" [size]="14" /> Capital</dt>
-      <dd>{{ capital() | money }}</dd>
+      <dd [title]="exact(capital())">{{ capital() | money }}</dd>
     </div>
     <div>
       <dt>
@@ -21,7 +21,7 @@
       >
         <app-icon name="coin" [size]="14" /> Net worth
       </dt>
-      <dd>{{ netWorth() | money }}</dd>
+      <dd [title]="exact(netWorth())">{{ netWorth() | money }}</dd>
     </div>
   </dl>
   <button type="button" class="btn btn-primary" [disabled]="disabled()" (click)="endDay.emit()">
@@ -33,10 +33,18 @@
     <span aria-hidden="true"
       >Makes <strong>{{ projection().lemonadeToProduce }}</strong> lemonade</span
     >
+    @if (projection().iceKept > 0) {
+      <span aria-hidden="true"
+        ><strong>{{ projection().iceKept }}</strong> ice kept in the freezer</span
+      >
+    }
     @if (projection().iceToMelt > 0) {
       <span aria-hidden="true"
         ><strong>{{ projection().iceToMelt }}</strong> ice will melt</span
       >
+    }
+    @if (iceKeepCases() > 0) {
+      <span class="freezer" aria-hidden="true">Freezer: keeps up to {{ iceKeepCases() }} ice</span>
     }
   </p>
 </section>

@@ -4,7 +4,7 @@ import { Projection } from '../../../../core/api.models';
 import { resourceLabel } from '../../../../core/resources';
 import { HelpLinkComponent } from '../../../../shared/help/help-link.component';
 import { IconComponent } from '../../../../shared/icon/icon.component';
-import { MoneyPipe } from '../../../../shared/money.pipe';
+import { formatMoney, MoneyPipe } from '../../../../shared/money.pipe';
 
 /** Day, capital, upkeep and the end-of-day projection, plus End day: the page's only primary button. */
 @Component({
@@ -20,9 +20,15 @@ export class StatsStripComponent {
   readonly upkeepPerDay = input.required<number>();
   readonly netWorth = input.required<number>();
   readonly projection = input.required<Projection>();
+  /** Cases of ice the freezers can keep overnight (0 without one). */
+  readonly iceKeepCases = input(0);
   /** True while a request is in flight or the app is offline. */
   readonly disabled = input(false);
   readonly endDay = output<void>();
+
+  protected exact(value: number): string {
+    return formatMoney(value);
+  }
 
   protected readonly limitedBy = computed(() => {
     const limit = this.projection().limitedBy;
@@ -35,6 +41,7 @@ export class StatsStripComponent {
   protected readonly reading = computed(() => {
     const p = this.projection();
     const parts = [`End of day makes ${p.lemonadeToProduce} lemonade`];
+    if (p.iceKept > 0) parts.push(`${p.iceKept} ice kept in the freezer`);
     if (p.iceToMelt > 0) parts.push(`${p.iceToMelt} ice will melt`);
     return parts.join(', ') + (this.limitedBy() ? `. ${this.limitedBy()}` : '');
   });

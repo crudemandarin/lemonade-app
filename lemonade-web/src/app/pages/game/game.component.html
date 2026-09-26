@@ -31,6 +31,7 @@
         [upkeepPerDay]="game.upkeepPerDay"
         [netWorth]="game.netWorth.total"
         [projection]="game.projection"
+        [iceKeepCases]="game.iceKeepCases"
         [disabled]="store.loading() || !online()"
         (endDay)="store.endDay()"
       />
@@ -39,19 +40,32 @@
         @if (game.best; as best) {
           <span class="best-chip">Best: {{ best.score | money }} on day {{ best.days }}</span>
         }
+        @if (yesterdaysTrades().length > 0) {
+          <button
+            type="button"
+            class="btn btn-ghost repeat-trades"
+            [disabled]="store.loading() || !online()"
+            (click)="repeatTrades()"
+          >
+            Repeat yesterday's trades
+          </button>
+        }
         <button type="button" class="btn btn-ghost past-days" (click)="openPastDays()">
           Past days
         </button>
       </div>
 
-      @if (game.events.length) {
-        <app-events-banner [events]="game.events" />
+      @if (game.events.length || game.forecast.length) {
+        <app-events-banner [events]="game.events" [forecast]="game.forecast" />
       }
 
       <app-market-panel
         [resources]="game.resources"
         [capital]="game.capital"
         [disabled]="!online()"
+        [alertsOn]="game.features.includes('price_alerts')"
+        [alerts]="alerts()"
+        (alertChange)="setAlert($event)"
         (buy)="store.buy($event.resource, $event.qty, $event.clamp)"
         (sell)="store.sell($event.resource, $event.qty, $event.clamp)"
       />

@@ -85,3 +85,20 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+.none {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.unlocked {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+
+  .tier {
+    color: var(--text-muted);
+    text-transform: capitalize;
+  }
+}

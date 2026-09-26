@@ -11,12 +11,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"lemonade-api/internal/auth"
 	"lemonade-api/internal/domain"
+	"lemonade-api/internal/domain/content"
 	"lemonade-api/internal/store"
 )
 
 const (
+	usernameHeader = "X-Username"
+	userKey        = "user"
 	minUsernameLen = 3
 	maxUsernameLen = 40
 )
@@ -43,9 +45,6 @@ type Game struct {
 	repo    store.Repository
 	cfg     domain.Config
 	newSeed func() int64
-
-	verifier auth.TokenVerifier // nil: Google sign-in is off, no bearer token is accepted
-	claims   *claimLimiter
 }
 
 // newRunID is a random v4 UUID naming one playthrough.
@@ -67,15 +66,11 @@ func (h *Game) freshGame() domain.Game {
 }
 
 // NewGame builds the game API. Pass a nil newSeed to seed from the clock.
-func NewGame(repo store.Repository, cfg domain.Config, newSeed func() int64, opts ...Option) *Game {
+func NewGame(repo store.Repository, cfg domain.Config, newSeed func() int64) *Game {
 	if newSeed == nil {
 		newSeed = func() int64 { return time.Now().UnixNano() }
 	}
-	h := &Game{repo: repo, cfg: cfg, newSeed: newSeed, claims: newClaimLimiter(time.Now)}
-	for _, opt := range opts {
-		opt(h)
-	}
-	return h
+	return &Game{repo: repo, cfg: cfg, newSeed: newSeed}
 }
 
 // Register mounts the game routes under /api.
@@ -83,12 +78,8 @@ func (h *Game) Register(router gin.IRouter) {
 	api := router.Group("/api")
 	api.POST("/login", h.login)
 
-	me := api.Group("/me", h.requireIdentity)
-	me.GET("", h.me)
-	me.POST("/username", h.createProfile)
-	me.POST("/claim", h.claim)
-
 	api.GET("/scores", h.requireUser, h.scores)
+	api.GET("/achievements", h.requireUser, h.listAchievements)
 	api.GET("/runs", h.requireUser, h.myRuns)
 	api.GET("/runs/:runId", h.requireUser, h.myRun)
 
@@ -113,12 +104,31 @@ func (h *Game) Register(router gin.IRouter) {
 	g.POST("/end-day", h.endDay)
 }
 
+// requireUser identifies the player from X-Username. Intentionally not secure
+// (SPEC rule 22).
+func (h *Game) requireUser(c *gin.Context) {
+	username, ok := normalizeUsername(c.GetHeader(usernameHeader))
+	if !ok {
+		abort(c, http.StatusUnauthorized, "unauthorized", "Sign in first: the X-Username header is required.")
+		return
+	}
+	user, err := h.repo.FindUser(c.Request.Context(), username)
+	if errors.Is(err, store.ErrNotFound) {
+		abort(c, http.StatusUnauthorized, "unauthorized", "Unknown user. Sign in first.")
+		return
+	}
+	if err != nil {
+		abortErr(c, err)
+		return
+	}
+	c.Set(userKey, user)
+	c.Next()
+}
+
 func currentUser(c *gin.Context) domain.User {
 	return c.MustGet(userKey).(domain.User)
 }
 
-// login starts or resumes a username-only (guest) player. A username that has been
-// secured with Google cannot be logged into this way: it needs the token.
 func (h *Game) login(c *gin.Context) {
 	var req struct {
 		Username string `json:"username"`
@@ -134,13 +144,9 @@ func (h *Game) login(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	user, err := h.repo.FindGuestUser(ctx, username)
+	user, err := h.repo.FindUser(ctx, username)
 	if errors.Is(err, store.ErrNotFound) {
 		user, err = h.repo.CreateUserWithGame(ctx, username, h.freshGame())
-	}
-	if errors.Is(err, store.ErrAlreadyClaimed) {
-		abort(c, http.StatusConflict, "account_secured", "This username is protected. Sign in with Google to play it.")
-		return
 	}
 	if err != nil {
 		abortErr(c, err)
@@ -202,26 +208,57 @@ func (h *Game) respondView(c *gin.Context, g domain.Game) {
 	c.JSON(http.StatusOK, v)
 }
 
+// respondViewUnlocking is respondView plus the achievements the mutation unlocked.
+func (h *Game) respondViewUnlocking(c *gin.Context, g domain.Game, unlocked []string) {
+	v, err := h.view(c, g)
+	if err != nil {
+		abortErr(c, err)
+		return
+	}
+	v.Unlocked = toUnlocked(unlocked)
+	c.JSON(http.StatusOK, v)
+}
+
 // mutate runs one domain action under the row lock and responds with the new view.
 func (h *Game) mutate(c *gin.Context, action func(g *domain.Game) error) {
-	g, _, ok := h.mutateWithEffects(c, func(g *domain.Game) (domain.Effects, error) { return domain.Effects{}, action(g) })
+	g, e, ok := h.mutateWithEffects(c, func(g *domain.Game) (domain.Effects, error) { return domain.Effects{}, action(g) })
 	if !ok {
 		return
 	}
-	h.respondView(c, g)
+	h.respondViewUnlocking(c, g, e.Unlocked)
 }
 
 // mutateWithEffects runs one action under the row lock and saves its effects with
 // the game. A game saved before runs existed gets its run ID here, on its first
 // mutation. On failure it has already answered, and ok is false.
 func (h *Game) mutateWithEffects(c *gin.Context, action func(g *domain.Game) (domain.Effects, error)) (g domain.Game, e domain.Effects, ok bool) {
-	g, err := h.repo.Mutate(c.Request.Context(), currentUser(c).ID, func(g *domain.Game) (domain.Effects, error) {
+	return h.mutateAchieving(c, false, action)
+}
+
+// mutateAchieving is mutateWithEffects plus achievements: after the action succeeds
+// they are evaluated on the game before and after it, and the new ones are saved in
+// the same transaction (a failed action grants nothing). mayFinish says the action can
+// end the run, which needs the player's run history and board rank, loaded first
+// because the repository holds its lock during the action.
+func (h *Game) mutateAchieving(c *gin.Context, mayFinish bool, action func(g *domain.Game) (domain.Effects, error)) (g domain.Game, e domain.Effects, ok bool) {
+	user := currentUser(c)
+	history, err := h.loadHistory(c.Request.Context(), user.ID, mayFinish)
+	if err != nil {
+		abortErr(c, err)
+		return g, e, false
+	}
+	g, err = h.repo.Mutate(c.Request.Context(), user.ID, func(g *domain.Game) (domain.Effects, error) {
 		if g.RunID == "" {
 			g.RunID = newRunID()
 		}
+		before := g.Clone()
 		var err error
 		e, err = action(g)
-		return e, err
+		if err != nil {
+			return e, err
+		}
+		e.Unlocked = domain.Evaluate(content.Achievements, before, *g, h.cfg, history.achievementContext(user.ID, e.Finished, time.Now()))
+		return e, nil
 	})
 	if err != nil {
 		abortErr(c, err)
@@ -429,7 +466,7 @@ func (h *Game) quote(c *gin.Context) {
 
 // giveUp ends the run and records it, in one transaction.
 func (h *Game) giveUp(c *gin.Context) {
-	g, _, ok := h.mutateWithEffects(c, func(g *domain.Game) (domain.Effects, error) {
+	g, e, ok := h.mutateAchieving(c, true, func(g *domain.Game) (domain.Effects, error) {
 		if err := domain.GiveUp(g); err != nil {
 			return domain.Effects{}, err
 		}
@@ -439,17 +476,22 @@ func (h *Game) giveUp(c *gin.Context) {
 	if !ok {
 		return
 	}
-	h.respondView(c, g)
+	h.respondViewUnlocking(c, g, e.Unlocked)
 }
 
 func (h *Game) endDay(c *gin.Context) {
 	var report domain.DayReport
-	g, _, ok := h.mutateWithEffects(c, func(g *domain.Game) (domain.Effects, error) {
+	g, e, ok := h.mutateAchieving(c, true, func(g *domain.Game) (domain.Effects, error) {
+		before := g.Clone()
 		var err error
 		report, err = domain.EndDay(g, h.cfg)
 		if err != nil {
 			return domain.Effects{}, err
 		}
+		// Goal facts are recorded after EndDay, not inside it, so the rules never see them.
+		domain.RecordDayFacts(before, g, h.cfg, report)
+		// The day-100 board's snapshot, taken once, on arriving at that day.
+		domain.RecordMilestones(g, h.cfg)
 		effects := domain.Effects{Report: &report}
 		if report.Bankrupt {
 			// Same transaction as the status change: no bankrupt game without its record.
@@ -466,5 +508,6 @@ func (h *Game) endDay(c *gin.Context) {
 		abortErr(c, err)
 		return
 	}
+	view.Unlocked = toUnlocked(e.Unlocked)
 	c.JSON(http.StatusOK, endDayResponseDTO{Report: toDayReport(report), Game: view})
 }
