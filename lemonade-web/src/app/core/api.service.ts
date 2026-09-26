@@ -15,6 +15,7 @@ import {
   RunSummary,
   ScoresResponse,
   UpgradesResponse,
+  EmpireResponse,
   User,
 } from './api.models';
 
@@ -125,6 +126,33 @@ export class ApiService {
   /** Buys one upgrade; answers with the new game view. */
   buyUpgrade(key: string): Observable<GameView> {
     return this.http.post<GameView>(`${API_URL}/game/upgrades/${encodeURIComponent(key)}/buy`, {});
+  }
+
+  /** Every territory with its share, rivals, telegraphs and prices. */
+  empire(): Observable<EmpireResponse> {
+    return this.http.get<EmpireResponse>(`${API_URL}/game/empire`);
+  }
+
+  enterTerritory(key: string): Observable<GameView> {
+    return this.http.post<GameView>(
+      `${API_URL}/game/territories/${encodeURIComponent(key)}/enter`,
+      {},
+    );
+  }
+
+  campaign(key: string, level: number): Observable<GameView> {
+    return this.http.post<GameView>(
+      `${API_URL}/game/territories/${encodeURIComponent(key)}/campaign`,
+      {
+        level,
+      },
+    );
+  }
+
+  buyOut(key: string, hostile: boolean): Observable<GameView> {
+    return this.http.post<GameView>(`${API_URL}/game/rivals/${encodeURIComponent(key)}/buyout`, {
+      hostile,
+    });
   }
 
   endDay(): Observable<EndDayResponse> {

@@ -1,0 +1,17 @@
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+
+  strong {
+    color: var(--text);
+  }
+}
+
+a.btn {
+  margin-left: auto;
+  text-decoration: none;
+}

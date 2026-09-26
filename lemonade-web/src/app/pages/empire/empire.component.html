@@ -1,0 +1,183 @@
+<h1>Empire</h1>
+<p class="lede">
+  Enter territories to reach more customers, and buy out the rivals who share them.
+  <app-help-link term="empire" label="empire" />
+</p>
+
+@if (store.error(); as message) {
+  <p class="alert" role="alert">{{ message }}</p>
+}
+
+@switch (state()) {
+  @case ('loading') {
+    <p class="note">Loading your empire…</p>
+  }
+  @case ('error') {
+    <p class="note" role="alert">
+      Couldn't load the empire.
+      <button type="button" class="btn btn-sm retry" (click)="reload()">Try again</button>
+    </p>
+  }
+  @default {
+    @if (data(); as d) {
+      <p class="summary">
+        <span
+          >Era <strong>{{ d.era }}</strong> ({{ d.eraName }})</span
+        >
+        <span
+          >Reach <strong>{{ d.reach }}</strong></span
+        >
+        <span
+          >Acquisitions <strong>{{ d.acquisitions | money }}</strong></span
+        >
+        <span
+          >Hub upkeep <strong>{{ d.hubUpkeep | money }}</strong> a day</span
+        >
+      </p>
+      @if (d.nextGoal; as goal) {
+        <p class="goal">
+          Next: <strong>{{ goal.name }}</strong>
+          @if (goal.cost > 0) {
+            for <span [title]="exact(goal.cost)">{{ goal.cost | money }}</span>
+          }
+        </p>
+      }
+
+      @for (t of d.territories; track t.key) {
+        <app-card [title]="t.name">
+          <section [attr.data-territory]="t.key">
+            <p class="meta">
+              <span>Era {{ t.era }}</span>
+              <span>Depth {{ t.depth }}</span>
+              <span>Building cap {{ t.buildingCap }}</span>
+              @if (t.entered) {
+                <span
+                  >Your share <strong>{{ t.share }}%</strong></span
+                >
+                <span
+                  >Reach <strong>{{ t.reach }}</strong></span
+                >
+              }
+            </p>
+
+            @if (!t.entered) {
+              <div class="row">
+                <p class="text">
+                  Entry <span [title]="exact(t.entryCost)">{{ t.entryCost | money }}</span
+                  >, starting at {{ t.entryShare }}%.
+                </p>
+                <div class="state">
+                  <button
+                    type="button"
+                    class="btn btn-sm enter"
+                    [disabled]="t.enterBlocked !== '' || !canAct()"
+                    [attr.aria-label]="'Enter ' + t.name + ' for ' + exact(t.entryCost)"
+                    (click)="askEnter(t)"
+                  >
+                    Enter
+                  </button>
+                  @if (blockedReason(t); as reason) {
+                    <span class="reason">{{ reason }}</span>
+                  }
+                </div>
+              </div>
+            } @else {
+              @if (t.campaignDaysLeft > 0) {
+                <p class="text campaign-on">
+                  Campaign running: +{{ t.campaignBonus }} share, {{ t.campaignDaysLeft }} days
+                  left.
+                </p>
+              } @else {
+                <div class="campaigns">
+                  @for (c of t.campaigns; track c.level) {
+                    <button
+                      type="button"
+                      class="btn btn-sm"
+                      [disabled]="!canAct() || capital() < c.cost"
+                      [attr.aria-label]="'Run ' + c.name + ' for ' + exact(c.cost)"
+                      (click)="askCampaign(t, c)"
+                    >
+                      {{ c.name }} · {{ c.cost | money }}
+                    </button>
+                  }
+                </div>
+              }
+            }
+
+            @if (activeRivals(t).length > 0) {
+              <ul class="list">
+                @for (r of activeRivals(t); track r.key) {
+                  <li [attr.data-rival]="r.key">
+                    <div class="what">
+                      <h3>{{ r.name }}</h3>
+                      <p class="text">{{ r.flavor }}</p>
+                      <p class="meta">
+                        <span>Share {{ r.share }}%</span>
+                        <span [title]="exact(r.valuation)"
+                          >Worth {{ r.valuation | money }} ({{ r.trend }})</span
+                        >
+                        <span>Mood {{ r.mood }}</span>
+                      </p>
+                      @if (r.telegraph; as tg) {
+                        <p class="telegraph">{{ r.name }} {{ tg.text }}.</p>
+                      }
+                      @if (r.offer) {
+                        <p class="telegraph">Merger offer: {{ r.offerDaysLeft }} days left.</p>
+                      }
+                    </div>
+                    @if (t.entered) {
+                      <div class="state">
+                        @if (r.refuses) {
+                          <span class="reason"
+                            >Refuses a friendly buyout until you hold {{ r.needShare }}%.</span
+                          >
+                        } @else {
+                          <button
+                            type="button"
+                            class="btn btn-sm buyout"
+                            [disabled]="!canAct() || !r.canAfford"
+                            [attr.aria-label]="'Buy out ' + r.name + ' for ' + exact(r.buyoutPrice)"
+                            (click)="askBuyout(t, r, false)"
+                          >
+                            Buy out · {{ r.buyoutPrice | money }}
+                          </button>
+                        }
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-ghost hostile"
+                          [disabled]="!canAct() || capital() < r.hostilePrice"
+                          [attr.aria-label]="
+                            'Hostile takeover of ' + r.name + ' for ' + exact(r.hostilePrice)
+                          "
+                          (click)="askBuyout(t, r, true)"
+                        >
+                          Hostile · {{ r.hostilePrice | money }}
+                        </button>
+                      </div>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+            @for (r of doneRivals(t); track r.key) {
+              <p class="note done" [attr.data-rival]="r.key">
+                {{ r.name }}:
+                {{ r.status === 'acquired' ? 'yours, bought for ' + exact(r.pricePaid) : 'folded' }}
+              </p>
+            }
+          </section>
+        </app-card>
+      }
+    }
+  }
+}
+
+@if (pending(); as p) {
+  <app-confirm-dialog
+    [title]="p.title"
+    [message]="p.message"
+    [confirmLabel]="p.confirmLabel"
+    (confirmed)="confirm()"
+    (cancelled)="pending.set(null)"
+  />
+}

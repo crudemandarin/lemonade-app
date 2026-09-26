@@ -14,6 +14,7 @@ import { FacilitiesPanelComponent } from './components/facilities-panel/faciliti
 import { GameOverComponent } from './components/game-over/game-over.component';
 import { PastDaysDrawerComponent } from './components/past-days-drawer/past-days-drawer.component';
 import { MarketPanelComponent } from './components/market-panel/market-panel.component';
+import { EmpireStripComponent } from './components/empire-strip/empire-strip.component';
 import { StatsStripComponent } from './components/stats-strip/stats-strip.component';
 
 const TIMELINE_KEY = 'lemonade.timelineOpen';
@@ -47,6 +48,7 @@ function loadAlerts(): Record<Resource, number> {
     IconComponent,
     MoneyPipe,
     TimelineChartsComponent,
+    EmpireStripComponent,
     StatsStripComponent,
     EventsBannerComponent,
     MarketPanelComponent,

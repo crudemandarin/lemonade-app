@@ -36,6 +36,8 @@
         (endDay)="store.endDay()"
       />
 
+      <app-empire-strip [era]="game.era" [eraName]="game.eraName" [nextGoal]="game.nextGoal" />
+
       <div class="page-tools">
         @if (game.best; as best) {
           <span class="best-chip">Best: {{ best.score | money }} on day {{ best.days }}</span>

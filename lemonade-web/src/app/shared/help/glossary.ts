@@ -255,6 +255,14 @@ export const HELP_TERMS: HelpTerm[] = [
       'One-time purchases that change a rule: they cannot be sold and are not counted in your net worth. Some have a small daily upkeep, paid with your buildings’. Open them from the Upgrades link. Later eras unlock more.',
   },
   {
+    id: 'empire',
+    icon: 'upgrade',
+    section: 'upgrades',
+    term: 'Empire and eras',
+    definition:
+      'Territories are new markets. Entering one costs money and adds a daily hub upkeep, and the highest territory you hold sets your era, which unlocks bigger buildings and upgrades. Each has rival businesses: buy them out, or run a campaign to win share. Open it from the Empire link.',
+  },
+  {
     id: 'freezer',
     icon: 'warehouse',
     section: 'upgrades',

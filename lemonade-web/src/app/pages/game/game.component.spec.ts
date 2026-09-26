@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
 import { dayReport, newGameView, timelinePoint } from '../../core/testing/fixtures';
 import { GameComponent } from './game.component';
@@ -11,7 +12,7 @@ describe('GameComponent', () => {
 
   async function render(overrides = {}) {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     fixture = TestBed.createComponent(GameComponent);
     http = TestBed.inject(HttpTestingController);

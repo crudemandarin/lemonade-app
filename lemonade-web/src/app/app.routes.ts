@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth.guard';
 import { AchievementsComponent } from './pages/achievements/achievements.component';
+import { EmpireComponent } from './pages/empire/empire.component';
 import { GameComponent } from './pages/game/game.component';
 import { HomeComponent } from './pages/home/home.component';
 import { RunComponent } from './pages/run/run.component';
@@ -18,6 +19,12 @@ export const routes: Routes = [
     component: ScoresComponent,
     canActivate: [authGuard],
     title: 'Scores · Lemonade Tycoon',
+  },
+  {
+    path: 'empire',
+    component: EmpireComponent,
+    canActivate: [authGuard],
+    title: 'Empire · Lemonade Tycoon',
   },
   {
     path: 'upgrades',

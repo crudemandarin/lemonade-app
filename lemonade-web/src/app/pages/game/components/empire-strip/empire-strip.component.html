@@ -1,0 +1,14 @@
+<div class="strip">
+  <span class="era"
+    >Era <strong>{{ era() }}</strong> · {{ eraName() }}</span
+  >
+  @if (nextGoal(); as goal) {
+    <span class="goal"
+      >Next: {{ goal.name }}
+      @if (goal.cost > 0) {
+        · {{ goal.cost | money }}
+      }
+    </span>
+  }
+  <a class="btn btn-sm btn-ghost" routerLink="/empire">Empire</a>
+</div>

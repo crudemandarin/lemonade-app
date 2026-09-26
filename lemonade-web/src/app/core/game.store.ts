@@ -9,6 +9,7 @@ import {
   ReportSummary,
   Resource,
   UpgradesResponse,
+  EmpireResponse,
 } from './api.models';
 import { ApiService } from './api.service';
 import { SessionService } from './session.service';
@@ -95,6 +96,23 @@ export class GameStore {
   /** Buys an upgrade; the game view (cash, features, upkeep) comes back with it. */
   buyUpgrade(key: string): Promise<void> {
     return this.update(this.api.buyUpgrade(key));
+  }
+
+  /** The empire detail is read on demand and kept out of the game state. Rejects on failure. */
+  empireDetail(): Promise<EmpireResponse> {
+    return firstValueFrom(this.api.empire());
+  }
+
+  enterTerritory(key: string): Promise<void> {
+    return this.update(this.api.enterTerritory(key));
+  }
+
+  runCampaign(key: string, level: number): Promise<void> {
+    return this.update(this.api.campaign(key, level));
+  }
+
+  buyOutRival(key: string, hostile: boolean): Promise<void> {
+    return this.update(this.api.buyOut(key, hostile));
   }
 
   /** Past days are read on demand and kept out of the game state. Rejects on failure. */

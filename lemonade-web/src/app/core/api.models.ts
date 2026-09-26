@@ -26,6 +26,8 @@ export interface ResourceView {
   resource: Resource;
   stock: number;
   capacity: number;
+  /** The depth the market gives this product from every territory held. */
+  reach: number;
   price: number;
   /** Yesterday's effective price, for the trend arrow; null on day 1. */
   previousPrice: number | null;
@@ -185,6 +187,8 @@ export interface NetWorth {
   stock: number;
   /** What every building would resell for. */
   facilities: number;
+  /** Half the price paid for each rival bought out. */
+  acquisitions: number;
   total: number;
 }
 
@@ -232,6 +236,18 @@ export interface GameView {
   forecast: ForecastEntry[];
   /** Achievements this response's mutation just earned; `[]` on a plain read. */
   unlocked: UnlockedAchievement[];
+  /** The highest territory entered (1 to 5) and its name. */
+  era: number;
+  eraName: string;
+  /** What to work toward next; null when there is nothing left. */
+  nextGoal: Goal | null;
+}
+
+export interface Goal {
+  kind: string;
+  key: string;
+  name: string;
+  cost: number;
 }
 
 /** An event that will start `daysAhead` days from now (1 is tomorrow). */
@@ -444,4 +460,80 @@ export interface EndDayResponse {
 export interface ApiError {
   error: string;
   message: string;
+}
+
+export type EnterBlocked = '' | 'already_entered' | 'territory_locked' | 'insufficient_funds';
+export type RivalTrend = 'rising' | 'falling' | 'steady';
+
+export interface CampaignOption {
+  level: number;
+  name: string;
+  bonus: number;
+  days: number;
+  cost: number;
+}
+
+export interface Telegraph {
+  key: string;
+  day: number;
+  text: string;
+}
+
+export interface Rival {
+  key: string;
+  name: string;
+  personality: string;
+  flavor: string;
+  /** `active`, `acquired` or `folded`. */
+  status: string;
+  /** `calm`, `struggling` or `hostile`. */
+  mood: string;
+  share: number;
+  valuation: number;
+  trend: RivalTrend;
+  /** The friendly price (a merger offer discounts it). */
+  buyoutPrice: number;
+  /** The price of a hostile takeover, which ignores a refusal. */
+  hostilePrice: number;
+  offer: boolean;
+  offerDaysLeft: number;
+  /** True when a friendly buyout would be refused now; `needShare` (percent) would change its mind. */
+  refuses: boolean;
+  needShare: number;
+  telegraph: Telegraph | null;
+  canAfford: boolean;
+  pricePaid: number;
+  hostile: boolean;
+}
+
+export interface Territory {
+  key: string;
+  name: string;
+  era: number;
+  entered: boolean;
+  depth: number;
+  entryCost: number;
+  entryShare: number;
+  hubUpkeep: number;
+  buildingCap: number;
+  /** The player's share in percent, to one decimal. */
+  share: number;
+  /** The lemonade depth this territory gives now. */
+  reach: number;
+  enterBlocked: EnterBlocked;
+  campaignDaysLeft: number;
+  campaignBonus: number;
+  campaigns: CampaignOption[];
+  rivals: Rival[];
+}
+
+/** GET /api/game/empire. */
+export interface EmpireResponse {
+  era: number;
+  eraName: string;
+  hubUpkeep: number;
+  acquisitions: number;
+  reach: number;
+  nextGoal: Goal | null;
+  territories: Territory[];
 }
